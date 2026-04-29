@@ -1,0 +1,7 @@
+.next
+.next/dev
+node_modules
+src/generated
+pnpm-lock.yaml
+public
+*.md

@@ -1,26 +1,98 @@
 @import "tailwindcss";
 
+/* =====================================================
+   ÉQUATIS — Design tokens (CDC §10.1)
+   ===================================================== */
+
+@theme {
+  --color-equatis-night: #1b2a4a;
+  --color-equatis-night-50: #eef0f5;
+  --color-equatis-night-100: #d6dbe6;
+  --color-equatis-night-200: #adb7cc;
+  --color-equatis-night-300: #8493b3;
+  --color-equatis-night-400: #5b6f99;
+  --color-equatis-night-500: #34527a;
+  --color-equatis-night-600: #28406b;
+  --color-equatis-night-700: #1f335a;
+  --color-equatis-night-800: #1b2a4a;
+  --color-equatis-night-900: #131e36;
+  --color-equatis-night-950: #0a1124;
+
+  --color-equatis-turquoise: #0fb8a9;
+  --color-equatis-turquoise-50: #e6fbf8;
+  --color-equatis-turquoise-100: #c2f3ec;
+  --color-equatis-turquoise-200: #87e6d8;
+  --color-equatis-turquoise-300: #4ed4c1;
+  --color-equatis-turquoise-400: #22c4af;
+  --color-equatis-turquoise-500: #0fb8a9;
+  --color-equatis-turquoise-600: #0c948a;
+  --color-equatis-turquoise-700: #0b756e;
+  --color-equatis-turquoise-800: #0a5a55;
+  --color-equatis-turquoise-900: #093f3c;
+
+  --color-equatis-bg: #f8f9fa;
+  --color-equatis-surface: #ffffff;
+  --color-equatis-border: #e2e6eb;
+  --color-equatis-muted: #6b7280;
+
+  /* Couleurs sémantiques d'état (CDC §10.2) */
+  --color-state-success: #16a34a;
+  --color-state-warning: #d97706;
+  --color-state-danger: #dc2626;
+  --color-state-info: #2563eb;
+
+  /* Couleurs propres aux 4 espaces (CDC §10.2 — sidebar par rôle) */
+  --color-space-collaborator: #1b2a4a;
+  --color-space-promoter: #0fb8a9;
+  --color-space-notary: #6d28d9;
+  --color-space-client: #0ea5e9;
+  --color-space-admin: #111827;
+
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, Helvetica, Arial, sans-serif;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: var(--color-equatis-bg);
+  --foreground: #0f172a;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Focus ring accessible (WCAG 2.2 AA) */
+*:focus-visible {
+  outline: 2px solid var(--color-equatis-turquoise-500);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* Lien "skip to content" pour navigation clavier */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  background: var(--color-equatis-night-800);
+  color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 0 0 var(--radius-md) 0;
+}
+.skip-link:focus {
+  left: 0;
 }

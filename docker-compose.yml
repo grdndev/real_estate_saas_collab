@@ -1,0 +1,53 @@
+# Stack locale Équatis — usage développement uniquement.
+# Pour la prod, OVH Managed PostgreSQL + OVH Object Storage S3-compatible.
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: equatis-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: equatis
+      POSTGRES_PASSWORD: equatis_dev_password
+      POSTGRES_DB: equatis
+    ports:
+      - "5432:5432"
+    volumes:
+      - equatis_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U equatis -d equatis"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Antivirus pour scan des uploads (Phase 2).
+  # Démarrage long (~2min). Décommenter quand on s'attaque aux uploads.
+  # clamav:
+  #   image: clamav/clamav:latest
+  #   container_name: equatis-clamav
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3310:3310"
+  #   volumes:
+  #     - equatis_clamav_data:/var/lib/clamav
+
+  # MinIO pour stockage S3-compatible local (mime OVH Object Storage).
+  # Utile en Phase 2 pour développer l'upload sans dépendre du cloud.
+  # minio:
+  #   image: minio/minio:latest
+  #   container_name: equatis-minio
+  #   restart: unless-stopped
+  #   command: server /data --console-address ":9001"
+  #   environment:
+  #     MINIO_ROOT_USER: minio
+  #     MINIO_ROOT_PASSWORD: minio_dev_password
+  #   ports:
+  #     - "9000:9000"
+  #     - "9001:9001"
+  #   volumes:
+  #     - equatis_minio_data:/data
+
+volumes:
+  equatis_pg_data:
+  # equatis_clamav_data:
+  # equatis_minio_data:
