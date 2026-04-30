@@ -3,8 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssignClientForm } from "@/components/collab/assign-client";
+import { DocumentRequestManager } from "@/components/collab/document-request-manager";
 import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { StatusTransition } from "@/components/collab/status-transition";
 import { Timeline } from "@/components/collab/timeline";
@@ -54,6 +56,10 @@ export default async function DossierDetailPage({ params }: PageProps) {
         programme: true,
         lot: true,
         timelineEvents: { orderBy: { occurredAt: "desc" } },
+        documentRequests: {
+          orderBy: [{ required: "desc" }, { createdAt: "asc" }],
+          include: { documents: { select: { id: true } } },
+        },
         participants: {
           include: {
             user: {
@@ -66,6 +72,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
             },
           },
         },
+        _count: { select: { messages: true } },
       },
     }),
     prisma.user.findMany({
@@ -137,6 +144,49 @@ export default async function DossierDetailPage({ params }: PageProps) {
             </CardHeader>
             <CardContent>
               <Timeline events={timelineWithActors} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Pièces à demander au client</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DocumentRequestManager
+                dossierId={dossier.id}
+                initial={dossier.documentRequests.map((r) => ({
+                  id: r.id,
+                  label: r.label,
+                  required: r.required,
+                  fulfilled: r.fulfilled,
+                  hasDocument: r.documents.length > 0,
+                }))}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Messagerie
+                {dossier._count.messages > 0 && (
+                  <span className="ml-2 text-sm font-normal text-slate-500">
+                    ({dossier._count.messages} message
+                    {dossier._count.messages > 1 ? "s" : ""})
+                  </span>
+                )}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Link href={`/collaborateur/dossiers/${dossier.id}/messagerie`}>
+                <Button variant="outline">Ouvrir la conversation</Button>
+              </Link>
+              {!dossier.clientId && (
+                <p className="mt-2 text-xs text-slate-500">
+                  La messagerie sera activée après l&apos;association d&apos;un
+                  client.
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>
