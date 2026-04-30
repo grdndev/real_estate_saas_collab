@@ -64,6 +64,49 @@ Guide complet pour mettre la plateforme en production sur un VPS OVH.
   - Endpoint : `https://s3.{region}.io.cloud.ovh.net`
   - Coût : ~ 0,01 €/Go/mois + bande passante
 
+#### Création du bucket OVH
+
+1. Console OVH → **Public Cloud → Object Storage → S3** → Créer un container.
+2. Type : **Standard** (privé). Région : la même que le VPS.
+3. Nom : `equatis-documents`.
+4. Créer un **utilisateur S3** (Public Cloud → Users) et noter l'access key + secret.
+5. **CORS — indispensable pour l'upload navigateur direct via URL signée :**
+   ```bash
+   # Avec mc (MinIO Client) ou aws-cli configurés vers OVH
+   cat > cors.json <<'EOF'
+   {
+     "CORSRules": [
+       {
+         "AllowedOrigins": ["https://equatis.fr", "https://www.equatis.fr"],
+         "AllowedMethods": ["PUT", "GET", "HEAD"],
+         "AllowedHeaders": ["*"],
+         "ExposeHeaders": ["ETag"],
+         "MaxAgeSeconds": 3600
+       }
+     ]
+   }
+   EOF
+   aws --endpoint-url https://s3.gra.io.cloud.ovh.net \
+       s3api put-bucket-cors --bucket equatis-documents \
+       --cors-configuration file://cors.json
+   ```
+6. Mettre à jour `.env` du VPS avec `S3_ENDPOINT`, `S3_REGION`, `S3_BUCKET`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`.
+
+### d. Antivirus ClamAV (optionnel mais recommandé pour la prod)
+
+Installer clamav-daemon sur le VPS :
+```bash
+sudo apt install -y clamav clamav-daemon
+sudo systemctl enable --now clamav-freshclam clamav-daemon
+# Vérifier que le daemon écoute en TCP sur 3310 (modifier /etc/clamav/clamd.conf si nécessaire)
+```
+Puis ajouter dans `.env` :
+```ini
+CLAMAV_HOST="127.0.0.1"
+CLAMAV_PORT="3310"
+```
+Si `CLAMAV_HOST` est vide, le scanner stub renvoie CLEAN automatiquement (à n'utiliser qu'en dev).
+
 ## 3. Préparation du VPS (one-time setup)
 
 ```bash

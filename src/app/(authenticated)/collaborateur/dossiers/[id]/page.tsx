@@ -10,9 +10,13 @@ import { DocumentRequestManager } from "@/components/collab/document-request-man
 import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { StatusTransition } from "@/components/collab/status-transition";
 import { Timeline } from "@/components/collab/timeline";
+import { DocumentDropZone } from "@/components/storage/document-drop-zone";
+import { DocumentRowActions } from "@/components/storage/document-row-actions";
+import { ScanStatusBadge } from "@/components/storage/scan-status-badge";
 import { requireRole } from "@/lib/auth/guards";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { prisma } from "@/lib/prisma";
+import { isStorageConfigured } from "@/lib/storage/s3";
 
 export const metadata: Metadata = { title: "Détail dossier" };
 
@@ -60,6 +64,20 @@ export default async function DossierDetailPage({ params }: PageProps) {
           orderBy: [{ required: "desc" }, { createdAt: "asc" }],
           include: { documents: { select: { id: true } } },
         },
+        documents: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            fileName: true,
+            mimeType: true,
+            sizeBytes: true,
+            scanStatus: true,
+            source: true,
+            createdAt: true,
+            uploadedById: true,
+          },
+        },
         participants: {
           include: {
             user: {
@@ -87,6 +105,8 @@ export default async function DossierDetailPage({ params }: PageProps) {
     }),
   ]);
   if (!dossier) notFound();
+
+  const storageReady = isStorageConfigured();
 
   // Hydrate les acteurs de la timeline (1 requête supplémentaire pour éviter une jointure complexe).
   const actorIds = dossier.timelineEvents
@@ -162,6 +182,63 @@ export default async function DossierDetailPage({ params }: PageProps) {
                   hasDocument: r.documents.length > 0,
                 }))}
               />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Documents du dossier ({dossier.documents.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {dossier.documents.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Aucun document n&apos;a encore été déposé.
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-100 text-sm">
+                  {dossier.documents.map((doc) => (
+                    <li
+                      key={doc.id}
+                      className="flex flex-wrap items-center justify-between gap-2 py-2"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{doc.fileName}</p>
+                        <p className="text-xs text-slate-500">
+                          {doc.source === "CLIENT_UPLOAD"
+                            ? "Déposé par le client"
+                            : doc.source === "COLLABORATOR_UPLOAD"
+                              ? "Partagé au client"
+                              : doc.source}{" "}
+                          · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
+                          {doc.createdAt.toLocaleDateString("fr-FR")}
+                        </p>
+                      </div>
+                      <ScanStatusBadge status={doc.scanStatus} />
+                      <DocumentRowActions
+                        documentId={doc.id}
+                        scanStatus={doc.scanStatus}
+                        canDelete
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {storageReady ? (
+                <DocumentDropZone
+                  dossierId={dossier.id}
+                  source="COLLABORATOR_UPLOAD"
+                  label="Partager un document avec le client"
+                  compact
+                />
+              ) : (
+                <p className="text-xs text-slate-500">
+                  Stockage S3 non configuré — renseignez les variables S3_* dans{" "}
+                  <code>.env</code> pour activer l&apos;upload.
+                </p>
+              )}
             </CardContent>
           </Card>
 

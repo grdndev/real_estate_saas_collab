@@ -20,8 +20,48 @@ services:
       timeout: 3s
       retries: 10
 
-  # Antivirus pour scan des uploads (Phase 2).
-  # Démarrage long (~2min). Décommenter quand on s'attaque aux uploads.
+  # Stockage S3-compatible local (mime OVH Object Storage).
+  # Console : http://localhost:9001 (login minio / minio_dev_password)
+  minio:
+    image: minio/minio:latest
+    container_name: equatis-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio_dev_password
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - equatis_minio_data:/data
+    healthcheck:
+      test:
+        ["CMD", "curl", "-fI", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Crée le bucket par défaut "equatis-documents-dev" au démarrage de MinIO.
+  minio-init:
+    image: minio/mc:latest
+    container_name: equatis-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 minio minio_dev_password;
+      mc mb --ignore-existing local/equatis-documents-dev;
+      mc anonymous set none local/equatis-documents-dev;
+      echo 'Bucket equatis-documents-dev prêt';
+      "
+    restart: "no"
+
+  # Antivirus pour scan des uploads (Phase 2.3).
+  # Démarrage long (~2min — téléchargement signatures).
+  # Décommenter pour activer le scan ClamAV en local ; sinon le worker
+  # marque les fichiers CLEAN automatiquement (mode stub).
   # clamav:
   #   image: clamav/clamav:latest
   #   container_name: equatis-clamav
@@ -31,23 +71,7 @@ services:
   #   volumes:
   #     - equatis_clamav_data:/var/lib/clamav
 
-  # MinIO pour stockage S3-compatible local (mime OVH Object Storage).
-  # Utile en Phase 2 pour développer l'upload sans dépendre du cloud.
-  # minio:
-  #   image: minio/minio:latest
-  #   container_name: equatis-minio
-  #   restart: unless-stopped
-  #   command: server /data --console-address ":9001"
-  #   environment:
-  #     MINIO_ROOT_USER: minio
-  #     MINIO_ROOT_PASSWORD: minio_dev_password
-  #   ports:
-  #     - "9000:9000"
-  #     - "9001:9001"
-  #   volumes:
-  #     - equatis_minio_data:/data
-
 volumes:
   equatis_pg_data:
+  equatis_minio_data:
   # equatis_clamav_data:
-  # equatis_minio_data:
