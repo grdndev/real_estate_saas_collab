@@ -1,0 +1,234 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AssignClientForm } from "@/components/collab/assign-client";
+import { RevealNameButton } from "@/components/collab/reveal-name-button";
+import { StatusTransition } from "@/components/collab/status-transition";
+import { Timeline } from "@/components/collab/timeline";
+import { requireRole } from "@/lib/auth/guards";
+import { findDossierForUser } from "@/lib/dossier/access";
+import { prisma } from "@/lib/prisma";
+
+export const metadata: Metadata = { title: "Détail dossier" };
+
+const STATUS_BADGE = {
+  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
+  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
+  SIGNATURE_PENDING: {
+    label: "Signature en attente",
+    variant: "warning" as const,
+  },
+  SIGNED_AT_NOTARY: { label: "Chez le notaire", variant: "info" as const },
+  LOAN_OFFER_RECEIVED: {
+    label: "Offre de prêt reçue",
+    variant: "info" as const,
+  },
+  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
+  BLOCKED: { label: "Bloqué", variant: "danger" as const },
+};
+
+const eur = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function DossierDetailPage({ params }: PageProps) {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const { id } = await params;
+
+  const accessible = await findDossierForUser(id, me.id, me.role);
+  if (!accessible) notFound();
+
+  const [dossier, pendingClients] = await Promise.all([
+    prisma.dossier.findUnique({
+      where: { id },
+      include: {
+        programme: true,
+        lot: true,
+        timelineEvents: { orderBy: { occurredAt: "desc" } },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    }),
+    prisma.user.findMany({
+      where: {
+        role: "CLIENT",
+        status: "PENDING_ASSOCIATION",
+        deletedAt: null,
+        clientDossier: null,
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    }),
+  ]);
+  if (!dossier) notFound();
+
+  // Hydrate les acteurs de la timeline (1 requête supplémentaire pour éviter une jointure complexe).
+  const actorIds = dossier.timelineEvents
+    .map((e) => e.actorId)
+    .filter((aid): aid is string => Boolean(aid));
+  const actors =
+    actorIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: actorIds } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
+  const actorMap = new Map(actors.map((a) => [a.id, a] as const));
+  const timelineWithActors = dossier.timelineEvents.map((e) => ({
+    ...e,
+    actor: e.actorId ? (actorMap.get(e.actorId) ?? null) : null,
+  }));
+
+  const sb = STATUS_BADGE[dossier.status];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <Link
+          href="/collaborateur/dossiers"
+          className="text-equatis-turquoise-700 text-sm hover:underline"
+        >
+          ← Retour aux dossiers
+        </Link>
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-equatis-night-700 font-mono text-xs uppercase">
+              {dossier.reference}
+            </p>
+            <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
+              {dossier.programme.name}
+              {dossier.lot && (
+                <span className="ml-2 text-base font-normal text-slate-500">
+                  · Lot {dossier.lot.reference}
+                </span>
+              )}
+            </h1>
+            <p className="mt-2">
+              <Badge variant={sb.variant}>{sb.label}</Badge>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="flex flex-col gap-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Timeline</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Timeline events={timelineWithActors} />
+            </CardContent>
+          </Card>
+        </div>
+
+        <div className="flex flex-col gap-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Client</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dossier.clientId ? (
+                <div className="space-y-2 text-sm">
+                  <RevealNameButton
+                    dossierId={dossier.id}
+                    fallbackMasked="●●●●● ●●●●●●"
+                  />
+                  <p className="text-xs text-slate-500">
+                    L&apos;affichage du nom est tracé dans le journal
+                    d&apos;audit.
+                  </p>
+                </div>
+              ) : (
+                <AssignClientForm
+                  dossierId={dossier.id}
+                  pendingClients={pendingClients}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Lot</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-1 text-sm">
+              {dossier.lot ? (
+                <>
+                  <p className="font-mono">{dossier.lot.reference}</p>
+                  <p className="text-slate-600">
+                    {dossier.lot.surface.toString()} m² · {dossier.lot.type}
+                  </p>
+                  <p className="text-slate-600">
+                    Prix TTC :{" "}
+                    <strong>{eur.format(Number(dossier.lot.priceTTC))}</strong>
+                  </p>
+                </>
+              ) : (
+                <p className="text-slate-500">Aucun lot rattaché.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Équipe</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2 text-sm">
+                {dossier.participants.map((p) => (
+                  <li
+                    key={`${p.userId}-${p.role}`}
+                    className="flex items-center justify-between"
+                  >
+                    <span>
+                      {p.user.firstName} {p.user.lastName}
+                    </span>
+                    <span className="text-xs text-slate-500">
+                      {p.role === "COLLABORATOR_PRIMARY"
+                        ? "référent"
+                        : p.role === "COLLABORATOR_SECONDARY"
+                          ? "secondaire"
+                          : "notaire"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Changer le statut</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <StatusTransition
+                dossierId={dossier.id}
+                currentStatus={dossier.status}
+              />
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
