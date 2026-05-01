@@ -10,6 +10,7 @@ import { DocumentRequestManager } from "@/components/collab/document-request-man
 import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { StatusTransition } from "@/components/collab/status-transition";
 import { Timeline } from "@/components/collab/timeline";
+import { TransmitNotaryForm } from "@/components/collab/transmit-notary-form";
 import { DocumentDropZone } from "@/components/storage/document-drop-zone";
 import { DocumentRowActions } from "@/components/storage/document-row-actions";
 import { ScanStatusBadge } from "@/components/storage/scan-status-badge";
@@ -53,7 +54,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
   const accessible = await findDossierForUser(id, me.id, me.role);
   if (!accessible) notFound();
 
-  const [dossier, pendingClients] = await Promise.all([
+  const [dossier, pendingClients, notaries] = await Promise.all([
     prisma.dossier.findUnique({
       where: { id },
       include: {
@@ -101,6 +102,11 @@ export default async function DossierDetailPage({ params }: PageProps) {
         clientDossier: null,
       },
       orderBy: { createdAt: "desc" },
+      select: { id: true, firstName: true, lastName: true, email: true },
+    }),
+    prisma.user.findMany({
+      where: { role: "NOTARY", status: "ACTIVE", deletedAt: null },
+      orderBy: { lastName: "asc" },
       select: { id: true, firstName: true, lastName: true, email: true },
     }),
   ]);
@@ -351,6 +357,23 @@ export default async function DossierDetailPage({ params }: PageProps) {
               <StatusTransition
                 dossierId={dossier.id}
                 currentStatus={dossier.status}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                {dossier.notaryId
+                  ? "Notaire assigné"
+                  : "Transmettre au notaire"}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TransmitNotaryForm
+                dossierId={dossier.id}
+                notaries={notaries}
+                currentNotaryId={dossier.notaryId}
               />
             </CardContent>
           </Card>
