@@ -6,6 +6,12 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
+import { notify } from "@/lib/notifications";
+import { getMailer } from "@/lib/mail";
+import {
+  actReadyMail,
+  transmittedToNotaryMail,
+} from "@/lib/mail/auto-templates";
 import { getRequestContext } from "@/lib/request-context";
 import {
   flagMissingPieceSchema,
@@ -104,6 +110,32 @@ export async function transmitToNotaryAction(
     metadata: { notaryId: parsed.data.notaryId },
   });
 
+  // Notifier le notaire
+  await notify({
+    userId: parsed.data.notaryId,
+    kind: "TRANSMITTED_TO_NOTARY",
+    title: "Nouveau dossier reçu",
+    body: `Dossier ${dossier.reference} transmis pour traitement.`,
+    link: `/notaire/${dossier.id}`,
+  });
+  // Email auto (CDC §8.5)
+  void (async () => {
+    const programme = await prisma.programme.findUnique({
+      where: { id: dossier.programmeId },
+      select: { name: true },
+    });
+    await getMailer().send(
+      transmittedToNotaryMail(
+        notary.email,
+        notary.firstName,
+        dossier.reference,
+        programme?.name ?? "—",
+      ),
+    );
+  })().catch((err) => {
+    console.error("[mail] transmittedToNotary", err);
+  });
+
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
   revalidatePath("/notaire");
   return { ok: true, value: undefined };
@@ -164,6 +196,55 @@ export async function notaryUpdateStatusAction(
     userAgent: ctx.userAgent,
     metadata: { from: dossier.status, to: status, by: "notary" },
   });
+
+  // Notifier les participants (sauf le notaire qui agit).
+  if (status === "ACT_SIGNED") {
+    const { notifyDossierParticipants } = await import("@/lib/notifications");
+    await notifyDossierParticipants(
+      dossier.id,
+      me.id,
+      "ACT_READY",
+      "Acte signé",
+      `Le dossier ${dossier.reference} a été signé chez le notaire.`,
+      `/collaborateur/dossiers/${dossier.id}`,
+    );
+
+    // Email auto (CDC §8.5) au client + collaborateurs.
+    void (async () => {
+      const dossierWithRel = await prisma.dossier.findUnique({
+        where: { id: dossier.id },
+        include: {
+          client: { select: { email: true, firstName: true } },
+          participants: {
+            where: {
+              role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
+            },
+            include: {
+              user: { select: { email: true, firstName: true } },
+            },
+          },
+        },
+      });
+      if (!dossierWithRel) return;
+      const mailer = getMailer();
+      if (dossierWithRel.client) {
+        await mailer.send(
+          actReadyMail(
+            dossierWithRel.client.email,
+            dossierWithRel.client.firstName,
+            dossier.reference,
+          ),
+        );
+      }
+      for (const p of dossierWithRel.participants) {
+        await mailer.send(
+          actReadyMail(p.user.email, p.user.firstName, dossier.reference),
+        );
+      }
+    })().catch((err) => {
+      console.error("[mail] actReady", err);
+    });
+  }
 
   revalidatePath(`/notaire/${dossier.id}`);
   revalidatePath("/notaire");
@@ -228,6 +309,26 @@ export async function flagMissingPieceAction(
     userAgent: ctx.userAgent,
     metadata: { step: "missing_piece_flagged", label: parsed.data.label },
   });
+
+  // Notifier les collaborateurs du dossier.
+  const collaborators = await prisma.dossierParticipant.findMany({
+    where: {
+      dossierId: dossier.id,
+      role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
+    },
+    select: { userId: true },
+  });
+  await Promise.all(
+    collaborators.map((c) =>
+      notify({
+        userId: c.userId,
+        kind: "MISSING_PIECE_REPORTED",
+        title: "Pièce manquante signalée par le notaire",
+        body: `${dossier.reference} : ${parsed.data.label}`,
+        link: `/collaborateur/dossiers/${dossier.id}`,
+      }),
+    ),
+  );
 
   revalidatePath(`/notaire/${dossier.id}`);
   return { ok: true, value: undefined };

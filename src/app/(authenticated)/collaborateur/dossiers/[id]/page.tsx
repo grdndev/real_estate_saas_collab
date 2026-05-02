@@ -10,6 +10,7 @@ import { DocumentRequestManager } from "@/components/collab/document-request-man
 import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { StatusTransition } from "@/components/collab/status-transition";
 import { Timeline } from "@/components/collab/timeline";
+import { RequestSignatureBlock } from "@/components/collab/request-signature";
 import { TransmitNotaryForm } from "@/components/collab/transmit-notary-form";
 import { DocumentDropZone } from "@/components/storage/document-drop-zone";
 import { DocumentRowActions } from "@/components/storage/document-row-actions";
@@ -79,6 +80,17 @@ export default async function DossierDetailPage({ params }: PageProps) {
             uploadedById: true,
           },
         },
+        signatures: {
+          orderBy: { createdAt: "desc" },
+          select: {
+            id: true,
+            status: true,
+            signerEmail: true,
+            signedAt: true,
+            createdAt: true,
+          },
+        },
+        client: { select: { firstName: true, lastName: true, email: true } },
         participants: {
           include: {
             user: {
@@ -374,6 +386,29 @@ export default async function DossierDetailPage({ params }: PageProps) {
                 dossierId={dossier.id}
                 notaries={notaries}
                 currentNotaryId={dossier.notaryId}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Signature électronique</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RequestSignatureBlock
+                dossierId={dossier.id}
+                reference={dossier.reference}
+                defaultSigner={
+                  dossier.client
+                    ? {
+                        firstName: dossier.client.firstName,
+                        lastName: dossier.client.lastName,
+                        email: dossier.client.email,
+                      }
+                    : null
+                }
+                signatures={dossier.signatures}
+                yousignReady={Boolean(process.env.YOUSIGN_API_KEY)}
               />
             </CardContent>
           </Card>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
+import { notify, notifyDossierParticipants } from "@/lib/notifications";
 import { encrypt } from "@/lib/crypto";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { getRequestContext } from "@/lib/request-context";
@@ -67,6 +68,17 @@ export async function requestDocumentAction(
     userAgent: ctx.userAgent,
     metadata: { dossierId: data.dossierId, label: data.label },
   });
+
+  // Notifier le client si associé.
+  if (dossier.clientId) {
+    await notify({
+      userId: dossier.clientId,
+      kind: "DOCUMENT_REQUESTED",
+      title: "Nouvelle pièce à déposer",
+      body: data.label,
+      link: "/client/documents",
+    });
+  }
 
   revalidatePath(`/collaborateur/dossiers/${data.dossierId}`);
   revalidatePath("/client");
@@ -151,6 +163,18 @@ export async function sendMessageAction(
       length: parsed.data.body.length,
     },
   });
+
+  // Notifie les autres participants (collab + client si différent du sender).
+  await notifyDossierParticipants(
+    parsed.data.dossierId,
+    me.id,
+    "NEW_MESSAGE",
+    "Nouveau message",
+    parsed.data.body.slice(0, 120),
+    me.role === "CLIENT"
+      ? `/collaborateur/dossiers/${parsed.data.dossierId}/messagerie`
+      : "/client/messagerie",
+  );
 
   revalidatePath(`/collaborateur/dossiers/${parsed.data.dossierId}/messagerie`);
   revalidatePath("/client/messagerie");

@@ -7,6 +7,9 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
+import { notify } from "@/lib/notifications";
+import { getMailer } from "@/lib/mail";
+import { dossierAssociatedMail } from "@/lib/mail/auto-templates";
 import { generateDossierReference } from "@/lib/dossier/reference";
 import { getRequestContext } from "@/lib/request-context";
 import {
@@ -300,6 +303,23 @@ export async function assignClientAction(
     userAgent: ctx.userAgent,
     metadata: { action: "client_assigned", clientId: data.clientId },
   });
+
+  // Notifier le client de l'association (déclencheur CDC §8.5)
+  await notify({
+    userId: data.clientId,
+    kind: "DOSSIER_ASSOCIATED",
+    title: "Votre dossier est prêt",
+    body: `Votre dossier ${dossier.reference} a été créé. Vous pouvez maintenant suivre son avancement.`,
+    link: "/client",
+  });
+  // Email auto (CDC §8.5)
+  void getMailer()
+    .send(
+      dossierAssociatedMail(client.email, client.firstName, dossier.reference),
+    )
+    .catch((err) => {
+      console.error("[mail] dossierAssociated", err);
+    });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
   return { ok: true, value: undefined };

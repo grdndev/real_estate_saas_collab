@@ -13,7 +13,18 @@ export async function register() {
     await startWorkers();
   } catch (err) {
     console.error(
-      "[instrumentation] Impossible de démarrer les workers pg-boss :",
+      "[instrumentation] Impossible de démarrer les workers scan :",
+      err instanceof Error ? err.message : err,
+    );
+  }
+
+  try {
+    const { startRelaunchScheduler } =
+      await import("@/lib/queue/relaunch-worker");
+    await startRelaunchScheduler();
+  } catch (err) {
+    console.error(
+      "[instrumentation] Impossible de démarrer le scheduler relance :",
       err instanceof Error ? err.message : err,
     );
   }

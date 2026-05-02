@@ -6,6 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
+import { notifyDossierParticipants } from "@/lib/notifications";
+import { getMailer } from "@/lib/mail";
+import { newDocumentMail, pieceDepositedMail } from "@/lib/mail/auto-templates";
 import { enqueueScan } from "@/lib/queue";
 import {
   buildDocumentKey,
@@ -164,6 +167,68 @@ export async function confirmUploadAction(
   }
 
   await enqueueScan(document.id);
+
+  // Notifie les autres participants du dossier
+  if (document.dossierId) {
+    await notifyDossierParticipants(
+      document.dossierId,
+      me.id,
+      "NEW_DOCUMENT",
+      document.source === "CLIENT_UPLOAD"
+        ? "Pièce déposée par le client"
+        : "Document partagé",
+      document.fileName,
+      document.source === "CLIENT_UPLOAD"
+        ? `/collaborateur/dossiers/${document.dossierId}`
+        : "/client/documents",
+    );
+
+    // Email auto (CDC §8.5)
+    void (async () => {
+      const dossierWithRel = await prisma.dossier.findUnique({
+        where: { id: document.dossierId! },
+        include: {
+          client: { select: { email: true, firstName: true } },
+          participants: {
+            where: {
+              role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
+            },
+            include: {
+              user: { select: { email: true, firstName: true } },
+            },
+          },
+        },
+      });
+      if (!dossierWithRel) return;
+      const mailer = getMailer();
+      if (document.source === "CLIENT_UPLOAD") {
+        // Notifier les collaborateurs.
+        for (const p of dossierWithRel.participants) {
+          await mailer.send(
+            pieceDepositedMail(
+              p.user.email,
+              p.user.firstName,
+              dossierWithRel.reference,
+              document.fileName,
+            ),
+          );
+        }
+      } else if (
+        document.source === "COLLABORATOR_UPLOAD" &&
+        dossierWithRel.client
+      ) {
+        await mailer.send(
+          newDocumentMail(
+            dossierWithRel.client.email,
+            dossierWithRel.client.firstName,
+            document.fileName,
+          ),
+        );
+      }
+    })().catch((err) => {
+      console.error("[mail] confirmUpload", err);
+    });
+  }
 
   if (document.dossierId) {
     revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);

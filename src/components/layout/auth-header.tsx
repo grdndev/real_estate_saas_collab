@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Bell, LogOut, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import { auth } from "@/auth";
+import { NotificationsBell } from "@/components/notifications/notifications-bell";
 
 const ROLE_LABEL: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -27,13 +28,7 @@ export async function AuthHeader() {
           Équatis
         </Link>
         <nav className="flex items-center gap-2 text-sm">
-          <button
-            type="button"
-            aria-label="Notifications"
-            className="text-equatis-night-700 hover:bg-equatis-night-50 inline-flex size-9 items-center justify-center rounded-md transition"
-          >
-            <Bell className="size-4" aria-hidden />
-          </button>
+          <NotificationsBell />
           <Link
             href="/profil"
             className="text-equatis-night-700 hover:bg-equatis-night-50 inline-flex h-9 items-center gap-2 rounded-md px-3 transition"

@@ -32,9 +32,14 @@ export const PUBLIC_ROUTES = [
   "/reinitialisation",
   "/confidentialite",
   "/conditions",
+  "/verifier-email",
 ] as const;
 
-const PUBLIC_API_PREFIXES = ["/api/auth", "/api/public"];
+const PUBLIC_API_PREFIXES = [
+  "/api/auth",
+  "/api/public",
+  "/api/yousign/webhook",
+];
 
 export function isPublicRoute(pathname: string): boolean {
   if (PUBLIC_ROUTES.includes(pathname as (typeof PUBLIC_ROUTES)[number])) {
