@@ -99,7 +99,7 @@ export function TransmitNotaryForm({
       <ConfirmDialog
         open={confirm}
         title="Transmettre ce dossier au notaire ?"
-        description="Le notaire sélectionné aura accès au dossier en lecture, pourra signaler des pièces manquantes et confirmer la signature de l'acte. Le statut passe à « Chez le notaire »."
+        description="Le notaire sélectionné aura accès au dossier en lecture, pourra signaler des pièces manquantes et confirmer la signature de l'acte. Le statut passe à « Envoyé chez le notaire »."
         confirmLabel="Transmettre"
         pending={pending}
         onCancel={() => setConfirm(false)}

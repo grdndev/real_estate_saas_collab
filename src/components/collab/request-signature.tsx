@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/dialog";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { requestSignatureAction } from "@/lib/yousign/actions";
 
 interface SignatureRow {
@@ -19,10 +20,24 @@ interface SignatureRow {
   createdAt: Date;
 }
 
+export interface SignatureRecipient {
+  role: "client" | "notary";
+  label: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface SignatureDocument {
+  id: string;
+  fileName: string;
+}
+
 interface Props {
   dossierId: string;
   reference: string;
-  defaultSigner: { firstName: string; lastName: string; email: string } | null;
+  recipients: SignatureRecipient[];
+  documents: SignatureDocument[];
   signatures: SignatureRow[];
   yousignReady: boolean;
 }
@@ -46,7 +61,8 @@ const STATUS_BADGE: Record<
 export function RequestSignatureBlock({
   dossierId,
   reference,
-  defaultSigner,
+  recipients,
+  documents,
   signatures,
   yousignReady,
 }: Props) {
@@ -55,16 +71,29 @@ export function RequestSignatureBlock({
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [firstName, setFirstName] = useState(defaultSigner?.firstName ?? "");
-  const [lastName, setLastName] = useState(defaultSigner?.lastName ?? "");
-  const [email, setEmail] = useState(defaultSigner?.email ?? "");
+
+  const [recipientKey, setRecipientKey] = useState(recipients[0]?.role ?? "");
+  const [documentId, setDocumentId] = useState("");
+  const [firstName, setFirstName] = useState(recipients[0]?.firstName ?? "");
+  const [lastName, setLastName] = useState(recipients[0]?.lastName ?? "");
+  const [email, setEmail] = useState(recipients[0]?.email ?? "");
+
+  function onRecipientChange(role: string) {
+    setRecipientKey(role);
+    const r = recipients.find((x) => x.role === role);
+    if (r) {
+      setFirstName(r.firstName);
+      setLastName(r.lastName);
+      setEmail(r.email);
+    }
+  }
 
   function submit() {
     setError(null);
     startTransition(async () => {
       const result = await requestSignatureAction({
         dossierId,
-        documentId: null,
+        documentId: documentId || null,
         signerEmail: email,
         signerFirstName: firstName,
         signerLastName: lastName,
@@ -85,7 +114,7 @@ export function RequestSignatureBlock({
     <div className="space-y-3">
       {!yousignReady && (
         <Alert variant="warning">
-          Yousign n&apos;est pas configuré (variables YOUSIGN_API_KEY).
+          Yousign n&apos;est pas configuré (variable YOUSIGN_API_KEY).
         </Alert>
       )}
       {signatures.length > 0 && (
@@ -102,7 +131,7 @@ export function RequestSignatureBlock({
                   <p className="text-xs text-slate-500">
                     {s.signedAt
                       ? `Signée le ${s.signedAt.toLocaleDateString("fr-FR")}`
-                      : `Demandée le ${s.createdAt.toLocaleDateString("fr-FR")}`}
+                      : `Envoyée le ${s.createdAt.toLocaleDateString("fr-FR")}`}
                   </p>
                 </div>
                 <Badge variant={sb.variant}>{sb.label}</Badge>
@@ -118,7 +147,7 @@ export function RequestSignatureBlock({
           onClick={() => setOpen(true)}
           variant="outline"
         >
-          Demander une signature
+          Envoyer un document pour signature
         </Button>
       ) : (
         <div className="space-y-3 rounded-md border border-slate-200 p-3">
@@ -127,6 +156,37 @@ export function RequestSignatureBlock({
               {error}
             </Alert>
           )}
+
+          <FormField label="Document à envoyer" htmlFor="sig-doc">
+            <Select
+              id="sig-doc"
+              value={documentId}
+              onChange={(e) => setDocumentId(e.target.value)}
+            >
+              <option value="">— Générer un document type Équatis —</option>
+              {documents.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.fileName}
+                </option>
+              ))}
+            </Select>
+          </FormField>
+
+          <FormField label="Destinataire" htmlFor="sig-recipient">
+            <Select
+              id="sig-recipient"
+              value={recipientKey}
+              onChange={(e) => onRecipientChange(e.target.value)}
+            >
+              {recipients.map((r) => (
+                <option key={r.role} value={r.role}>
+                  {r.label}
+                </option>
+              ))}
+              <option value="">Autre destinataire…</option>
+            </Select>
+          </FormField>
+
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <FormField label="Prénom" htmlFor="sig-fn" required>
               <Input
@@ -151,6 +211,7 @@ export function RequestSignatureBlock({
               onChange={(e) => setEmail(e.target.value)}
             />
           </FormField>
+
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setOpen(false)}>
               Annuler
@@ -164,7 +225,7 @@ export function RequestSignatureBlock({
                 !email.includes("@")
               }
             >
-              Envoyer la demande
+              Envoyer pour signature
             </Button>
           </div>
         </div>
@@ -172,8 +233,8 @@ export function RequestSignatureBlock({
 
       <ConfirmDialog
         open={confirm}
-        title="Lancer la procédure de signature ?"
-        description={`Yousign enverra un email à ${email} avec un lien de signature électronique simple. Cette action est journalisée.`}
+        title="Envoyer le document pour signature ?"
+        description={`Yousign enverra un email à ${email} avec un lien de signature électronique. Le document signé reviendra automatiquement sur le dossier. Cette action est journalisée.`}
         confirmLabel="Confirmer l'envoi"
         pending={pending}
         onCancel={() => setConfirm(false)}

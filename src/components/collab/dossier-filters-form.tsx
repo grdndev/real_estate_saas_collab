@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
   { value: "NEW_LEAD", label: "Nouveau lead" },
   { value: "RESERVATION_SENT", label: "Réservation envoyée" },
   { value: "SIGNATURE_PENDING", label: "Signature en attente" },
-  { value: "SIGNED_AT_NOTARY", label: "Chez le notaire" },
+  { value: "SIGNED_AT_NOTARY", label: "Envoyé chez le notaire" },
   { value: "LOAN_OFFER_RECEIVED", label: "Offre de prêt reçue" },
   { value: "ACT_SIGNED", label: "Acte signé" },
   { value: "BLOCKED", label: "Bloqué" },

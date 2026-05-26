@@ -26,39 +26,33 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
   const programme = await findProgrammeForRole(id, me.id, me.role);
   if (!programme) notFound();
 
-  const [lots, lotStats] = await Promise.all([
-    prisma.lot.findMany({
-      where: { programmeId: id },
-      select: { surface: true, priceTTC: true, status: true },
-    }),
-    prisma.lot.groupBy({
-      by: ["status"],
-      where: { programmeId: id },
-      _count: { _all: true },
-    }),
-  ]);
+  const lots = await prisma.lot.findMany({
+    where: { programmeId: id },
+    select: { surface: true, priceTTC: true, status: true },
+  });
+
+  // Suivi commercial : compte + CA prévisionnel par statut de lot.
+  const view = {
+    AVAILABLE: { count: 0, ca: 0 },
+    OPTIONED: { count: 0, ca: 0 },
+    RESERVED: { count: 0, ca: 0 },
+    SOLD: { count: 0, ca: 0 },
+    WITHDRAWN: { count: 0, ca: 0 },
+  };
+  for (const lot of lots) {
+    const bucket = view[lot.status];
+    bucket.count++;
+    bucket.ca += Number(lot.priceTTC);
+  }
 
   const total = lots.length;
-  const counts = {
-    AVAILABLE: 0,
-    RESERVED: 0,
-    SOLD: 0,
-    WITHDRAWN: 0,
-  } as Record<string, number>;
-  for (const row of lotStats) counts[row.status] = row._count._all;
-
-  const sold = counts["SOLD"] ?? 0;
-  const reserved = counts["RESERVED"] ?? 0;
-  const available = counts["AVAILABLE"] ?? 0;
-
-  const realisedCa = lots
-    .filter((l) => l.status === "SOLD")
-    .reduce((acc, l) => acc + Number(l.priceTTC), 0);
+  // CA prévisionnel total = lots commercialisables (hors retirés).
+  const caTotal =
+    view.AVAILABLE.ca + view.OPTIONED.ca + view.RESERVED.ca + view.SOLD.ca;
   const objective = programme.caObjective
     ? Number(programme.caObjective)
     : null;
 
-  // Prix moyen au m² sur les lots ayant une surface > 0.
   const validLots = lots.filter((l) => Number(l.surface) > 0);
   const avgPriceM2 =
     validLots.length > 0
@@ -68,10 +62,10 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
         ) / validLots.length
       : 0;
 
-  const soldPercent = total > 0 ? Math.round((sold / total) * 100) : 0;
-  const reservedPercent = total > 0 ? Math.round((reserved / total) * 100) : 0;
   const caPercent =
-    objective && objective > 0 ? Math.round((realisedCa / objective) * 100) : 0;
+    objective && objective > 0
+      ? Math.round((view.SOLD.ca / objective) * 100)
+      : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,36 +81,43 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
         )}
       </div>
 
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Suivi commercial — une vue par statut, avec CA prévisionnel. */}
+      <section className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <CommercialCard
+          label="Optionnés"
+          count={view.OPTIONED.count}
+          ca={view.OPTIONED.ca}
+          tone="violet"
+        />
+        <CommercialCard
+          label="Réservés"
+          count={view.RESERVED.count}
+          ca={view.RESERVED.ca}
+          tone="amber"
+        />
+        <CommercialCard
+          label="Vendus"
+          count={view.SOLD.count}
+          ca={view.SOLD.ca}
+          tone="emerald"
+        />
+        <CommercialCard
+          label="Disponibles"
+          count={view.AVAILABLE.count}
+          ca={view.AVAILABLE.ca}
+          tone="sky"
+        />
+        <CommercialCard label="Total" count={total} ca={caTotal} tone="night" />
+      </section>
+
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader>
-            <CardTitle>Lots vendus</CardTitle>
+            <CardTitle>Chiffre d&apos;affaires réalisé</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-equatis-night-800 text-3xl font-bold">
-              {sold} / {total}
-            </p>
-            <Bar percent={soldPercent} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Lots réservés</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-equatis-night-800 text-3xl font-bold">
-              {reserved} / {total}
-            </p>
-            <Bar percent={reservedPercent} variant="warning" />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Chiffre d&apos;affaires</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-equatis-night-800 text-3xl font-bold">
-              {eur.format(realisedCa)}
+              {eur.format(view.SOLD.ca)}
             </p>
             {objective && (
               <>
@@ -128,32 +129,53 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
             )}
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistiques lots optionnés</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-equatis-night-800 text-3xl font-bold">
+              {view.OPTIONED.count}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              {total > 0
+                ? `${Math.round((view.OPTIONED.count / total) * 100)}% du programme`
+                : "—"}{" "}
+              · CA potentiel {eur.format(view.OPTIONED.ca)}
+            </p>
+            <Bar
+              percent={total > 0 ? (view.OPTIONED.count / total) * 100 : 0}
+              variant="violet"
+            />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>Prix moyen / m²</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-equatis-night-800 text-3xl font-bold">
+              {eur.format(avgPriceM2)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              sur {validLots.length} lot{validLots.length > 1 ? "s" : ""}
+            </p>
+          </CardContent>
+        </Card>
       </section>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Statistiques</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Disponibles" value={available} />
-          <Stat label="Réservés" value={reserved} />
-          <Stat label="Vendus" value={sold} />
-          <Stat label="Prix moyen / m²" value={eur.format(avgPriceM2)} />
-        </CardContent>
-      </Card>
 
       <div className="flex flex-wrap items-center gap-3 text-sm">
         <Link
           href={`/promoteur/${id}/lots`}
           className="text-equatis-turquoise-700 hover:underline"
         >
-          → Voir la grille de prix &amp; lots
+          → Grille de prix &amp; lots
         </Link>
         <Link
           href={`/promoteur/${id}/tresorerie`}
           className="text-equatis-turquoise-700 hover:underline"
         >
-          → Trésorerie prévisionnelle
+          → Rapprochement bancaire / trésorerie
         </Link>
         <Link
           href={`/promoteur/${id}/ventes`}
@@ -161,7 +183,42 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
         >
           → Suivi des ventes
         </Link>
+        <Link
+          href={`/promoteur/${id}/contrats`}
+          className="text-equatis-turquoise-700 hover:underline"
+        >
+          → Suivi des contrats
+        </Link>
       </div>
+    </div>
+  );
+}
+
+const TONES = {
+  violet: "border-violet-200 bg-violet-50 text-violet-800",
+  amber: "border-amber-200 bg-amber-50 text-amber-800",
+  emerald: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  sky: "border-sky-200 bg-sky-50 text-sky-800",
+  night: "border-equatis-night-200 bg-equatis-night-50 text-equatis-night-800",
+} as const;
+
+function CommercialCard({
+  label,
+  count,
+  ca,
+  tone,
+}: {
+  label: string;
+  count: number;
+  ca: number;
+  tone: keyof typeof TONES;
+}) {
+  return (
+    <div className={`rounded-lg border p-3 ${TONES[tone]}`}>
+      <p className="text-xs font-semibold uppercase">{label}</p>
+      <p className="mt-1 text-2xl font-bold">{count}</p>
+      <p className="mt-0.5 text-xs opacity-80">{eur.format(ca)}</p>
+      <p className="text-[10px] opacity-60">CA prévisionnel</p>
     </div>
   );
 }
@@ -171,14 +228,16 @@ function Bar({
   variant = "default",
 }: {
   percent: number;
-  variant?: "default" | "warning" | "accent";
+  variant?: "default" | "warning" | "accent" | "violet";
 }) {
   const color =
     variant === "warning"
       ? "bg-amber-500"
       : variant === "accent"
         ? "bg-equatis-turquoise-500"
-        : "bg-emerald-500";
+        : variant === "violet"
+          ? "bg-violet-500"
+          : "bg-emerald-500";
   return (
     <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-slate-100">
       <div
@@ -189,17 +248,6 @@ function Bar({
         aria-valuemax={100}
         role="progressbar"
       />
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div>
-      <p className="text-xs text-slate-500">{label}</p>
-      <p className="text-equatis-night-800 mt-0.5 text-xl font-semibold">
-        {value}
-      </p>
     </div>
   );
 }

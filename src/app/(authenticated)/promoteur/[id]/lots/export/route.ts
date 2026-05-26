@@ -6,6 +6,7 @@ import { csvResponse, rowsToCsv } from "@/lib/csv";
 
 const STATUS_LABEL = {
   AVAILABLE: "Disponible",
+  OPTIONED: "Optionné",
   RESERVED: "Réservé",
   SOLD: "Vendu",
   WITHDRAWN: "Retiré",

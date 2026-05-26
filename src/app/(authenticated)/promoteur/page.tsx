@@ -28,13 +28,21 @@ export default async function PromoteurHomePage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
-          Mes programmes
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Sélectionnez un programme pour accéder à son tableau de bord.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
+            Mes programmes
+          </h1>
+          <p className="mt-1 text-sm text-slate-600">
+            Sélectionnez un programme pour accéder à son tableau de bord.
+          </p>
+        </div>
+        <Link
+          href="/promoteur/importer"
+          className="bg-equatis-turquoise-500 hover:bg-equatis-turquoise-600 inline-flex h-10 items-center gap-2 rounded-md px-4 text-sm font-medium text-white"
+        >
+          + Importer un programme (Excel)
+        </Link>
       </div>
 
       {programmes.length === 0 ? (

@@ -143,6 +143,7 @@ export function CreateLotForm({ programmeId }: { programmeId: string }) {
       >
         <Select {...form.register("status")}>
           <option value="AVAILABLE">Disponible</option>
+          <option value="OPTIONED">Optionné</option>
           <option value="RESERVED">Réservé</option>
           <option value="SOLD">Vendu</option>
           <option value="WITHDRAWN">Retiré</option>

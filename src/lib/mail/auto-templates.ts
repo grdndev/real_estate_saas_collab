@@ -104,6 +104,49 @@ export function dossierRelaunchMail(
   };
 }
 
+// Relance manuelle d'un notaire par un collaborateur
+export function notaryRelaunchMail(
+  to: string,
+  firstName: string,
+  reference: string,
+  programmeName: string,
+  daysSinceTransmission: number,
+  comment?: string,
+): MailMessage {
+  const link = `${baseUrl}/notaire`;
+  const sinceLabel =
+    daysSinceTransmission <= 1
+      ? "moins de 24h"
+      : `${daysSinceTransmission} jours`;
+  const text =
+    `Bonjour Maître ${firstName},\n\n` +
+    `Le collaborateur Équatis vous relance concernant le dossier ${reference} ` +
+    `(programme ${programmeName}), transmis depuis ${sinceLabel}.\n\n` +
+    (comment ? `Message du collaborateur :\n${comment}\n\n` : "") +
+    `Merci de traiter ce dossier dès que possible.\n\nLien direct : ${link}`;
+  const html = wrapHtml(
+    `Relance — dossier ${reference}`,
+    `<p style="color:#1B2A4A;">Bonjour Maître ${firstName},</p>
+     <p style="color:#475569; font-size:14px;">Le collaborateur Équatis vous relance concernant le dossier <strong>${reference}</strong> (programme ${programmeName}), transmis depuis <strong>${sinceLabel}</strong>.</p>
+     ${
+       comment
+         ? `<div style="margin:16px 0; padding:12px 16px; background:#f8fafc; border-left:3px solid #0FB8A9; border-radius:4px;">
+              <p style="color:#1B2A4A; font-size:13px; margin:0 0 4px;"><strong>Message du collaborateur :</strong></p>
+              <p style="color:#475569; font-size:14px; margin:0; white-space:pre-line;">${comment.replace(/</g, "&lt;")}</p>
+            </div>`
+         : ""
+     }
+     <p style="color:#475569; font-size:14px;">Merci de traiter ce dossier dès que possible.</p>
+     ${button("Ouvrir le dossier", link)}`,
+  );
+  return {
+    to,
+    subject: `[Relance Équatis] Dossier ${reference} en attente`,
+    html,
+    text,
+  };
+}
+
 // CDC §8.5 — Transmission notaire (récap)
 export function transmittedToNotaryMail(
   to: string,

@@ -391,10 +391,22 @@ function computeTtc(priceHT: number, vatRate: number): Prisma.Decimal {
     .toDecimalPlaces(2);
 }
 
+async function ensureProgrammeAccess(
+  programmeId: string,
+  userId: string,
+  role: "SUPER_ADMIN" | "PROMOTER",
+): Promise<boolean> {
+  if (role === "SUPER_ADMIN") return true;
+  const link = await prisma.programmePromoter.findUnique({
+    where: { programmeId_promoterId: { programmeId, promoterId: userId } },
+  });
+  return !!link;
+}
+
 export async function createLotAction(
   input: LotInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const me = await requireRole("SUPER_ADMIN");
+  const me = await requireRole(["SUPER_ADMIN", "PROMOTER"]);
   const parsed = lotSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -405,6 +417,15 @@ export async function createLotAction(
   }
   const data = parsed.data;
   const ctx = await getRequestContext();
+
+  const hasAccess = await ensureProgrammeAccess(
+    data.programmeId,
+    me.id,
+    me.role as "SUPER_ADMIN" | "PROMOTER",
+  );
+  if (!hasAccess) {
+    return { ok: false, error: "Accès refusé à ce programme." };
+  }
 
   try {
     const lot = await prisma.lot.create({
@@ -452,7 +473,7 @@ export async function createLotAction(
 export async function updateLotAction(
   input: UpdateLotInput,
 ): Promise<ActionResult> {
-  const me = await requireRole("SUPER_ADMIN");
+  const me = await requireRole(["SUPER_ADMIN", "PROMOTER"]);
   const parsed = updateLotSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -463,6 +484,15 @@ export async function updateLotAction(
   }
   const data = parsed.data;
   const ctx = await getRequestContext();
+
+  const hasAccess = await ensureProgrammeAccess(
+    data.programmeId,
+    me.id,
+    me.role as "SUPER_ADMIN" | "PROMOTER",
+  );
+  if (!hasAccess) {
+    return { ok: false, error: "Accès refusé à ce programme." };
+  }
 
   await prisma.lot.update({
     where: { id: data.id },
@@ -490,11 +520,20 @@ export async function updateLotAction(
 }
 
 export async function deleteLotAction(lotId: string): Promise<ActionResult> {
-  const me = await requireRole("SUPER_ADMIN");
+  const me = await requireRole(["SUPER_ADMIN", "PROMOTER"]);
   if (!lotId) return { ok: false, error: "Identifiant manquant" };
   const ctx = await getRequestContext();
   const lot = await prisma.lot.findUnique({ where: { id: lotId } });
   if (!lot) return { ok: false, error: "Lot introuvable" };
+
+  const hasAccess = await ensureProgrammeAccess(
+    lot.programmeId,
+    me.id,
+    me.role as "SUPER_ADMIN" | "PROMOTER",
+  );
+  if (!hasAccess) {
+    return { ok: false, error: "Accès refusé à ce programme." };
+  }
 
   // Vérification : pas de dossier rattaché.
   const dossierCount = await prisma.dossier.count({ where: { lotId } });

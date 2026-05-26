@@ -31,7 +31,10 @@ const STATUS_BADGE = {
     label: "Signature en attente",
     variant: "warning" as const,
   },
-  SIGNED_AT_NOTARY: { label: "Chez le notaire", variant: "info" as const },
+  SIGNED_AT_NOTARY: {
+    label: "Envoyé chez le notaire",
+    variant: "info" as const,
+  },
   LOAN_OFFER_RECEIVED: {
     label: "Offre de prêt reçue",
     variant: "info" as const,

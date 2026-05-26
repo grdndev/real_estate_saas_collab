@@ -49,7 +49,7 @@ export const lotSchema = z.object({
   type: z.string().min(1).max(20),
   priceHT: z.number().positive("Prix > 0").max(99_999_999),
   vatRate: z.number().min(0).max(50),
-  status: z.enum(["AVAILABLE", "RESERVED", "SOLD", "WITHDRAWN"]),
+  status: z.enum(["AVAILABLE", "OPTIONED", "RESERVED", "SOLD", "WITHDRAWN"]),
 });
 export type LotInput = z.infer<typeof lotSchema>;
 

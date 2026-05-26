@@ -2,7 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FolderOpen, LayoutDashboard, User } from "lucide-react";
+import {
+  FolderOpen,
+  LayoutDashboard,
+  MessagesSquare,
+  User,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -18,6 +23,12 @@ const NAV = [
     icon: FolderOpen,
     exact: false,
     group: "secondary",
+  },
+  {
+    href: "/messagerie-interne",
+    label: "Messagerie interne",
+    icon: MessagesSquare,
+    exact: false,
   },
   { href: "/profil", label: "Mon profil", icon: User },
 ] as const;
@@ -43,6 +54,18 @@ export function NotarySidebar() {
       >
         <FolderOpen className="size-4" aria-hidden />
         <span>Dossiers reçus</span>
+      </Link>
+      <Link
+        href="/messagerie-interne"
+        className={cn(
+          "flex items-center gap-3 rounded-md px-3 py-2 transition",
+          pathname?.startsWith("/messagerie-interne")
+            ? "bg-violet-800 text-white"
+            : "hover:bg-violet-800/60",
+        )}
+      >
+        <MessagesSquare className="size-4" aria-hidden />
+        <span>Messagerie interne</span>
       </Link>
       <Link
         href="/profil"

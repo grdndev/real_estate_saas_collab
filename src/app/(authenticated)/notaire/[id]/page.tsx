@@ -14,6 +14,7 @@ import {
   Tr,
 } from "@/components/ui/table";
 import { Timeline } from "@/components/collab/timeline";
+import { AppointmentManager } from "@/components/collab/appointment-manager";
 import {
   FlagMissingPieceForm,
   NotaryStatusActions,
@@ -66,6 +67,11 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
       documentRequests: {
         orderBy: [{ required: "desc" }, { createdAt: "asc" }],
         include: { documents: { select: { id: true } } },
+      },
+      appointments: { orderBy: { scheduledAt: "desc" } },
+      invoices: {
+        where: { status: "SENT_TO_NOTARY" },
+        orderBy: { sentToNotaryAt: "desc" },
       },
     },
   });
@@ -268,8 +274,72 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
             <CardHeader>
               <CardTitle>Actions</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex flex-col gap-2">
               <NotaryStatusActions dossierId={dossier.id} />
+              <Link
+                href={`/notaire/${dossier.id}/messagerie`}
+                className="text-equatis-turquoise-700 inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
+              >
+                Messagerie avec le collaborateur
+              </Link>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Factures d&apos;honoraires ({dossier.invoices.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {dossier.invoices.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Aucune facture d&apos;honoraires transmise.
+                </p>
+              ) : (
+                <ul className="divide-y divide-slate-100 text-sm">
+                  {dossier.invoices.map((inv) => (
+                    <li
+                      key={inv.id}
+                      className="flex items-center justify-between gap-2 py-2"
+                    >
+                      <div>
+                        <p className="font-medium">Facture {inv.number}</p>
+                        <p className="text-xs text-slate-500">
+                          {eur.format(Number(inv.amountTTC))} TTC
+                        </p>
+                      </div>
+                      {inv.storageKey && (
+                        <a
+                          href={`/collaborateur/facturation/${inv.id}/download`}
+                          className="text-equatis-turquoise-700 text-xs hover:underline"
+                        >
+                          Télécharger
+                        </a>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Rendez-vous notaire</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AppointmentManager
+                dossierId={dossier.id}
+                canManage
+                appointments={dossier.appointments.map((a) => ({
+                  id: a.id,
+                  scheduledAt: a.scheduledAt.toISOString(),
+                  location: a.location,
+                  notes: a.notes,
+                  status: a.status,
+                }))}
+              />
             </CardContent>
           </Card>
 

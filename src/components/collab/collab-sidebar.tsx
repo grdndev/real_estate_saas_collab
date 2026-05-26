@@ -2,13 +2,34 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderOpen, Bell, User } from "lucide-react";
+import {
+  LayoutDashboard,
+  FolderOpen,
+  Bell,
+  Hourglass,
+  MessagesSquare,
+  Receipt,
+  User,
+  Users2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/collaborateur", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/collaborateur/dossiers", label: "Dossiers", icon: FolderOpen },
-  { href: "/collaborateur/notifications", label: "Notifications", icon: Bell },
+  { href: "/collaborateur/prospects", label: "Prospects", icon: Users2 },
+  {
+    href: "/collaborateur/clients-en-attente",
+    label: "Clients en attente",
+    icon: Hourglass,
+  },
+  { href: "/collaborateur/facturation", label: "Facturation", icon: Receipt },
+  {
+    href: "/messagerie-interne",
+    label: "Messagerie interne",
+    icon: MessagesSquare,
+  },
+  { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/profil", label: "Mon profil", icon: User },
 ] as const;
 

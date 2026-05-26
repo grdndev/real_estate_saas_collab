@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   CheckCircle2,
   Clock,
   FileSignature,
@@ -6,7 +7,9 @@ import {
   Handshake,
   Home,
   PiggyBank,
+  Receipt,
   Send,
+  Timer,
   UserPlus,
   type LucideIcon,
 } from "lucide-react";
@@ -22,7 +25,12 @@ const KIND_ICON: Record<string, LucideIcon> = {
   LOAN_OFFER_RECEIVED: PiggyBank,
   ACT_SIGNED: Home,
   STATUS_CHANGE: Clock,
+  CONTRACT_STATUS_CHANGE: FileSignature,
   DOCUMENT_REQUESTED: FileText,
+  OPTION_TAKEN: Timer,
+  OPTION_REMINDER: Timer,
+  APPOINTMENT_SCHEDULED: CalendarClock,
+  INVOICE_SENT: Receipt,
   CUSTOM: CheckCircle2,
 };
 

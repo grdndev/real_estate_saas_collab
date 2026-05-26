@@ -28,7 +28,10 @@ const STATUS_BADGE = {
     label: "Signature en attente",
     variant: "warning" as const,
   },
-  SIGNED_AT_NOTARY: { label: "Chez le notaire", variant: "info" as const },
+  SIGNED_AT_NOTARY: {
+    label: "Envoyé chez le notaire",
+    variant: "info" as const,
+  },
   LOAN_OFFER_RECEIVED: {
     label: "Offre de prêt reçue",
     variant: "info" as const,
@@ -102,9 +105,14 @@ export default async function CollaborateurDashboardPage() {
             Vue de vos dossiers en cours.
           </p>
         </div>
-        <Link href="/collaborateur/dossiers/nouveau">
-          <Button>Nouveau dossier</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Link href="/collaborateur/clients/nouveau">
+            <Button variant="accent">+ Nouveau client</Button>
+          </Link>
+          <Link href="/collaborateur/dossiers/nouveau">
+            <Button variant="outline">Nouveau dossier vide</Button>
+          </Link>
+        </div>
       </div>
 
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">

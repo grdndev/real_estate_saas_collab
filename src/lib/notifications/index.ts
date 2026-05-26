@@ -27,7 +27,11 @@ export async function notify(input: NotifyInput): Promise<void> {
   }
 }
 
-/** Notifie tous les participants d'un dossier sauf un user à exclure. */
+/**
+ * Notifie tous les acteurs d'un dossier sauf un user à exclure :
+ * collaborateurs participants, client, notaire ET promoteurs du programme.
+ * Plateforme collaborative — partage total de l'information (CDC évolution §5).
+ */
 export async function notifyDossierParticipants(
   dossierId: string,
   excludeUserId: string | null,
@@ -42,10 +46,18 @@ export async function notifyDossierParticipants(
   });
   const dossier = await prisma.dossier.findUnique({
     where: { id: dossierId },
-    select: { clientId: true },
+    select: { clientId: true, notaryId: true, programmeId: true },
   });
   const userIds = new Set<string>(participants.map((p) => p.userId));
   if (dossier?.clientId) userIds.add(dossier.clientId);
+  if (dossier?.notaryId) userIds.add(dossier.notaryId);
+  if (dossier?.programmeId) {
+    const promoters = await prisma.programmePromoter.findMany({
+      where: { programmeId: dossier.programmeId },
+      select: { promoterId: true },
+    });
+    for (const p of promoters) userIds.add(p.promoterId);
+  }
   if (excludeUserId) userIds.delete(excludeUserId);
   await Promise.all(
     Array.from(userIds).map((uid) =>

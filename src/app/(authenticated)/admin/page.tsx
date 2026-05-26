@@ -19,7 +19,7 @@ const STATUS_LABEL = {
   NEW_LEAD: "Nouveau lead",
   RESERVATION_SENT: "Réservation envoyée",
   SIGNATURE_PENDING: "Signature en attente",
-  SIGNED_AT_NOTARY: "Chez le notaire",
+  SIGNED_AT_NOTARY: "Envoyé chez le notaire",
   LOAN_OFFER_RECEIVED: "Offre de prêt reçue",
   ACT_SIGNED: "Acte signé",
   BLOCKED: "Bloqué",

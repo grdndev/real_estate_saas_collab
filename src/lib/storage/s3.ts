@@ -76,6 +76,22 @@ export async function presignDownloadUrl(
   });
 }
 
+/** Upload direct d'un buffer depuis le serveur (factures, ressources internes). */
+export async function putObject(
+  storageKey: string,
+  body: Buffer,
+  contentType: string,
+): Promise<void> {
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: storageKey,
+      Body: body,
+      ContentType: contentType,
+    }),
+  );
+}
+
 export async function deleteObject(storageKey: string): Promise<void> {
   await getClient().send(
     new DeleteObjectCommand({ Bucket: getBucket(), Key: storageKey }),

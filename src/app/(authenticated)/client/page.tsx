@@ -21,7 +21,10 @@ const STATUS_BADGE = {
     label: "Signature en attente",
     variant: "warning" as const,
   },
-  SIGNED_AT_NOTARY: { label: "Chez le notaire", variant: "info" as const },
+  SIGNED_AT_NOTARY: {
+    label: "Envoyé chez le notaire",
+    variant: "info" as const,
+  },
   LOAN_OFFER_RECEIVED: {
     label: "Offre de prêt reçue",
     variant: "info" as const,
@@ -54,6 +57,10 @@ export default async function ClientDashboardPage() {
       },
       documentRequests: {
         select: { id: true, label: true, fulfilled: true, required: true },
+      },
+      appointments: {
+        where: { status: { in: ["SCHEDULED", "CONFIRMED"] } },
+        orderBy: { scheduledAt: "asc" },
       },
     },
   });
@@ -142,6 +149,40 @@ export default async function ClientDashboardPage() {
           <p className="text-equatis-night-800 text-sm">
             <strong>Prochaine étape :</strong> {nextStageLabel(dossier.status)}
           </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Rendez-vous chez le notaire</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {dossier.appointments.length === 0 ? (
+            <p className="text-slate-500">
+              Aucun rendez-vous notaire n&apos;est encore planifié. Vous serez
+              informé(e) dès qu&apos;un rendez-vous sera fixé.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {dossier.appointments.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-md border border-sky-200 bg-sky-50 p-3"
+                >
+                  <p className="text-equatis-night-800 font-medium">
+                    {a.scheduledAt.toLocaleString("fr-FR", {
+                      dateStyle: "long",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                  {a.location && <p className="text-slate-600">{a.location}</p>}
+                  {a.notes && (
+                    <p className="mt-1 text-xs text-slate-500">{a.notes}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
         </CardContent>
       </Card>
 

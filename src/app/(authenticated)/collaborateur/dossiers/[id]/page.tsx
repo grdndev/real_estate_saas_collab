@@ -9,8 +9,14 @@ import { AssignClientForm } from "@/components/collab/assign-client";
 import { DocumentRequestManager } from "@/components/collab/document-request-manager";
 import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { StatusTransition } from "@/components/collab/status-transition";
+import { ContractStatusCard } from "@/components/collab/contract-status-card";
+import { DossierOptionCard } from "@/components/collab/dossier-option-card";
+import { AppointmentManager } from "@/components/collab/appointment-manager";
+import { SharedNotes } from "@/components/notes/shared-notes";
 import { Timeline } from "@/components/collab/timeline";
 import { RequestSignatureBlock } from "@/components/collab/request-signature";
+import { RelaunchClientButton } from "@/components/collab/relaunch-client-button";
+import { RelaunchNotaryButton } from "@/components/collab/relaunch-notary-button";
 import { TransmitNotaryForm } from "@/components/collab/transmit-notary-form";
 import { DocumentDropZone } from "@/components/storage/document-drop-zone";
 import { DocumentRowActions } from "@/components/storage/document-row-actions";
@@ -29,7 +35,10 @@ const STATUS_BADGE = {
     label: "Signature en attente",
     variant: "warning" as const,
   },
-  SIGNED_AT_NOTARY: { label: "Chez le notaire", variant: "info" as const },
+  SIGNED_AT_NOTARY: {
+    label: "Envoyé chez le notaire",
+    variant: "info" as const,
+  },
   LOAN_OFFER_RECEIVED: {
     label: "Offre de prêt reçue",
     variant: "info" as const,
@@ -91,6 +100,13 @@ export default async function DossierDetailPage({ params }: PageProps) {
           },
         },
         client: { select: { firstName: true, lastName: true, email: true } },
+        notes: {
+          orderBy: { createdAt: "desc" },
+          include: {
+            author: { select: { id: true, firstName: true, lastName: true } },
+          },
+        },
+        appointments: { orderBy: { scheduledAt: "desc" } },
         participants: {
           include: {
             user: {
@@ -144,6 +160,24 @@ export default async function DossierDetailPage({ params }: PageProps) {
   }));
 
   const sb = STATUS_BADGE[dossier.status];
+
+  // Pré-calcul (hors rendu) : nom du notaire assigné + jours depuis transmission.
+  const notaryParticipant = dossier.participants.find(
+    (p) => p.role === "NOTARY" && p.userId === dossier.notaryId,
+  );
+  const notaryDisplayName = notaryParticipant
+    ? `${notaryParticipant.user.firstName} ${notaryParticipant.user.lastName}`
+    : "le notaire";
+  // eslint-disable-next-line react-hooks/purity -- Server Component : Date.now() OK à l'exécution serveur (1 call par requête HTTP)
+  const nowMs = Date.now();
+  const daysSinceTransmission = dossier.notaryTransmittedAt
+    ? Math.max(
+        1,
+        Math.round(
+          (nowMs - dossier.notaryTransmittedAt.getTime()) / (24 * 3600 * 1000),
+        ),
+      )
+    : 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -284,6 +318,26 @@ export default async function DossierDetailPage({ params }: PageProps) {
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Notes de l&apos;équipe</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SharedNotes
+                scope="DOSSIER"
+                targetId={dossier.id}
+                currentUserId={me.id}
+                notes={dossier.notes.map((n) => ({
+                  id: n.id,
+                  body: n.body,
+                  authorId: n.authorId,
+                  authorName: `${n.author.firstName} ${n.author.lastName}`,
+                  createdAt: n.createdAt.toISOString(),
+                }))}
+              />
+            </CardContent>
+          </Card>
         </div>
 
         <div className="flex flex-col gap-6">
@@ -291,18 +345,36 @@ export default async function DossierDetailPage({ params }: PageProps) {
             <CardHeader>
               <CardTitle>Client</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               {dossier.clientId ? (
-                <div className="space-y-2 text-sm">
-                  <RevealNameButton
-                    dossierId={dossier.id}
-                    fallbackMasked="●●●●● ●●●●●●"
-                  />
-                  <p className="text-xs text-slate-500">
-                    L&apos;affichage du nom est tracé dans le journal
-                    d&apos;audit.
-                  </p>
-                </div>
+                <>
+                  <div className="space-y-2 text-sm">
+                    <RevealNameButton
+                      dossierId={dossier.id}
+                      fallbackMasked="●●●●● ●●●●●●"
+                    />
+                    <p className="text-xs text-slate-500">
+                      L&apos;affichage du nom est tracé dans le journal
+                      d&apos;audit.
+                    </p>
+                  </div>
+                  {dossier.client && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <RelaunchClientButton
+                        dossierId={dossier.id}
+                        clientName={`${dossier.client.firstName} ${dossier.client.lastName}`}
+                      />
+                    </div>
+                  )}
+                  <div className="border-t border-slate-100 pt-4">
+                    <Link
+                      href={`/collaborateur/dossiers/${dossier.id}/fiche-client`}
+                      className="text-equatis-turquoise-700 text-sm font-medium hover:underline"
+                    >
+                      → Fiche client complète
+                    </Link>
+                  </div>
+                </>
               ) : (
                 <AssignClientForm
                   dossierId={dossier.id}
@@ -363,12 +435,65 @@ export default async function DossierDetailPage({ params }: PageProps) {
 
           <Card>
             <CardHeader>
-              <CardTitle>Changer le statut</CardTitle>
+              <CardTitle>Changer le statut commercial</CardTitle>
             </CardHeader>
             <CardContent>
               <StatusTransition
                 dossierId={dossier.id}
                 currentStatus={dossier.status}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Suivi contractuel</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ContractStatusCard
+                dossierId={dossier.id}
+                current={dossier.contractStatus}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Option du dossier</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <DossierOptionCard
+                dossierId={dossier.id}
+                optioned={dossier.optioned}
+                optionExpiresAt={
+                  dossier.optionExpiresAt
+                    ? dossier.optionExpiresAt.toISOString()
+                    : null
+                }
+                expired={
+                  dossier.optionExpiresAt
+                    ? dossier.optionExpiresAt.getTime() < nowMs
+                    : false
+                }
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Rendez-vous notaire</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <AppointmentManager
+                dossierId={dossier.id}
+                canManage
+                appointments={dossier.appointments.map((a) => ({
+                  id: a.id,
+                  scheduledAt: a.scheduledAt.toISOString(),
+                  location: a.location,
+                  notes: a.notes,
+                  status: a.status,
+                }))}
               />
             </CardContent>
           </Card>
@@ -381,12 +506,21 @@ export default async function DossierDetailPage({ params }: PageProps) {
                   : "Transmettre au notaire"}
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <TransmitNotaryForm
                 dossierId={dossier.id}
                 notaries={notaries}
                 currentNotaryId={dossier.notaryId}
               />
+              {dossier.notaryId && dossier.notaryTransmittedAt && (
+                <div className="border-t border-slate-100 pt-4">
+                  <RelaunchNotaryButton
+                    dossierId={dossier.id}
+                    notaryName={notaryDisplayName}
+                    daysSinceTransmission={daysSinceTransmission}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -398,15 +532,33 @@ export default async function DossierDetailPage({ params }: PageProps) {
               <RequestSignatureBlock
                 dossierId={dossier.id}
                 reference={dossier.reference}
-                defaultSigner={
-                  dossier.client
-                    ? {
-                        firstName: dossier.client.firstName,
-                        lastName: dossier.client.lastName,
-                        email: dossier.client.email,
-                      }
-                    : null
-                }
+                recipients={[
+                  ...(dossier.client
+                    ? [
+                        {
+                          role: "client" as const,
+                          label: `Client — ${dossier.client.firstName} ${dossier.client.lastName}`,
+                          firstName: dossier.client.firstName,
+                          lastName: dossier.client.lastName,
+                          email: dossier.client.email,
+                        },
+                      ]
+                    : []),
+                  ...(notaryParticipant
+                    ? [
+                        {
+                          role: "notary" as const,
+                          label: `Notaire — ${notaryParticipant.user.firstName} ${notaryParticipant.user.lastName}`,
+                          firstName: notaryParticipant.user.firstName,
+                          lastName: notaryParticipant.user.lastName,
+                          email: notaryParticipant.user.email,
+                        },
+                      ]
+                    : []),
+                ]}
+                documents={dossier.documents
+                  .filter((d) => d.mimeType === "application/pdf")
+                  .map((d) => ({ id: d.id, fileName: d.fileName }))}
                 signatures={dossier.signatures}
                 yousignReady={Boolean(process.env.YOUSIGN_API_KEY)}
               />

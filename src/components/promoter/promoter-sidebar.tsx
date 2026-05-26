@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { usePathname, useParams } from "next/navigation";
 import {
+  Bell,
   Building2,
+  FileSignature,
+  FileUp,
   LayoutDashboard,
   ListOrdered,
+  MessagesSquare,
   TrendingUp,
+  Users2,
   Wallet,
   User,
 } from "lucide-react";
@@ -50,6 +55,11 @@ export function PromoterSidebar({
           label: "Suivi des ventes",
           icon: TrendingUp,
         },
+        {
+          href: `/promoteur/${activeId}/contrats`,
+          label: "Suivi des contrats",
+          icon: FileSignature,
+        },
       ]
     : [];
 
@@ -92,9 +102,46 @@ export function PromoterSidebar({
         )}
       </ul>
 
+      <p className="text-equatis-turquoise-100 px-3 pb-1 text-xs font-semibold tracking-widest uppercase">
+        Espace
+      </p>
+      {[
+        {
+          href: "/promoteur/importer",
+          label: "Importer un programme",
+          icon: FileUp,
+        },
+        { href: "/promoteur/prospects", label: "Prospects", icon: Users2 },
+        {
+          href: "/messagerie-interne",
+          label: "Messagerie interne",
+          icon: MessagesSquare,
+        },
+        { href: "/notifications", label: "Notifications", icon: Bell },
+      ].map((item) => {
+        const Icon = item.icon;
+        const active = pathname?.startsWith(item.href);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 transition",
+              active
+                ? "bg-equatis-turquoise-900 text-white"
+                : "hover:bg-equatis-turquoise-800/60 text-equatis-turquoise-50",
+            )}
+          >
+            <Icon className="size-4" aria-hidden />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
+
       {nav.length > 0 && (
         <>
-          <p className="text-equatis-turquoise-100 px-3 pb-1 text-xs font-semibold tracking-widest uppercase">
+          <p className="text-equatis-turquoise-100 mt-2 px-3 pb-1 text-xs font-semibold tracking-widest uppercase">
             Programme
           </p>
           {nav.map((item) => {

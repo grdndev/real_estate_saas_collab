@@ -29,6 +29,7 @@ const STATUS_BADGE = {
 
 const LOT_STATUS_BADGE = {
   AVAILABLE: { label: "Disponible", variant: "success" as const },
+  OPTIONED: { label: "Optionné", variant: "warning" as const },
   RESERVED: { label: "Réservé", variant: "warning" as const },
   SOLD: { label: "Vendu", variant: "info" as const },
   WITHDRAWN: { label: "Retiré", variant: "neutral" as const },

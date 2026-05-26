@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { CreateLotForm } from "@/components/admin/lot-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -26,6 +27,7 @@ const eur = new Intl.NumberFormat("fr-FR", {
 
 const STATUS_BADGE = {
   AVAILABLE: { label: "Disponible", variant: "success" as const },
+  OPTIONED: { label: "Optionné", variant: "warning" as const },
   RESERVED: { label: "Réservé", variant: "warning" as const },
   SOLD: { label: "Vendu", variant: "info" as const },
   WITHDRAWN: { label: "Retiré", variant: "neutral" as const },
@@ -66,6 +68,15 @@ export default async function ProgrammeLotsPage({ params }: PageProps) {
           Exporter (CSV)
         </a>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ajouter un lot</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CreateLotForm programmeId={id} />
+        </CardContent>
+      </Card>
 
       <Card>
         {lots.length === 0 ? (
