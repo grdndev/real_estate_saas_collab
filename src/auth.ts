@@ -7,7 +7,7 @@ import { verifyPassword } from "@/lib/auth/password";
 import { env } from "@/lib/env";
 
 const credentialsSchema = z.object({
-  email: z.string().email().toLowerCase(),
+  email: z.email().toLowerCase(),
   password: z.string().min(1),
 });
 

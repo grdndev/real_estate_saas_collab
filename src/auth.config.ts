@@ -22,7 +22,7 @@ export const authConfig = {
   session: {
     strategy: "jwt",
     maxAge: env.REFRESH_TOKEN_TTL_SECONDS,
-    updateAge: env.ACCESS_TOKEN_TTL_SECONDS,
+    updateAge: Math.floor(env.SESSION_INACTIVITY_MINUTES * 30),
   },
   providers: [],
   callbacks: {
@@ -54,15 +54,18 @@ export const authConfig = {
       if (trigger === "update" || !last || now - last > 60_000) {
         token.lastActivity = now;
       }
+
       return token;
     },
     async session({ session, token }) {
       const id = typeof token.id === "string" ? token.id : null;
       const role = typeof token.role === "string" ? token.role : null;
+
       if (id && role) {
         session.user.id = id;
         session.user.role = role as typeof session.user.role;
       }
+
       return session;
     },
   },

@@ -41,13 +41,15 @@ export async function AuthHeader() {
               </span>
             )}
           </Link>
-          <Link
-            href="/deconnexion"
-            className="text-equatis-night-700 hover:bg-equatis-night-50 inline-flex h-9 items-center gap-2 rounded-md px-3 transition"
-          >
-            <LogOut className="size-4" aria-hidden />
-            <span className="hidden sm:inline">Déconnexion</span>
-          </Link>
+          <form action="/deconnexion" method="post">
+            <button
+              type="submit"
+              className="text-equatis-night-700 hover:bg-equatis-night-50 inline-flex h-9 items-center gap-2 rounded-md px-3 transition"
+            >
+              <LogOut className="size-4" aria-hidden />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </button>
+          </form>
         </nav>
       </div>
     </header>

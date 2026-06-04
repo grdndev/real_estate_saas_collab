@@ -5,11 +5,11 @@ import { auth } from "@/auth";
 import { getRequestContext } from "@/lib/request-context";
 
 /**
- * Route Handler GET pour la déconnexion.
+ * Route Handler POST pour la déconnexion.
  * Next.js autorise la modification des cookies dans un Route Handler
  * (contrairement à un Server Component de page render).
  */
-export async function GET() {
+export async function POST() {
   const session = await auth();
   if (session?.user?.id) {
     const ctx = await getRequestContext();
@@ -24,4 +24,8 @@ export async function GET() {
   }
   await signOut({ redirect: false });
   redirect("/connexion?reason=logged_out");
+}
+
+export async function GET() {
+  redirect("/profil");
 }

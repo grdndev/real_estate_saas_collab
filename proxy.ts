@@ -7,6 +7,24 @@ import { canAccess, homePathFor, isPublicRoute } from "@/lib/auth/rbac";
 
 export default auth(function proxy(req) {
   const { pathname } = req.nextUrl;
+  const instance = process.env.HOSTNAME ?? "unknown";
+  const host = req.headers.get("host");
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+  const forwardedPort = req.headers.get("x-forwarded-port");
+  const hasCookie = req.headers.has("cookie");
+  const cookieHeader = req.headers.get("cookie") ?? "";
+  const cookieNames = cookieHeader
+    .split(";")
+    .map((part) => part.trim().split("=")[0])
+    .filter(Boolean);
+  const hasAuthSessionCookie = cookieNames.some(
+    (name) =>
+      name === "authjs.session-token" ||
+      name === "__Secure-authjs.session-token",
+  );
+  const rsc = req.headers.get("rsc");
+  const nextAction = req.headers.get("next-action");
 
   if (isPublicRoute(pathname)) {
     return NextResponse.next();
@@ -22,6 +40,7 @@ export default auth(function proxy(req) {
     if (session?.user) {
       url.searchParams.set("reason", "inactivity");
     }
+
     return NextResponse.redirect(url);
   }
 

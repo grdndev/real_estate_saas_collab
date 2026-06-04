@@ -21,7 +21,13 @@ const ROLE_PREFIXES: Record<UserRole, readonly string[]> = {
 };
 
 /** Routes accessibles à tout user authentifié (profil, déconnexion, etc.). */
-const SHARED_AUTHED_PREFIXES = ["/profil", "/deconnexion", "/api/auth"];
+const SHARED_AUTHED_PREFIXES = [
+  "/profil",
+  "/deconnexion",
+  "/api/auth",
+  "/messagerie-interne",
+  "/notifications",
+];
 
 /** Routes publiques (pas de session requise). */
 export const PUBLIC_ROUTES = [

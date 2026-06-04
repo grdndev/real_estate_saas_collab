@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { z } from "zod";
 import { signIn, signOut } from "@/auth";
@@ -59,6 +60,17 @@ export async function loginAction(
   }
   const { email, password, from } = parsed.data;
   const ctx = await getRequestContext();
+  const h = await headers();
+  const reqMeta = {
+    host: h.get("host"),
+    forwardedHost: h.get("x-forwarded-host"),
+    forwardedProto: h.get("x-forwarded-proto"),
+    forwardedPort: h.get("x-forwarded-port"),
+    origin: h.get("origin"),
+    referer: h.get("referer"),
+    userAgent: h.get("user-agent"),
+    hasCookie: !!h.get("cookie"),
+  };
 
   // Trace de tentative (avant l'évaluation du mot de passe).
   await prisma.loginAttempt.create({
@@ -163,19 +175,6 @@ export async function signupClientAction(
     },
   });
 
-  const { token, hash } = generateOpaqueToken();
-  await prisma.emailVerification.create({
-    data: {
-      userId: user.id,
-      tokenHash: hash,
-      expiresAt: new Date(Date.now() + 24 * 60 * 60_000),
-    },
-  });
-
-  await getMailer().send(
-    emailVerificationMail(user.email, user.firstName, token),
-  );
-
   await audit({
     userId: user.id,
     action: "USER_CREATED",
@@ -185,6 +184,27 @@ export async function signupClientAction(
     userAgent: ctx.userAgent,
     metadata: { role: "CLIENT", via: "self_signup" },
   });
+
+  const { token, hash } = generateOpaqueToken();
+  await prisma.emailVerification.create({
+    data: {
+      userId: user.id,
+      tokenHash: hash,
+      expiresAt: new Date(Date.now() + 24 * 60 * 60_000),
+    },
+  });
+
+  try {
+    await getMailer().send(
+      emailVerificationMail(user.email, user.firstName, token),
+    );
+  } catch (error) {
+    console.error("Failed to send verification email", user.email, { error });
+    return {
+      ok: false,
+      error: "Une erreur est survenue. Veuillez réessayer plus tard.",
+    };
+  }
 
   return { ok: true, value: { email: user.email } };
 }
@@ -261,17 +281,6 @@ export async function requestPasswordResetAction(
   const user = await prisma.user.findUnique({ where: { email } });
   // Réponse identique que l'email existe ou non (anti-énumération).
   if (user && !user.deletedAt) {
-    const { token, hash } = generateOpaqueToken();
-    await prisma.passwordReset.create({
-      data: {
-        userId: user.id,
-        tokenHash: hash,
-        expiresAt: new Date(Date.now() + 2 * 60 * 60_000),
-      },
-    });
-    await getMailer().send(
-      passwordResetMail(user.email, user.firstName, token),
-    );
     await audit({
       userId: user.id,
       action: "USER_PASSWORD_CHANGED",
@@ -281,6 +290,30 @@ export async function requestPasswordResetAction(
       userAgent: ctx.userAgent,
       metadata: { step: "reset_requested" },
     });
+
+    const { token, hash } = generateOpaqueToken();
+    await prisma.passwordReset.create({
+      data: {
+        userId: user.id,
+        tokenHash: hash,
+        expiresAt: new Date(Date.now() + 2 * 60 * 60_000),
+      },
+    });
+
+    try {
+      await getMailer().send(
+        passwordResetMail(user.email, user.firstName, token),
+      );
+    } catch (error) {
+      console.error("Failed to send password reset email", user.email, {
+        error,
+      });
+      return {
+        ok: false,
+        error:
+          "Une erreur est survenue lors de l'envoi de l'email. Veuillez réessayer plus tard.",
+      };
+    }
   }
   return { ok: true, value: undefined };
 }
