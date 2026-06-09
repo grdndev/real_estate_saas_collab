@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LogOut, User } from "lucide-react";
 import { auth } from "@/auth";
 import { NotificationsBell } from "@/components/notifications/notifications-bell";
+import { homePathFor } from "@/lib/auth/rbac";
 
 const ROLE_LABEL: Record<string, string> = {
   SUPER_ADMIN: "Super Admin",
@@ -22,7 +23,7 @@ export async function AuthHeader() {
     <header className="bg-equatis-surface border-b border-slate-200">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         <Link
-          href="/"
+          href={homePathFor(session?.user?.role ?? null)}
           className="text-equatis-night-800 text-sm font-bold tracking-widest uppercase"
         >
           Équatis

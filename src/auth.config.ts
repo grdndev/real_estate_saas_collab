@@ -24,6 +24,11 @@ export const authConfig = {
     maxAge: env.REFRESH_TOKEN_TTL_SECONDS,
     updateAge: Math.floor(env.SESSION_INACTIVITY_MINUTES * 30),
   },
+  logger: {
+    error(error) {
+      console.error("[auth][full-error]", error, error?.cause);
+    },
+  },
   providers: [],
   callbacks: {
     async jwt({ token, user, trigger }) {

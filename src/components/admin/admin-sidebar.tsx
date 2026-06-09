@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Users, Building2, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Users,
+  Building2,
+  File,
+  Settings,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -10,6 +16,7 @@ const NAV = [
   { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users },
   { href: "/admin/programmes", label: "Programmes", icon: Building2 },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
+  { href: "/admin/logs", label: "Logs", icon: File },
 ] as const;
 
 export function AdminSidebar() {
@@ -17,7 +24,7 @@ export function AdminSidebar() {
   return (
     <aside
       aria-label="Navigation Super Admin"
-      className="bg-equatis-night-900 sticky top-0 hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col gap-1 px-3 py-4 text-sm text-slate-200 lg:flex"
+      className="bg-equatis-night-900 sticky top-0 hidden w-60 flex-col gap-1 px-3 py-4 text-sm text-slate-200 lg:flex"
     >
       <p className="px-3 pb-2 text-xs font-semibold tracking-widest text-slate-400 uppercase">
         Super Admin
