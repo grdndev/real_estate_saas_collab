@@ -9,7 +9,9 @@ import { env } from "@/lib/env";
 const credentialsSchema = z.object({
   email: z.email().toLowerCase(),
   password: z.string().min(1),
-  remember: z.boolean().optional(),
+  remember: z
+    .union([z.string().transform((v) => v === "true"), z.boolean()])
+    .optional(),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -20,6 +22,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Mot de passe", type: "password" },
+        remember: { label: "Rester connecté", type: "checkbox" },
       },
       async authorize(rawCredentials) {
         const parsed = credentialsSchema.safeParse(rawCredentials);

@@ -38,7 +38,7 @@ export function CollabSidebar() {
   return (
     <aside
       aria-label="Navigation Collaborateur"
-      className="bg-equatis-night-800 sticky top-0 hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col gap-1 px-3 py-4 text-sm text-slate-200 lg:flex"
+      className="bg-equatis-night-800 sticky top-0 hidden w-60 flex-col gap-1 px-3 py-4 text-sm text-slate-200 lg:flex"
     >
       <p className="px-3 pb-2 text-xs font-semibold tracking-widest text-slate-400 uppercase">
         Collaborateur

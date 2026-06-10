@@ -1,38 +1,12 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
+import ListeDossiers from "./ListeDossiers";
 
 export const metadata: Metadata = { title: "Dossiers reçus" };
-
-const STATUS_BADGE = {
-  NEW_LEAD: { label: "Reçu", variant: "info" as const },
-  RESERVATION_SENT: { label: "Reçu", variant: "info" as const },
-  SIGNATURE_PENDING: { label: "En cours", variant: "warning" as const },
-  SIGNED_AT_NOTARY: {
-    label: "En cours de préparation",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Acte prêt à signer",
-    variant: "warning" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
 
 export default async function NotaireDashboardPage() {
   const me = await requireRole(["NOTARY", "SUPER_ADMIN"]);
@@ -66,46 +40,7 @@ export default async function NotaireDashboardPage() {
             description="Les dossiers transmis par les collaborateurs Équatis apparaîtront ici."
           />
         ) : (
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Référence</Th>
-                <Th>Programme</Th>
-                <Th>Lot</Th>
-                <Th>Statut</Th>
-                <Th>Reçu le</Th>
-                <Th />
-              </Tr>
-            </THead>
-            <TBody>
-              {dossiers.map((d) => {
-                const sb = STATUS_BADGE[d.status];
-                return (
-                  <Tr key={d.id}>
-                    <Td className="font-mono text-xs">{d.reference}</Td>
-                    <Td>{d.programme.name}</Td>
-                    <Td>{d.lot?.reference ?? "—"}</Td>
-                    <Td>
-                      <Badge variant={sb.variant}>{sb.label}</Badge>
-                    </Td>
-                    <Td className="text-xs text-slate-500">
-                      {d.notaryTransmittedAt
-                        ? d.notaryTransmittedAt.toLocaleDateString("fr-FR")
-                        : "—"}
-                    </Td>
-                    <Td className="text-right">
-                      <Link
-                        href={`/notaire/${d.id}`}
-                        className="text-equatis-turquoise-700 text-sm hover:underline"
-                      >
-                        Ouvrir →
-                      </Link>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </TBody>
-          </Table>
+          <ListeDossiers dossiers={dossiers} />
         )}
       </Card>
     </div>

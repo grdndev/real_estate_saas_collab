@@ -26,7 +26,7 @@ export const authConfig = {
   },
   logger: {
     error(error) {
-      console.error("[auth][full-error]", error, error?.cause);
+      console.error("[auth][full-error]", error);
     },
   },
   providers: [],

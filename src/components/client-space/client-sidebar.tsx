@@ -17,7 +17,7 @@ export function ClientSidebar() {
   return (
     <aside
       aria-label="Navigation Client"
-      className="sticky top-0 hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col gap-1 bg-sky-700 px-3 py-4 text-sm text-sky-50 lg:flex"
+      className="sticky top-0 hidden w-60 flex-col gap-1 bg-sky-700 px-3 py-4 text-sm text-sky-50 lg:flex"
     >
       <p className="px-3 pb-2 text-xs font-semibold tracking-widest text-sky-200 uppercase">
         Mon espace

@@ -66,7 +66,7 @@ export function PromoterSidebar({
   return (
     <aside
       aria-label="Navigation Promoteur"
-      className="bg-equatis-turquoise-700 sticky top-0 hidden h-[calc(100vh-4rem)] w-60 shrink-0 flex-col gap-1 px-3 py-4 text-sm text-white lg:flex"
+      className="bg-equatis-turquoise-700 sticky top-0 hidden w-60 flex-col gap-1 px-3 py-4 text-sm text-white lg:flex"
     >
       <p className="text-equatis-turquoise-100 px-3 pb-1 text-xs font-semibold tracking-widest uppercase">
         Promoteur
