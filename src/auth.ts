@@ -9,6 +9,7 @@ import { env } from "@/lib/env";
 const credentialsSchema = z.object({
   email: z.email().toLowerCase(),
   password: z.string().min(1),
+  remember: z.boolean().optional(),
 });
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -23,7 +24,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       async authorize(rawCredentials) {
         const parsed = credentialsSchema.safeParse(rawCredentials);
         if (!parsed.success) return null;
-        const { email, password } = parsed.data;
+        const { email, password, remember } = parsed.data;
 
         const user = await prisma.user.findUnique({
           where: { email },
@@ -61,6 +62,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           email: user.email,
           name: `${user.firstName} ${user.lastName}`,
           role: user.role,
+          remember,
         };
       },
     }),

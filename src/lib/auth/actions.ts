@@ -86,6 +86,7 @@ export async function loginAction(
     await signIn("credentials", {
       email,
       password,
+      // remember,
       redirect: false,
     });
   } catch (err) {

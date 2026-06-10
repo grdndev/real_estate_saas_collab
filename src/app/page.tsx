@@ -32,10 +32,6 @@ export default function HomePage() {
             Créer un compte client
           </Link>
         </div>
-
-        <p className="mt-12 text-xs text-slate-500">
-          Phase 1 — Setup en cours. CDC v1.0 du 13 avril 2026.
-        </p>
       </div>
     </main>
   );

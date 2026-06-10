@@ -57,9 +57,6 @@ services:
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: minio_dev_password
-    ports:
-      - "9000:9000"
-      - "9001:9001"
     volumes:
       - equatis_minio_data:/data
     healthcheck:
@@ -70,6 +67,14 @@ services:
       retries: 5
     networks:
       - default
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.equatisminio.rule=Host(`equatisminio.codialis.com`)"
+      - "traefik.http.routers.equatisminio.entrypoints=websecure"
+      - "traefik.http.routers.equatisminio.tls.certresolver=myresolver"
+      - "traefik.http.services.equatisminio.loadbalancer.server.port=9000"
 
   equatis.minio-init:
     image: minio/mc:latest

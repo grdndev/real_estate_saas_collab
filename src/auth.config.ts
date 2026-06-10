@@ -33,11 +33,24 @@ export const authConfig = {
   callbacks: {
     async jwt({ token, user, trigger }) {
       const inactivityMs = env.SESSION_INACTIVITY_MINUTES * 60 * 1000;
+      const duration = env.REFRESH_TOKEN_TTL_SECONDS * 1000;
       const now = Date.now();
 
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.lastActivity = now;
+        token.sessionExpiresAt =
+          now + (!!user.remember ? duration : (duration / 30) * 7);
+        return token;
+      }
+
+      if (
+        typeof token.sessionExpiresAt === "number" &&
+        now > token.sessionExpiresAt
+      ) {
+        token.id = undefined;
+        token.role = undefined;
         token.lastActivity = now;
         return token;
       }
