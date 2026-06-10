@@ -105,7 +105,7 @@ export async function uploadDocument(
   const form = new FormData();
   form.append(
     "file",
-    new Blob([pdfBuffer.buffer as ArrayBuffer], { type: "application/pdf" }),
+    new Blob([new Uint8Array(pdfBuffer)], { type: "application/pdf" }),
     fileName.endsWith(".pdf") ? fileName : `${fileName}.pdf`,
   );
   form.append("nature", "signable_document");
