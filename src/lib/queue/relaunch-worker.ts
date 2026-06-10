@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { getSettings } from "@/lib/settings";
 import { getMailer } from "@/lib/mail";
-import { dossierRelaunchMail } from "@/lib/mail/auto-templates";
+import {
+  dossierRelaunchMail,
+  notaryRelaunchMail,
+} from "@/lib/mail/auto-templates";
 import { notify } from "@/lib/notifications";
 import { audit } from "@/lib/audit";
 import { getQueue } from "@/lib/queue";
@@ -42,8 +45,8 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
       id: true,
       reference: true,
       lastActivityAt: true,
+      programme: { select: { name: true } },
       participants: {
-        where: { role: "COLLABORATOR_PRIMARY" },
         include: {
           user: { select: { id: true, email: true, firstName: true } },
         },
@@ -59,7 +62,38 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
         (Date.now() - d.lastActivityAt.getTime()) / (24 * 3600 * 1000),
       ),
     );
-    for (const p of d.participants) {
+
+    if (days > 14) {
+      for (const n of d.participants.filter((p) => p.role === "NOTARY")) {
+        await notify({
+          userId: n.user.id,
+          kind: "DOSSIER_INACTIVE",
+          title: `Dossier inactif : ${d.reference}`,
+          body: `${days} jours sans activité.`,
+          link: `/notaire/dossiers/${d.id}`,
+        });
+        // Email
+        if (settings.AUTO_EMAILS_ENABLED) {
+          try {
+            await getMailer().send(
+              notaryRelaunchMail(
+                n.user.email,
+                n.user.firstName,
+                d.reference,
+                d.programme.name,
+                days,
+              ),
+            );
+          } catch (err) {
+            console.error("[mail] relance", err);
+          }
+        }
+      }
+    }
+
+    for (const p of d.participants.filter(
+      (p) => p.role === "COLLABORATOR_PRIMARY",
+    )) {
       // Notification in-app
       await notify({
         userId: p.user.id,
