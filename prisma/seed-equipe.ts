@@ -23,25 +23,25 @@ interface TeamUser {
 
 const USERS: TeamUser[] = [
   {
-    email: "christian.virapatrin@equatis.fr",
+    email: "christian.virapatrin@equatisimmobilier.fr",
     firstName: "Christian",
     lastName: "Virapatrin",
     role: "PROMOTER",
   },
   {
-    email: "nathalie.ichane@equatis.fr",
+    email: "nathalie.ichane@equatisimmobilier.fr",
     firstName: "Nathalie",
     lastName: "Ichane",
     role: "PROMOTER",
   },
   {
-    email: "megane@equatis.fr",
+    email: "megane@equatisimmobilier.fr",
     firstName: "Mégane",
     lastName: "Collaboratrice",
     role: "COLLABORATOR",
   },
   {
-    email: "sylvie@equatis.fr",
+    email: "sylvie@equatisimmobilier.fr",
     firstName: "Sylvie",
     lastName: "Collaboratrice",
     role: "COLLABORATOR",

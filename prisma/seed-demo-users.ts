@@ -22,25 +22,25 @@ interface DemoUser {
 
 const USERS: DemoUser[] = [
   {
-    email: "collab@equatis.fr",
+    email: "collab@equatisimmobilier.fr",
     firstName: "Sophie",
     lastName: "Martin",
     role: "COLLABORATOR",
   },
   {
-    email: "promoteur@equatis.fr",
+    email: "promoteur@equatisimmobilier.fr",
     firstName: "Marc",
     lastName: "Dubois",
     role: "PROMOTER",
   },
   {
-    email: "notaire@equatis.fr",
+    email: "notaire@equatisimmobilier.fr",
     firstName: "Hélène",
     lastName: "Rousseau",
     role: "NOTARY",
   },
   {
-    email: "client@equatis.fr",
+    email: "client@equatisimmobilier.fr",
     firstName: "Julie",
     lastName: "Bernard",
     role: "CLIENT",
@@ -96,7 +96,7 @@ async function main() {
 
   // Assigner le promoteur à tous les programmes ACTIVE.
   const promoter = await prisma.user.findUnique({
-    where: { email: "promoteur@equatis.fr" },
+    where: { email: "promoteur@equatisimmobilier.fr" },
   });
   if (promoter) {
     const programmes = await prisma.programme.findMany({

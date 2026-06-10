@@ -5,7 +5,7 @@
 1. Recevez l'email d'invitation envoyé par l'admin Équatis
 2. Cliquez sur **Définir mon mot de passe** (lien valable 7 jours)
 3. Choisissez un mot de passe (8 caractères, 1 majuscule, 1 chiffre minimum)
-4. Connectez-vous sur https://equatis.fr/connexion
+4. Connectez-vous sur https://equatisimmobilier.fr/connexion
 
 Vous arrivez sur la liste de **vos programmes** — uniquement ceux auxquels l'admin vous a assigné.
 

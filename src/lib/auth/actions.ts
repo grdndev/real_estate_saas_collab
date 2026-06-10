@@ -58,7 +58,7 @@ export async function loginAction(
       fieldErrors: flatten(parsed.error),
     };
   }
-  const { email, password, from } = parsed.data;
+  const { email, password, from, remember } = parsed.data;
   const ctx = await getRequestContext();
   const h = await headers();
   const reqMeta = {

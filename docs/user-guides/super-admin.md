@@ -4,8 +4,8 @@ Ce guide accompagne le rôle **Super Admin** dans la prise en main de la platefo
 
 ## 1. Première connexion
 
-1. Ouvrez https://equatis.fr/connexion
-2. Email : `admin@equatis.fr` (par défaut, à personnaliser via `SEED_ADMIN_EMAIL`)
+1. Ouvrez https://equatisimmobilier.fr/connexion
+2. Email : `admin@equatisimmobilier.fr` (par défaut, à personnaliser via `SEED_ADMIN_EMAIL`)
 3. Mot de passe initial : fourni par votre installateur — **changez-le immédiatement** via *Mon profil → Mot de passe*
 
 ## 2. Inviter les premiers utilisateurs

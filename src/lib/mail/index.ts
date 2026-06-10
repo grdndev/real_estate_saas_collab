@@ -40,7 +40,7 @@ class BrevoMailer implements Mailer {
       },
       body: JSON.stringify({
         sender: {
-          email: env.EMAIL_FROM ?? "no-reply@equatis.fr",
+          email: env.EMAIL_FROM ?? "no-reply@equatisimmobilier.fr",
           name: env.EMAIL_FROM_NAME ?? "Équatis",
         },
         to: [{ email: message.to }],

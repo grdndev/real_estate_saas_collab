@@ -44,7 +44,7 @@ Couches actives :
 3. `findDossierForUser()` + `dossierWhereForUser()` dans chaque Server Action
 4. Headers sécurité (`X-Frame-Options`, `X-Content-Type-Options`, etc.)
 5. URLs signées 15 min sur S3 (jamais d'URL publique)
-6. CORS strict sur le bucket OVH (PUT/GET depuis equatis.fr uniquement)
+6. CORS strict sur le bucket OVH (PUT/GET depuis equatisimmobilier.fr uniquement)
 7. Webhook Yousign vérifié HMAC-SHA256 timing-safe
 
 ### D3. Observabilité
@@ -79,7 +79,7 @@ Couches actives :
 ## Suivi de production
 
 Avant ouverture aux utilisateurs réels :
-1. Configurer DNS `equatis.fr` → IP VPS OVH
+1. Configurer DNS `equatisimmobilier.fr` → IP VPS OVH
 2. Activer Caddy + cert Let's Encrypt
 3. Renseigner secrets : `BREVO_API_KEY`, `YOUSIGN_API_KEY`, `S3_*`, `SENTRY_DSN`, `CLAMAV_*`
 4. Configurer CORS bucket OVH
@@ -93,7 +93,7 @@ Avant ouverture aux utilisateurs réels :
 
 | Rôle | Email | Mot de passe |
 |---|---|---|
-| Super Admin | `admin@equatis.fr` | `Equatis2026!` (par défaut, à changer) |
+| Super Admin | `admin@equatisimmobilier.fr` | `Equatis2026!` (par défaut, à changer) |
 | Collaborateur | À inviter via admin | Défini par l'utilisateur |
 | Promoteur | À inviter via admin | Défini par l'utilisateur |
 | Notaire | À inviter via admin | Défini par l'utilisateur |

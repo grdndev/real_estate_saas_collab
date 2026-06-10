@@ -25,7 +25,7 @@ const prisma = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
 });
 
-const CLIENT_EMAIL = "jayan.grondin@equatis.fr";
+const CLIENT_EMAIL = "jayan.grondin@equatisimmobilier.fr";
 const DEMO_PASSWORD = "Demo2026!";
 const LOT_REF = "GD-DEMO-01";
 
@@ -71,14 +71,14 @@ async function main() {
   console.log("🌱 Dossier démo complet — GRONDIN Jayan");
 
   const collab = await prisma.user.findUnique({
-    where: { email: "megane@equatis.fr" },
+    where: { email: "megane@equatisimmobilier.fr" },
   });
   const notary = await prisma.user.findUnique({
-    where: { email: "notaire@equatis.fr" },
+    where: { email: "notaire@equatisimmobilier.fr" },
   });
   if (!collab || !notary) {
     throw new Error(
-      "Comptes megane@equatis.fr et notaire@equatis.fr requis — lancer seed-equipe + seed-demo-users.",
+      "Comptes megane@equatisimmobilier.fr et notaire@equatisimmobilier.fr requis — lancer seed-equipe + seed-demo-users.",
     );
   }
 

@@ -7,7 +7,7 @@
  * Usage : pnpm db:seed
  *
  * Variables optionnelles :
- *   SEED_ADMIN_EMAIL    (défaut : admin@equatis.fr)
+ *   SEED_ADMIN_EMAIL    (défaut : admin@equatisimmobilier.fr)
  *   SEED_ADMIN_PASSWORD (défaut : Equatis2026!)
  *   SEED_DEMO           (=1 pour créer programmes/lots de démo)
  */
@@ -17,7 +17,7 @@ import { PrismaClient, Prisma } from "../src/generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 
-const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@equatis.fr";
+const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@equatisimmobilier.fr";
 const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "Equatis2026!";
 const seedDemo = process.env.SEED_DEMO === "1";
 
@@ -267,7 +267,7 @@ async function ensureClientProgrammes() {
 
   // Assigne au compte promoteur démo si présent.
   const promoter = await prisma.user.findUnique({
-    where: { email: "promoteur@equatis.fr" },
+    where: { email: "promoteur@equatisimmobilier.fr" },
   });
 
   for (const prog of programmes) {

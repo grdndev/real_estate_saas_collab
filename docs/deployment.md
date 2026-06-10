@@ -77,7 +77,7 @@ Guide complet pour mettre la plateforme en production sur un VPS OVH.
    {
      "CORSRules": [
        {
-         "AllowedOrigins": ["https://equatis.fr", "https://www.equatis.fr"],
+         "AllowedOrigins": ["https://equatisimmobilier.fr", "https://www.equatisimmobilier.fr"],
          "AllowedMethods": ["PUT", "GET", "HEAD"],
          "AllowedHeaders": ["*"],
          "ExposeHeaders": ["ETag"],
@@ -167,7 +167,7 @@ sudo apt update && sudo apt install -y caddy
 `/etc/caddy/Caddyfile` :
 
 ```caddy
-equatis.fr, www.equatis.fr {
+equatisimmobilier.fr, www.equatisimmobilier.fr {
     encode zstd gzip
     reverse_proxy localhost:3000
     header {
@@ -195,7 +195,7 @@ Contenu type — **ne jamais commit ce fichier** :
 
 ```ini
 NODE_ENV=production
-NEXT_PUBLIC_APP_URL=https://equatis.fr
+NEXT_PUBLIC_APP_URL=https://equatisimmobilier.fr
 
 # OVH Managed PostgreSQL
 DATABASE_URL="postgresql://USER:PASS@HOST:PORT/equatis?sslmode=require"
@@ -222,7 +222,7 @@ S3_SECRET_ACCESS_KEY="..."
 
 # Brevo (emails)
 BREVO_API_KEY="xkeysib-..."
-EMAIL_FROM="no-reply@equatis.fr"
+EMAIL_FROM="no-reply@equatisimmobilier.fr"
 EMAIL_FROM_NAME="Équatis"
 
 # Yousign (Phase 4)
@@ -280,7 +280,7 @@ Dans **Settings → Secrets and variables → Actions** du repo :
 Variable d'environnement (pas un secret) :
 | Variable | Valeur |
 |---|---|
-| `PRODUCTION_URL` | `https://equatis.fr` |
+| `PRODUCTION_URL` | `https://equatisimmobilier.fr` |
 
 ## 8. Backups
 
@@ -311,7 +311,7 @@ crontab -e
 
 ## 9. Monitoring
 
-- **Uptime** : créer un check sur https://betteruptime.com (free tier) ou UptimeRobot ciblant `https://equatis.fr/`
+- **Uptime** : créer un check sur https://betteruptime.com (free tier) ou UptimeRobot ciblant `https://equatisimmobilier.fr/`
 - **Logs** : `docker compose logs -f app` ou intégrer Sentry (Phase 5)
 - **Alertes** : configurer notifications email/SMS sur le service uptime
 

@@ -4,7 +4,7 @@ Bienvenue sur votre espace personnel pour suivre votre acquisition immobilière.
 
 ## S'inscrire
 
-1. Rendez-vous sur https://equatis.fr/inscription
+1. Rendez-vous sur https://equatisimmobilier.fr/inscription
 2. Renseignez vos coordonnées (prénom, nom, email, téléphone, adresse postale)
 3. Choisissez un mot de passe (8 caractères, 1 majuscule, 1 chiffre)
 4. Validez les conditions d'utilisation
@@ -71,7 +71,7 @@ Pendant le traitement, votre compte est suspendu (vous ne pouvez plus vous conne
 
 | Problème | Solution |
 |---|---|
-| Mot de passe oublié | https://equatis.fr/mot-de-passe-oublie |
+| Mot de passe oublié | https://equatisimmobilier.fr/mot-de-passe-oublie |
 | Email de confirmation non reçu | Vérifier les spams. Sinon, contactez votre collaborateur. |
 | Upload échoue | Vérifier taille (< 20 Mo) et format (PDF/JPG/PNG/DOCX) |
 | Document refusé après scan | Le fichier contient un virus. Réessayer avec un fichier sain. |

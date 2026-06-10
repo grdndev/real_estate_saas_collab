@@ -20,8 +20,12 @@ async function main() {
   console.log("🌱 Création d'un dossier de démo…");
 
   const [collab, client, programme] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { email: "collab@equatis.fr" } }),
-    prisma.user.findUniqueOrThrow({ where: { email: "client@equatis.fr" } }),
+    prisma.user.findUniqueOrThrow({
+      where: { email: "collab@equatisimmobilier.fr" },
+    }),
+    prisma.user.findUniqueOrThrow({
+      where: { email: "client@equatisimmobilier.fr" },
+    }),
     prisma.programme.findUniqueOrThrow({ where: { reference: "ANTARES" } }),
   ]);
   const lot = await prisma.lot.findFirst({

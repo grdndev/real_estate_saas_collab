@@ -19,7 +19,7 @@ async function main() {
   console.log("🌱 Création de prospects de démo…");
 
   const collab = await prisma.user.findUnique({
-    where: { email: "collab@equatis.fr" },
+    where: { email: "collab@equatisimmobilier.fr" },
   });
 
   const programmes = await prisma.programme.findMany({
