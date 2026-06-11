@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
-import ListeDossiers from "./ListeDossiers";
+import ListeDossiers from "./liste-dossiers";
 
 export const metadata: Metadata = { title: "Dossiers reçus" };
 

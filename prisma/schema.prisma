@@ -113,6 +113,14 @@ enum DocumentSource {
   PROGRAMME_RESOURCE
 }
 
+enum ProgrammeDocumentCategory {
+  PLAN
+  PERMIS
+  NOTICE
+  BUDGET
+  ACTE
+}
+
 enum TimelineKind {
   LEAD_CREATED
   COMMERCIAL_MEETING
@@ -438,13 +446,13 @@ model Document {
 
 // Documents attachés à un programme (plans, permis, notice, budget, acte type).
 model ProgrammeDocument {
-  id          String @id @default(cuid())
+  id          String                     @id @default(cuid())
   programmeId String
   fileName    String
-  storageKey  String @unique
+  storageKey  String                     @unique
   mimeType    String
   sizeBytes   Int
-  category    String
+  category    ProgrammeDocumentCategory
 
   createdAt DateTime @default(now())
 

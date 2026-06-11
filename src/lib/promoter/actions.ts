@@ -15,6 +15,15 @@ import {
   type ImportProgrammeInput,
 } from "@/lib/promoter/schemas";
 import { parseLotsWorkbook } from "@/lib/promoter/excel-import";
+import {
+  buildProgrammeDocumentKey,
+  deleteObject,
+  isStorageConfigured,
+  presignDownloadUrl,
+  presignUploadUrl,
+} from "@/lib/storage/s3";
+import { ALLOWED_MIME, MAX_FILE_BYTES } from "@/lib/storage/schemas";
+import type { ProgrammeDocumentCategory } from "@/generated/prisma/enums";
 import type { ActionResult } from "@/lib/auth/actions";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
@@ -193,4 +202,169 @@ export async function importProgrammeAction(
       warnings: errors,
     },
   };
+}
+
+// =====================================================
+// PROGRAMME DOCUMENTS
+// =====================================================
+
+const prepareProgrammeDocumentSchema = z.object({
+  programmeId: z.string().min(1),
+  category: z.enum(["PLAN", "PERMIS", "NOTICE", "BUDGET", "ACTE"]),
+  fileName: z.string().min(1).max(255),
+  mimeType: z.enum(ALLOWED_MIME, {
+    error: () => ({
+      message: "Format non autorisé. Acceptés : PDF, JPG, PNG, DOCX.",
+    }),
+  }),
+  sizeBytes: z
+    .number()
+    .int()
+    .min(1, "Fichier vide")
+    .max(MAX_FILE_BYTES, "Fichier > 20 Mo"),
+});
+
+export async function prepareProgrammeDocumentUploadAction(input: {
+  programmeId: string;
+  category: ProgrammeDocumentCategory;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+}): Promise<ActionResult<{ documentId: string; uploadUrl: string }>> {
+  const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
+  const parsed = prepareProgrammeDocumentSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "Stockage S3 non configuré." };
+  }
+  const programme = await findProgrammeForRole(
+    parsed.data.programmeId,
+    me.id,
+    me.role,
+  );
+  if (!programme) return { ok: false, error: "Programme inaccessible." };
+
+  const doc = await prisma.programmeDocument.create({
+    data: {
+      programmeId: parsed.data.programmeId,
+      fileName: parsed.data.fileName,
+      mimeType: parsed.data.mimeType,
+      sizeBytes: parsed.data.sizeBytes,
+      category: parsed.data.category,
+      storageKey: "_pending_",
+    },
+  });
+  const storageKey = buildProgrammeDocumentKey(parsed.data.programmeId, doc.id);
+  await prisma.programmeDocument.update({
+    where: { id: doc.id },
+    data: { storageKey },
+  });
+
+  const uploadUrl = await presignUploadUrl(
+    storageKey,
+    parsed.data.mimeType,
+    parsed.data.sizeBytes,
+  );
+
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_UPLOADED",
+    resourceType: "ProgrammeDocument",
+    resourceId: doc.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: {
+      programmeId: parsed.data.programmeId,
+      step: "prepare",
+      category: parsed.data.category,
+    },
+  });
+
+  return { ok: true, value: { documentId: doc.id, uploadUrl } };
+}
+
+export async function confirmProgrammeDocumentUploadAction(
+  documentId: string,
+): Promise<ActionResult> {
+  const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
+  const doc = await prisma.programmeDocument.findUnique({
+    where: { id: documentId },
+  });
+  if (!doc) return { ok: false, error: "Document introuvable." };
+
+  const programme = await findProgrammeForRole(doc.programmeId, me.id, me.role);
+  if (!programme) return { ok: false, error: "Accès refusé." };
+
+  revalidatePath(`/promoteur/${doc.programmeId}`);
+  return { ok: true, value: undefined };
+}
+
+export async function deleteProgrammeDocumentAction(
+  documentId: string,
+): Promise<ActionResult> {
+  const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
+  const doc = await prisma.programmeDocument.findUnique({
+    where: { id: documentId },
+  });
+  if (!doc) return { ok: false, error: "Document introuvable." };
+
+  const programme = await findProgrammeForRole(doc.programmeId, me.id, me.role);
+  if (!programme) return { ok: false, error: "Accès refusé." };
+
+  await prisma.programmeDocument.delete({ where: { id: documentId } });
+  void deleteObject(doc.storageKey).catch((err) => {
+    console.error("[storage] échec suppression S3", doc.storageKey, err);
+  });
+
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_DELETED",
+    resourceType: "ProgrammeDocument",
+    resourceId: documentId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: { programmeId: doc.programmeId },
+  });
+
+  revalidatePath(`/promoteur/${doc.programmeId}`);
+  return { ok: true, value: undefined };
+}
+
+export async function getProgrammeDocumentDownloadUrlAction(
+  documentId: string,
+): Promise<ActionResult<{ url: string }>> {
+  const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
+  if (!isStorageConfigured())
+    return { ok: false, error: "Stockage S3 non configuré." };
+
+  const doc = await prisma.programmeDocument.findUnique({
+    where: { id: documentId },
+  });
+  if (!doc) return { ok: false, error: "Document introuvable." };
+
+  const programme = await findProgrammeForRole(doc.programmeId, me.id, me.role);
+  if (!programme) return { ok: false, error: "Accès refusé." };
+
+  const ctx = await getRequestContext();
+  const url = await presignDownloadUrl(doc.storageKey, doc.fileName);
+
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_DOWNLOADED",
+    resourceType: "ProgrammeDocument",
+    resourceId: documentId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: { programmeId: doc.programmeId },
+  });
+
+  return { ok: true, value: { url } };
 }

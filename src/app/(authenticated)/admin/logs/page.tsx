@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import ActivityLog from "./ActivityLog";
+import ActivityLog from "./activity-log";
 
 export default async function AdminLogsPage() {
   const logs = await prisma.auditLog.findMany({

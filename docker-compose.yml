@@ -25,7 +25,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.equatis.rule=Host(`equatis.codialis.com`)"
+      - "traefik.http.routers.equatis.rule=Host(`plateforme.equatisimmobilier.fr`)"
       - "traefik.http.routers.equatis.entrypoints=websecure"
       - "traefik.http.routers.equatis.tls.certresolver=myresolver"
       - "traefik.http.services.equatis.loadbalancer.server.port=3000"

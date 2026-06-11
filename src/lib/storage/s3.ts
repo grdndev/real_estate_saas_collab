@@ -130,3 +130,10 @@ export function buildDocumentKey(
 ): string {
   return `dossiers/${dossierId}/${documentId}`;
 }
+
+export function buildProgrammeDocumentKey(
+  programmeId: string,
+  documentId: string,
+): string {
+  return `programmes/${programmeId}/${documentId}`;
+}

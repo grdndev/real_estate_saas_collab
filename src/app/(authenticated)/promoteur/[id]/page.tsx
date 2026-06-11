@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
+import ListeDocuments from "./liste-documents";
 
 export const metadata: Metadata = { title: "Tableau de bord programme" };
 
@@ -29,6 +30,19 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
   const lots = await prisma.lot.findMany({
     where: { programmeId: id },
     select: { surface: true, priceTTC: true, status: true },
+  });
+
+  const documents = await prisma.programmeDocument.findMany({
+    where: { programmeId: id },
+    select: {
+      id: true,
+      fileName: true,
+      category: true,
+      mimeType: true,
+      sizeBytes: true,
+      createdAt: true,
+    },
+    orderBy: { createdAt: "asc" },
   });
 
   // Suivi commercial : compte + CA prévisionnel par statut de lot.
@@ -189,6 +203,9 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
         >
           → Suivi des contrats
         </Link>
+      </div>
+      <div>
+        <ListeDocuments id={id} documents={documents} />
       </div>
     </div>
   );
