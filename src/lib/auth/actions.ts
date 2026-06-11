@@ -82,6 +82,29 @@ export async function loginAction(
     },
   });
 
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  // Re-fetch user pour la redirection ciblée par rôle.
+  if (!user || user.deletedAt) {
+    return { ok: false, error: "Compte introuvable" };
+  }
+
+  if (user.status === "PENDING_EMAIL") {
+    return {
+      ok: false,
+      error:
+        "Votre adresse email n'est pas encore vérifiée. Veuillez vérifier votre boîte de réception.",
+    };
+  }
+
+  if (user.status === "PENDING_ASSOCIATION") {
+    return {
+      ok: false,
+      error:
+        "Votre compte est en attente d'association à une entité. Veuillez contacter le support.",
+    };
+  }
+
   try {
     await signIn("credentials", {
       email,
@@ -103,11 +126,6 @@ export async function loginAction(
     throw err;
   }
 
-  // Re-fetch user pour la redirection ciblée par rôle.
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
-    return { ok: false, error: "Compte introuvable" };
-  }
   await audit({
     userId: user.id,
     action: "USER_LOGIN",
