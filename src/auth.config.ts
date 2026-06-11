@@ -1,5 +1,6 @@
 import type { NextAuthConfig } from "next-auth";
 import { env } from "@/lib/env";
+import { getSettings } from "./lib/settings";
 
 /**
  * Configuration Auth.js v5 partagée — sans accès Prisma/bcrypt.
@@ -21,8 +22,8 @@ export const authConfig = {
   },
   session: {
     strategy: "jwt",
-    maxAge: env.REFRESH_TOKEN_TTL_SECONDS,
-    updateAge: Math.floor(env.SESSION_INACTIVITY_MINUTES * 30),
+    maxAge: 3600 * 24 * 30, // 30 jours
+    updateAge: 1800, // 30 minutes
   },
   logger: {
     error(error) {
@@ -32,8 +33,8 @@ export const authConfig = {
   providers: [],
   callbacks: {
     async jwt({ token, user, trigger }) {
-      const inactivityMs = env.SESSION_INACTIVITY_MINUTES * 60 * 1000;
-      const duration = env.REFRESH_TOKEN_TTL_SECONDS * 1000;
+      const inactivityMs =
+        (await getSettings()).SESSION_INACTIVITY_MINUTES * 60 * 1000;
       const now = Date.now();
 
       if (user) {
@@ -41,35 +42,32 @@ export const authConfig = {
         token.role = user.role;
         token.lastActivity = now;
         token.sessionExpiresAt =
-          now + (!!user.remember ? duration : (duration / 30) * 7);
+          now +
+          (!!user.remember ? 30 * 24 * 3600 * 1000 : 7 * 24 * 3600 * 1000);
         return token;
       }
 
-      if (
-        typeof token.sessionExpiresAt === "number" &&
-        now > token.sessionExpiresAt
-      ) {
+      const sessionExpiresAt =
+        typeof token.sessionExpiresAt === "number"
+          ? token.sessionExpiresAt
+          : now;
+
+      if (now >= sessionExpiresAt) {
         token.id = undefined;
         token.role = undefined;
-        token.lastActivity = now;
         return token;
       }
 
-      const last =
-        typeof token.lastActivity === "number" ? token.lastActivity : null;
+      const lastActivity =
+        typeof token.lastActivity === "number" ? token.lastActivity : now;
 
-      // Si on n'a jamais vu de timestamp d'activité, on se fie à la maxAge globale.
-      if (last && now - last > inactivityMs) {
-        // Invalidation : on retire l'identité — le callback session ne pourra
-        // plus reconstruire un user.id et le proxy redirigera vers /connexion.
+      if (now - lastActivity > inactivityMs) {
         token.id = undefined;
         token.role = undefined;
-        token.lastActivity = now;
         return token;
       }
 
-      // Refresh activité (mais pas à chaque requête : limite à 1× / 60s).
-      if (trigger === "update" || !last || now - last > 60_000) {
+      if (trigger === "update") {
         token.lastActivity = now;
       }
 
