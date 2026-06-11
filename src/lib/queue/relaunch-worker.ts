@@ -19,19 +19,18 @@ export async function startRelaunchScheduler(): Promise<void> {
 
   const boss = await getQueue();
   await boss.createQueue(RELAUNCH_QUEUE);
-
-  // Plan : tous les jours à 03h00 UTC.
-  await boss.schedule(RELAUNCH_QUEUE, "0 3 * * *");
-
+  await boss.schedule(RELAUNCH_QUEUE, "* * * * *");
   await boss.work(RELAUNCH_QUEUE, async () => {
     await runRelaunchPass();
   });
 
-  console.info(`[pg-boss] scheduler relance dossiers démarré (cron 0 3 * * *)`);
+  console.info(`[pg-boss] scheduler relance dossiers`);
 }
 
 /** Lance manuellement une passe de relance — utile pour tests / cron externe. */
 export async function runRelaunchPass(): Promise<{ relaunched: number }> {
+  console.info(`[pg-boss] passe de relance automatique démarrée`);
+
   const settings = await getSettings();
   const threshold = new Date();
   threshold.setDate(threshold.getDate() - settings.RELAUNCH_DELAY_DAYS);
@@ -85,7 +84,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
               ),
             );
           } catch (err) {
-            console.error("[mail] relance", err);
+            console.error("[mail] relance échouée", n.user.email, err);
           }
         }
       }
@@ -114,10 +113,11 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
             ),
           );
         } catch (err) {
-          console.error("[mail] relance", err);
+          console.error("[mail] relance échouée", p.user.email, err);
         }
       }
     }
+
     await audit({
       action: "DOSSIER_UPDATED",
       resourceType: "Dossier",
@@ -126,5 +126,6 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
     });
     relaunched++;
   }
+
   return { relaunched };
 }
