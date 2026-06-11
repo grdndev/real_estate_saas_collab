@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { prisma } from "@/lib/prisma";
+import ActivityExcerpt from "./activity-excerpt";
 
 export const metadata: Metadata = { title: "Tableau de bord admin" };
 
@@ -170,39 +171,7 @@ export default async function AdminDashboardPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Activité récente</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {recentEvents.length === 0 ? (
-            <p className="text-sm text-slate-500">
-              Aucune activité enregistrée pour le moment.
-            </p>
-          ) : (
-            <ul className="divide-y divide-slate-100">
-              {recentEvents.map((event) => (
-                <li
-                  key={event.id}
-                  className="flex items-center justify-between gap-4 py-3 text-sm"
-                >
-                  <span className="text-equatis-night-800 font-mono text-xs">
-                    {event.action}
-                  </span>
-                  <span className="text-slate-600">
-                    {event.user
-                      ? `${event.user.firstName} ${event.user.lastName}`
-                      : "système"}
-                  </span>
-                  <span className="text-xs text-slate-500">
-                    {event.createdAt.toLocaleString("fr-FR")}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <ActivityExcerpt recentEvents={recentEvents} />
 
       <p className="text-center text-xs text-slate-400">
         <Link
