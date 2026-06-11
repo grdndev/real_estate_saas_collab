@@ -19,7 +19,7 @@ export async function startRelaunchScheduler(): Promise<void> {
 
   const boss = await getQueue();
   await boss.createQueue(RELAUNCH_QUEUE);
-  await boss.schedule(RELAUNCH_QUEUE, "* * * * *");
+  await boss.schedule(RELAUNCH_QUEUE, "0 3 * * *");
   await boss.work(RELAUNCH_QUEUE, async () => {
     await runRelaunchPass();
   });
