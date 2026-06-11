@@ -13,6 +13,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   destructive?: boolean;
   pending?: boolean;
+  error?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -29,6 +30,7 @@ export function ConfirmDialog({
   cancelLabel = "Annuler",
   destructive = false,
   pending = false,
+  error,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
@@ -62,6 +64,7 @@ export function ConfirmDialog({
           <h2 className="text-equatis-night-800 text-lg font-semibold">
             {title}
           </h2>
+          {error && <div className="mt-2 text-sm text-red-600">{error}</div>}
           {description && (
             <div className="mt-2 text-sm text-slate-600">{description}</div>
           )}
@@ -73,7 +76,7 @@ export function ConfirmDialog({
           <Button
             variant={destructive ? "danger" : "primary"}
             onClick={onConfirm}
-            disabled={pending}
+            disabled={pending || !!error}
           >
             {pending ? "…" : confirmLabel}
           </Button>

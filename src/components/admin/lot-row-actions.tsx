@@ -26,10 +26,8 @@ export function DeleteLotButton({ lotId }: { lotId: string }) {
       <ConfirmDialog
         open={open}
         title="Supprimer ce lot ?"
-        description={
-          error ??
-          "Action irréversible. Le lot ne doit pas être rattaché à un dossier."
-        }
+        description="Action irréversible. Le lot ne doit pas être rattaché à un dossier."
+        error={error || undefined}
         destructive
         confirmLabel="Supprimer"
         pending={pending}
