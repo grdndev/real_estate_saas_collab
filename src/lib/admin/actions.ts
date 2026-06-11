@@ -397,6 +397,12 @@ async function ensureProgrammeAccess(
   role: "SUPER_ADMIN" | "PROMOTER",
 ): Promise<boolean> {
   if (role === "SUPER_ADMIN") return true;
+
+  const programme = await prisma.programme.findUnique({
+    where: { id: programmeId },
+  });
+  if (!programme || programme.status === "ARCHIVED") return false;
+
   const link = await prisma.programmePromoter.findUnique({
     where: { programmeId_promoterId: { programmeId, promoterId: userId } },
   });

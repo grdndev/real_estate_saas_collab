@@ -73,6 +73,7 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
   const assignedPromoters = programme.promoters.map((pp) => pp.promoter);
 
   const badge = STATUS_BADGE[programme.status];
+  const isArchived = programme.status === "ARCHIVED";
 
   return (
     <div className="flex flex-col gap-6">
@@ -96,9 +97,7 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
               {programme.city && <span>{programme.city}</span>}
             </p>
           </div>
-          {programme.status !== "ARCHIVED" && (
-            <ArchiveProgrammeButton programmeId={programme.id} />
-          )}
+          {!isArchived && <ArchiveProgrammeButton programmeId={programme.id} />}
         </div>
       </div>
 
@@ -173,7 +172,7 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
                         <Badge variant={lb.variant}>{lb.label}</Badge>
                       </Td>
                       <Td className="text-right">
-                        <DeleteLotButton lotId={lot.id} />
+                        {!isArchived && <DeleteLotButton lotId={lot.id} />}
                       </Td>
                     </Tr>
                   );
@@ -182,12 +181,14 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
             </Table>
           )}
 
-          <div className="border-t border-slate-100 pt-4">
-            <p className="text-equatis-night-800 mb-3 text-sm font-medium">
-              Ajouter un lot
-            </p>
-            <CreateLotForm programmeId={programme.id} />
-          </div>
+          {!isArchived && (
+            <div className="border-t border-slate-100 pt-4">
+              <p className="text-equatis-night-800 mb-3 text-sm font-medium">
+                Ajouter un lot
+              </p>
+              <CreateLotForm programmeId={programme.id} />
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
