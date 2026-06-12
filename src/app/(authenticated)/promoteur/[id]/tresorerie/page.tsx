@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TreasuryRow } from "@/components/promoter/treasury-row";
+import { TreasuryChart } from "@/components/promoter/treasury-chart";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
@@ -124,6 +125,16 @@ export default async function ProgrammeTreasuryPage({ params }: PageProps) {
     totalIncome += Number(e.income);
     totalExpense += Number(e.expense);
   }
+
+  const chartData = months.map((d) => {
+    const iso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const entry = byKey.get(iso);
+    return {
+      label: `${MONTH_NAMES[d.getUTCMonth()]!.slice(0, 3)}. ${String(d.getUTCFullYear()).slice(2)}`,
+      income: entry ? Number(entry.income) : 0,
+      expense: entry ? Number(entry.expense) : 0,
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -273,15 +284,33 @@ export default async function ProgrammeTreasuryPage({ params }: PageProps) {
 
       <Card>
         <CardHeader>
+          <CardTitle>Flux mensuels — 12 mois glissants</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <TreasuryChart data={chartData} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Tableau mensuel</CardTitle>
-            <a
-              href={`/promoteur/${id}/tresorerie/export`}
-              className="text-equatis-turquoise-700 text-xs hover:underline"
-              download
-            >
-              Exporter (CSV)
-            </a>
+            <div className="flex items-center gap-4">
+              <a
+                href={`/promoteur/${id}/tresorerie/export-pdf`}
+                className="text-equatis-turquoise-700 text-xs hover:underline"
+                download
+              >
+                Exporter (PDF)
+              </a>
+              <a
+                href={`/promoteur/${id}/tresorerie/export`}
+                className="text-equatis-turquoise-700 text-xs hover:underline"
+                download
+              >
+                Exporter (CSV)
+              </a>
+            </div>
           </div>
         </CardHeader>
         <div className="overflow-x-auto">

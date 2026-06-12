@@ -60,13 +60,22 @@ export default async function ProgrammeLotsPage({ params }: PageProps) {
             {programme.name} — {lots.length} lot{lots.length > 1 ? "s" : ""}.
           </p>
         </div>
-        <a
-          href={`/promoteur/${id}/lots/export`}
-          className="text-equatis-turquoise-700 inline-flex h-9 items-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
-          download
-        >
-          Exporter (CSV)
-        </a>
+        <div className="flex items-center gap-2">
+          <a
+            href={`/promoteur/${id}/lots/export-pdf`}
+            className="text-equatis-turquoise-700 inline-flex h-9 items-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
+            download
+          >
+            Exporter (PDF)
+          </a>
+          <a
+            href={`/promoteur/${id}/lots/export`}
+            className="text-equatis-turquoise-700 inline-flex h-9 items-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
+            download
+          >
+            Exporter (CSV)
+          </a>
+        </div>
       </div>
 
       <Card>
@@ -123,13 +132,6 @@ export default async function ProgrammeLotsPage({ params }: PageProps) {
             </TBody>
           </Table>
         )}
-        <CardContent className="border-t border-slate-100 text-xs text-slate-500">
-          <CardHeader className="px-0 py-0">
-            <CardTitle className="text-xs font-normal">
-              Export PDF disponible en Phase 5 (audit + production).
-            </CardTitle>
-          </CardHeader>
-        </CardContent>
       </Card>
     </div>
   );
