@@ -7,6 +7,11 @@ import { requireRole } from "@/lib/auth/guards";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
+import { getMailer } from "@/lib/mail";
+import {
+  signatureCompletedClientMail,
+  signatureCompletedCollaboratorMail,
+} from "@/lib/mail/auto-templates";
 import {
   activateSignatureRequest,
   addSignatureField,
@@ -240,8 +245,12 @@ export async function notifySignatureUpdate(
             where: {
               role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
             },
-            select: { userId: true },
+            select: {
+              userId: true,
+              user: { select: { email: true, firstName: true } },
+            },
           },
+          client: { select: { email: true, firstName: true } },
         },
       },
     },
@@ -258,6 +267,7 @@ export async function notifySignatureUpdate(
 
   if (newStatus === "SIGNED") {
     // Notifier collaborateurs + client
+    const mailer = getMailer();
     for (const p of signature.dossier.participants) {
       await notify({
         userId: p.userId,
@@ -266,8 +276,20 @@ export async function notifySignatureUpdate(
         body: `Le document du dossier ${signature.dossier.reference} a été signé.`,
         link: `/collaborateur/dossiers/${signature.dossier.id}`,
       });
+      mailer
+        .send(
+          signatureCompletedCollaboratorMail(
+            p.user.email,
+            p.user.firstName,
+            signature.dossier.reference,
+            signature.dossierId,
+          ),
+        )
+        .catch((err) =>
+          console.error("[mail] signatureCompleted collab", p.user.email, err),
+        );
     }
-    if (signature.dossier.clientId) {
+    if (signature.dossier.clientId && signature.dossier.client) {
       await notify({
         userId: signature.dossier.clientId,
         kind: "SIGNATURE_COMPLETED",
@@ -275,6 +297,21 @@ export async function notifySignatureUpdate(
         body: `Document du dossier ${signature.dossier.reference}`,
         link: "/client",
       });
+      mailer
+        .send(
+          signatureCompletedClientMail(
+            signature.dossier.client.email,
+            signature.dossier.client.firstName,
+            signature.dossier.reference,
+          ),
+        )
+        .catch((err) =>
+          console.error(
+            "[mail] signatureCompleted client",
+            signature.dossier.client!.email,
+            err,
+          ),
+        );
     }
 
     // Récupération du PDF signé depuis Yousign et réintégration sur le dossier.

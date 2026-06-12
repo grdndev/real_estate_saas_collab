@@ -168,6 +168,47 @@ export function transmittedToNotaryMail(
   };
 }
 
+// CDC §8.5 — Signature électronique complétée (notification collaborateur)
+export function signatureCompletedCollaboratorMail(
+  to: string,
+  firstName: string,
+  reference: string,
+  dossierId: string,
+): MailMessage {
+  const link = `${baseUrl}/collaborateur/dossiers/${dossierId}`;
+  return {
+    to,
+    subject: `[${reference}] Document signé électroniquement`,
+    text: `Bonjour ${firstName},\n\nLe document du dossier ${reference} a été signé électroniquement. Le document signé est disponible sur le dossier.\nLien : ${link}`,
+    html: wrapHtml(
+      "Document signé",
+      `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
+       <p style="color:#475569; font-size:14px;">Le document du dossier <strong>${reference}</strong> a été signé électroniquement via Yousign. Le document signé est disponible sur le dossier.</p>
+       ${button("Ouvrir le dossier", link)}`,
+    ),
+  };
+}
+
+// CDC §8.5 — Signature électronique complétée (notification client)
+export function signatureCompletedClientMail(
+  to: string,
+  firstName: string,
+  reference: string,
+): MailMessage {
+  const link = `${baseUrl}/client`;
+  return {
+    to,
+    subject: "Votre document a été signé",
+    text: `Bonjour ${firstName},\n\nVotre document du dossier ${reference} a été signé électroniquement. Vous pouvez le consulter sur votre espace.\nLien : ${link}`,
+    html: wrapHtml(
+      "Votre document est signé",
+      `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
+       <p style="color:#475569; font-size:14px;">Votre document pour le dossier <strong>${reference}</strong> a été signé électroniquement. Vous pouvez le consulter sur votre espace personnel.</p>
+       ${button("Accéder à mon espace", link)}`,
+    ),
+  };
+}
+
 // CDC §8.5 — Acte prêt
 export function actReadyMail(
   to: string,

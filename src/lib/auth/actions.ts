@@ -18,6 +18,7 @@ import {
 import { generateOpaqueToken } from "@/lib/auth/tokens";
 import { hashToken } from "@/lib/crypto";
 import { getRequestContext } from "@/lib/request-context";
+import { notify } from "@/lib/notifications";
 import {
   loginSchema,
   signupSchema,
@@ -263,6 +264,25 @@ export async function verifyEmailAction(
     where: { id: verification.id },
     data: { verifiedAt: new Date() },
   });
+
+  const staff = await prisma.user.findMany({
+    where: {
+      role: { in: ["SUPER_ADMIN", "COLLABORATOR"] },
+      status: "ACTIVE",
+    },
+    select: { id: true },
+  });
+  await Promise.all(
+    staff.map((u) =>
+      notify({
+        userId: u.id,
+        kind: "NEW_LEAD",
+        title: "Nouveau prospect",
+        body: `${user.firstName} ${user.lastName} est en attente d'association.`,
+        link: "/collaborateur",
+      }),
+    ),
+  );
 
   await getMailer().send(welcomeMail(user.email, user.firstName));
 
