@@ -18,6 +18,7 @@ import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
 import { getSettings } from "@/lib/settings";
 import { maskName } from "@/lib/utils";
+import { AutoRefresh } from "@/components/ui/auto-refresh";
 
 export const metadata: Metadata = { title: "Mon tableau de bord" };
 
@@ -96,6 +97,7 @@ export default async function CollaborateurDashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <AutoRefresh />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
