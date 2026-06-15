@@ -48,6 +48,11 @@ export async function createAppointmentAction(
     return { ok: false, error: "Date du rendez-vous invalide." };
   }
 
+  const localeTime = new Date(data.localeTime);
+  if (Number.isNaN(localeTime.getTime())) {
+    return { ok: false, error: "Date du rendez-vous invalide." };
+  }
+
   const appointment = await prisma.$transaction(async (tx) => {
     const created = await tx.appointment.create({
       data: {
@@ -73,7 +78,7 @@ export async function createAppointmentAction(
         dossierId: dossier.id,
         kind: "APPOINTMENT_SCHEDULED",
         title: "Rendez-vous notaire planifié",
-        description: `${scheduledAt.toLocaleString("fr-FR")}${
+        description: `${localeTime.toLocaleString("fr-FR")}${
           data.location ? ` — ${data.location}` : ""
         }`,
         actorId: me.id,
@@ -82,7 +87,7 @@ export async function createAppointmentAction(
     return created;
   });
 
-  const whenLabel = scheduledAt.toLocaleString("fr-FR", {
+  const whenLabel = localeTime.toLocaleString("fr-FR", {
     dateStyle: "long",
     timeStyle: "short",
   });

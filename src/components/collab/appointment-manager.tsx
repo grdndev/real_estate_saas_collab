@@ -56,7 +56,8 @@ export function AppointmentManager({
     startTransition(async () => {
       const result = await createAppointmentAction({
         dossierId,
-        scheduledAt,
+        scheduledAt: new Date(scheduledAt).toISOString(),
+        localeTime: scheduledAt,
         location,
         notes,
       });

@@ -1,3 +1,5 @@
+"use client";
+
 import {
   CalendarClock,
   CheckCircle2,
@@ -40,6 +42,7 @@ interface TimelineEvent {
   title: string;
   description: string | null;
   occurredAt: Date;
+  scheduledAt?: Date;
   actor?: { firstName: string; lastName: string } | null;
 }
 
@@ -77,7 +80,10 @@ export function Timeline({ events }: { events: TimelineEvent[] }) {
               </p>
             )}
             <p className="mt-1 text-xs text-slate-500">
-              <time dateTime={event.occurredAt.toISOString()}>
+              <time
+                dateTime={event.occurredAt.toISOString()}
+                suppressHydrationWarning
+              >
                 {event.occurredAt.toLocaleString("fr-FR")}
               </time>
               {event.actor && (
