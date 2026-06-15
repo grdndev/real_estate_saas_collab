@@ -123,6 +123,7 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
             programmeId={programme.id}
             assigned={assignedPromoters}
             available={availablePromoters}
+            archived={isArchived}
           />
         </CardContent>
       </Card>

@@ -347,6 +347,20 @@ export async function assignPromoterAction(
   if (!parsed.success) {
     return { ok: false, error: "Saisie invalide" };
   }
+
+  const programme = await prisma.programme.findUnique({
+    where: { id: parsed.data.programmeId },
+  });
+  if (!programme) {
+    return { ok: false, error: "Programme introuvable" };
+  }
+  if (programme.status === "ARCHIVED") {
+    return {
+      ok: false,
+      error: "Impossible d'assigner un promoteur à un programme archivé.",
+    };
+  }
+
   await prisma.programmePromoter.upsert({
     where: {
       programmeId_promoterId: {
@@ -369,6 +383,20 @@ export async function unassignPromoterAction(
   if (!parsed.success) {
     return { ok: false, error: "Saisie invalide" };
   }
+
+  const programme = await prisma.programme.findUnique({
+    where: { id: parsed.data.programmeId },
+  });
+  if (!programme) {
+    return { ok: false, error: "Programme introuvable" };
+  }
+  if (programme.status === "ARCHIVED") {
+    return {
+      ok: false,
+      error: "Impossible de retirer un promoteur d'un programme archivé.",
+    };
+  }
+
   await prisma.programmePromoter.delete({
     where: {
       programmeId_promoterId: {

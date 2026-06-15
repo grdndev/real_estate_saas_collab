@@ -23,12 +23,14 @@ interface Props {
   programmeId: string;
   assigned: PromoterOption[];
   available: PromoterOption[];
+  archived: boolean;
 }
 
 export function PromoterAssignment({
   programmeId,
   assigned,
   available,
+  archived,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -63,7 +65,7 @@ export function PromoterAssignment({
                 type="button"
                 aria-label={`Retirer ${p.firstName} ${p.lastName}`}
                 onClick={() => remove(p.id)}
-                disabled={pending}
+                disabled={pending || archived}
                 className="hover:text-equatis-night-900"
               >
                 <X className="size-3" aria-hidden />
@@ -86,7 +88,7 @@ export function PromoterAssignment({
               </option>
             ))}
           </Select>
-          <Button onClick={add} disabled={!selected || pending}>
+          <Button onClick={add} disabled={!selected || pending || archived}>
             Assigner
           </Button>
         </div>
