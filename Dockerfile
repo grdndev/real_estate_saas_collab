@@ -17,7 +17,7 @@ COPY . .
 RUN npm run db:generate
 
 ENV SKIP_ENV_VALIDATION=1
-ENV NEXT_PUBLIC_APP_URL=https://equatis.codialis.com
+ENV NEXT_PUBLIC_APP_URL=https://plateforme.equatisimmobilier.fr
 ENV DATABASE_URL=postgresql://build:build@localhost:5432/build
 ENV AUTH_SECRET=build_only_secret_replace_at_runtime_xxxxxxxxxxxxxxxx
 ENV DATA_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
