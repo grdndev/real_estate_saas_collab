@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Eye, Trash2 } from "lucide-react";
+import { Download, Eye, Trash2, UserCheck, UserX } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog, PreviewDialog } from "@/components/ui/dialog";
@@ -10,23 +10,33 @@ import {
   deleteDocumentAction,
   getDownloadUrlAction,
   getPreviewUrlAction,
+  toggleDocumentVisibilityAction,
 } from "@/lib/storage/actions";
 
 interface Props {
   documentId: string;
   scanStatus: "PENDING" | "CLEAN" | "INFECTED" | "ERROR";
   canDelete: boolean;
+  isShared?: boolean;
+  source?:
+    | "CLIENT_UPLOAD"
+    | "COLLABORATOR_UPLOAD"
+    | "YOUSIGN_SIGNED"
+    | "PROGRAMME_RESOURCE";
 }
 
 export function DocumentRowActions({
   documentId,
   scanStatus,
   canDelete,
+  isShared,
+  source,
 }: Props) {
   const router = useRouter();
   const [pendingDownload, startDownload] = useTransition();
   const [pendingDelete, startDelete] = useTransition();
   const [pendingPreview, startPreview] = useTransition();
+  const [pendingToggle, startToggle] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -59,6 +69,18 @@ export function DocumentRowActions({
     });
   }
 
+  function toggleVisibility() {
+    setError(null);
+    startToggle(async () => {
+      const result = await toggleDocumentVisibilityAction(documentId);
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
   function remove() {
     startDelete(async () => {
       const result = await deleteDocumentAction(documentId);
@@ -71,6 +93,8 @@ export function DocumentRowActions({
       router.refresh();
     });
   }
+
+  const showToggle = source !== undefined && source !== "CLIENT_UPLOAD";
 
   return (
     <div className="flex items-center justify-end gap-1">
@@ -95,6 +119,22 @@ export function DocumentRowActions({
       >
         <Eye className="size-4" aria-hidden />
       </Button>
+      {showToggle && (
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={toggleVisibility}
+          disabled={pendingToggle}
+          aria-label={isShared ? "Rendre interne" : "Partager avec le client"}
+          title={isShared ? "Partagé avec le client" : "Document interne"}
+        >
+          {isShared ? (
+            <UserCheck className="size-4" aria-hidden />
+          ) : (
+            <UserX className="size-4" aria-hidden />
+          )}
+        </Button>
+      )}
       <Button
         size="sm"
         variant="ghost"

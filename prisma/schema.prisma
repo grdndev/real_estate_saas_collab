@@ -436,6 +436,7 @@ model Document {
   source            DocumentSource
   scanStatus        DocumentScanStatus @default(PENDING)
   scanCheckedAt     DateTime?
+  isShared          Boolean            @default(false)
   documentRequestId String?
 
   createdAt DateTime  @default(now())

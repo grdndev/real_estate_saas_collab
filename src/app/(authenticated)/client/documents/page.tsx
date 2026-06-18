@@ -44,14 +44,7 @@ export default async function ClientDocumentsPage() {
         },
       },
       documents: {
-        where: {
-          deletedAt: null,
-          source: "COLLABORATOR_UPLOAD",
-          OR: [
-            { documentRequestId: null },
-            { request: { status: "ACCEPTED" } },
-          ],
-        },
+        where: { deletedAt: null, isShared: true },
         select: {
           id: true,
           fileName: true,

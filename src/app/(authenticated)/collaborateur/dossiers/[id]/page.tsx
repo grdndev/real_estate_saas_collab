@@ -85,6 +85,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
             sizeBytes: true,
             scanStatus: true,
             source: true,
+            isShared: true,
             createdAt: true,
             uploadedById: true,
             documentRequestId: true,
@@ -146,11 +147,13 @@ export default async function DossierDetailPage({ params }: PageProps) {
       .filter((r) => r.status === "ACCEPTED")
       .map((r) => r.id),
   );
-  const visibleDocuments = dossier.documents.filter(
-    (doc) =>
-      doc.documentRequestId === null ||
-      acceptedRequestIds.has(doc.documentRequestId),
-  );
+  const visibleDocuments = dossier.documents
+    .filter(
+      (doc) =>
+        doc.documentRequestId === null ||
+        acceptedRequestIds.has(doc.documentRequestId),
+    )
+    .sort((a, b) => Number(a.isShared) - Number(b.isShared));
 
   const storageReady = isStorageConfigured();
 
@@ -264,31 +267,64 @@ export default async function DossierDetailPage({ params }: PageProps) {
                 </p>
               ) : (
                 <ul className="divide-y divide-slate-100 text-sm">
-                  {visibleDocuments.map((doc) => (
-                    <li
-                      key={doc.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate font-medium">{doc.fileName}</p>
-                        <p className="text-xs text-slate-500">
-                          {doc.source === "CLIENT_UPLOAD"
-                            ? "Déposé par le client"
-                            : doc.source === "COLLABORATOR_UPLOAD"
-                              ? "Partagé au client"
-                              : doc.source}{" "}
-                          · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
-                          {doc.createdAt.toLocaleDateString("fr-FR")}
-                        </p>
-                      </div>
-                      <ScanStatusBadge status={doc.scanStatus} />
-                      <DocumentRowActions
-                        documentId={doc.id}
-                        scanStatus={doc.scanStatus}
-                        canDelete
-                      />
-                    </li>
-                  ))}
+                  {visibleDocuments
+                    .filter((doc) => !doc.isShared)
+                    .map((doc) => (
+                      <li
+                        key={doc.id}
+                        className="flex flex-wrap items-center justify-between gap-2 py-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{doc.fileName}</p>
+                          <p className="text-xs text-slate-500">
+                            {doc.source === "CLIENT_UPLOAD"
+                              ? "Déposé par le client"
+                              : doc.source === "COLLABORATOR_UPLOAD"
+                                ? "Déposé par l'équipe"
+                                : doc.source}{" "}
+                            · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
+                            {doc.createdAt.toLocaleDateString("fr-FR")}
+                          </p>
+                        </div>
+                        <ScanStatusBadge status={doc.scanStatus} />
+                        <DocumentRowActions
+                          documentId={doc.id}
+                          scanStatus={doc.scanStatus}
+                          canDelete
+                          isShared={doc.isShared}
+                          source={doc.source}
+                        />
+                      </li>
+                    ))}
+                  {visibleDocuments
+                    .filter((doc) => doc.isShared)
+                    .map((doc, i) => (
+                      <li
+                        key={doc.id}
+                        className={`flex flex-wrap items-center justify-between gap-2 py-2 ${i === 0 ? "border-t border-slate-500" : ""}`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate font-medium">{doc.fileName}</p>
+                          <p className="text-xs text-slate-500">
+                            {doc.source === "CLIENT_UPLOAD"
+                              ? "Déposé par le client"
+                              : doc.source === "COLLABORATOR_UPLOAD"
+                                ? "Déposé par l'équipe"
+                                : doc.source}{" "}
+                            · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
+                            {doc.createdAt.toLocaleDateString("fr-FR")}
+                          </p>
+                        </div>
+                        <ScanStatusBadge status={doc.scanStatus} />
+                        <DocumentRowActions
+                          documentId={doc.id}
+                          scanStatus={doc.scanStatus}
+                          canDelete
+                          isShared={doc.isShared}
+                          source={doc.source}
+                        />
+                      </li>
+                    ))}
                 </ul>
               )}
 
@@ -296,7 +332,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
                 <DocumentDropZone
                   dossierId={dossier.id}
                   source="COLLABORATOR_UPLOAD"
-                  label="Partager un document avec le client"
+                  label="Ajouter un document au dossier"
                   compact
                 />
               ) : (

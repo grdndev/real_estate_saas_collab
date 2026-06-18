@@ -61,6 +61,7 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
           sizeBytes: true,
           scanStatus: true,
           source: true,
+          isShared: true,
           createdAt: true,
           documentRequestId: true,
         },
@@ -227,6 +228,8 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
                           documentId={doc.id}
                           scanStatus={doc.scanStatus}
                           canDelete={false}
+                          isShared={doc.isShared}
+                          source={doc.source}
                         />
                       </Td>
                     </Tr>

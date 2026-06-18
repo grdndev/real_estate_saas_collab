@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireUser } from "@/lib/auth/guards";
+import { requireRole, requireUser } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { notifyDossierParticipants } from "@/lib/notifications";
@@ -100,6 +100,7 @@ export async function prepareUploadAction(
       storageKey: "_pending_",
       source: data.source,
       scanStatus: "PENDING",
+      isShared: data.source === "CLIENT_UPLOAD",
       documentRequestId: data.documentRequestId ?? null,
     },
   });
@@ -410,6 +411,41 @@ export async function deleteDocumentAction(
     ip: ctx.ip,
     userAgent: ctx.userAgent,
     metadata: { dossierId: document.dossierId },
+  });
+
+  if (document.dossierId) {
+    revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
+  }
+  revalidatePath("/client/documents");
+  return { ok: true, value: undefined };
+}
+
+// =====================================================
+// TOGGLE DOCUMENT VISIBILITY
+// =====================================================
+
+export async function toggleDocumentVisibilityAction(
+  documentId: string,
+): Promise<ActionResult> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  if (!documentId) return { ok: false, error: "Identifiant manquant" };
+
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+  });
+  if (!document || document.deletedAt) {
+    return { ok: false, error: "Document introuvable" };
+  }
+  if (document.source === "CLIENT_UPLOAD") {
+    return {
+      ok: false,
+      error: "Impossible de modifier la visibilité d'un document client.",
+    };
+  }
+
+  await prisma.document.update({
+    where: { id: documentId },
+    data: { isShared: !document.isShared },
   });
 
   if (document.dossierId) {
