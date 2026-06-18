@@ -266,66 +266,54 @@ export default async function DossierDetailPage({ params }: PageProps) {
                   Aucun document n&apos;a encore été déposé.
                 </p>
               ) : (
-                <ul className="divide-y divide-slate-100 text-sm">
-                  {visibleDocuments
-                    .filter((doc) => !doc.isShared)
-                    .map((doc) => (
-                      <li
-                        key={doc.id}
-                        className="flex flex-wrap items-center justify-between gap-2 py-2"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{doc.fileName}</p>
-                          <p className="text-xs text-slate-500">
-                            {doc.source === "CLIENT_UPLOAD"
-                              ? "Déposé par le client"
-                              : doc.source === "COLLABORATOR_UPLOAD"
-                                ? "Déposé par l'équipe"
-                                : doc.source}{" "}
-                            · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
-                            {doc.createdAt.toLocaleDateString("fr-FR")}
-                          </p>
-                        </div>
-                        <ScanStatusBadge status={doc.scanStatus} />
-                        <DocumentRowActions
-                          documentId={doc.id}
-                          scanStatus={doc.scanStatus}
-                          canDelete
-                          isShared={doc.isShared}
-                          source={doc.source}
-                        />
-                      </li>
-                    ))}
-                  {visibleDocuments
-                    .filter((doc) => doc.isShared)
-                    .map((doc, i) => (
-                      <li
-                        key={doc.id}
-                        className={`flex flex-wrap items-center justify-between gap-2 py-2 ${i === 0 ? "border-t border-slate-500" : ""}`}
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="truncate font-medium">{doc.fileName}</p>
-                          <p className="text-xs text-slate-500">
-                            {doc.source === "CLIENT_UPLOAD"
-                              ? "Déposé par le client"
-                              : doc.source === "COLLABORATOR_UPLOAD"
-                                ? "Déposé par l'équipe"
-                                : doc.source}{" "}
-                            · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
-                            {doc.createdAt.toLocaleDateString("fr-FR")}
-                          </p>
-                        </div>
-                        <ScanStatusBadge status={doc.scanStatus} />
-                        <DocumentRowActions
-                          documentId={doc.id}
-                          scanStatus={doc.scanStatus}
-                          canDelete
-                          isShared={doc.isShared}
-                          source={doc.source}
-                        />
-                      </li>
-                    ))}
-                </ul>
+                (() => {
+                  const internal = visibleDocuments.filter(
+                    (doc) => !doc.isShared,
+                  );
+                  const shared = visibleDocuments.filter((doc) => doc.isShared);
+                  const renderRow = (
+                    doc: (typeof visibleDocuments)[number],
+                  ) => (
+                    <li
+                      key={doc.id}
+                      className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 py-2 last:border-b-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium">{doc.fileName}</p>
+                        <p className="text-xs text-slate-500">
+                          {doc.source === "CLIENT_UPLOAD"
+                            ? "Déposé par le client"
+                            : doc.source === "COLLABORATOR_UPLOAD"
+                              ? "Déposé par l'équipe"
+                              : doc.source}{" "}
+                          · {(doc.sizeBytes / 1024).toFixed(0)} Ko ·{" "}
+                          {doc.createdAt.toLocaleDateString("fr-FR")}
+                        </p>
+                      </div>
+                      <ScanStatusBadge status={doc.scanStatus} />
+                      <DocumentRowActions
+                        documentId={doc.id}
+                        scanStatus={doc.scanStatus}
+                        canDelete
+                        isShared={doc.isShared}
+                        source={doc.source}
+                      />
+                    </li>
+                  );
+                  return (
+                    <div className="text-sm">
+                      {internal.length > 0 && (
+                        <ul>{internal.map(renderRow)}</ul>
+                      )}
+                      {internal.length > 0 && shared.length > 0 && (
+                        <p className="mt-3 mb-1 border-t border-slate-400 pt-3 text-xs font-medium text-slate-500">
+                          Partagés avec le client
+                        </p>
+                      )}
+                      {shared.length > 0 && <ul>{shared.map(renderRow)}</ul>}
+                    </div>
+                  );
+                })()
               )}
 
               {storageReady ? (

@@ -143,7 +143,7 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
           {initial.map((item) => (
             <li
               key={item.id}
-              className={`flex items-center justify-between gap-3 py-2${item.status === "REFUSED" ? "opacity-50" : ""}`}
+              className={`flex items-center justify-between gap-3 py-2 ${item.status === "REFUSED" ? "opacity-50" : ""}`}
             >
               <div className="flex items-center gap-2">
                 <span className="text-equatis-night-800 font-medium">
