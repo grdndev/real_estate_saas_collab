@@ -15,6 +15,7 @@ import {
   deleteObject,
   isStorageConfigured,
   presignDownloadUrl,
+  presignInlineUrl,
   presignUploadUrl,
 } from "@/lib/storage/s3";
 import {
@@ -275,6 +276,57 @@ export async function getDownloadUrlAction(
 
   const ctx = await getRequestContext();
   const url = await presignDownloadUrl(document.storageKey, document.fileName);
+
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_DOWNLOADED",
+    resourceType: "Document",
+    resourceId: document.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: { dossierId: document.dossierId },
+  });
+
+  return { ok: true, value: { url } };
+}
+
+// =====================================================
+// GET PREVIEW URL (inline, RBAC + audit)
+// =====================================================
+
+export async function getPreviewUrlAction(
+  documentId: string,
+): Promise<ActionResult<{ url: string }>> {
+  const me = await requireUser();
+  if (!documentId) return { ok: false, error: "Identifiant manquant" };
+  if (!isStorageConfigured()) {
+    return { ok: false, error: "Stockage S3 non configuré." };
+  }
+
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
+  });
+  if (!document || document.deletedAt) {
+    return { ok: false, error: "Document introuvable" };
+  }
+  if (document.scanStatus !== "CLEAN") {
+    return {
+      ok: false,
+      error: "Document indisponible (scan en cours ou refusé).",
+    };
+  }
+
+  if (document.dossierId) {
+    const dossier = await findDossierForUser(
+      document.dossierId,
+      me.id,
+      me.role,
+    );
+    if (!dossier) return { ok: false, error: "Accès refusé." };
+  }
+
+  const ctx = await getRequestContext();
+  const url = await presignInlineUrl(document.storageKey);
 
   await audit({
     userId: me.id,

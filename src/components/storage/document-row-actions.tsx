@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Download, Trash2 } from "lucide-react";
+import { Download, Eye, Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { ConfirmDialog } from "@/components/ui/dialog";
+import { ConfirmDialog, PreviewDialog } from "@/components/ui/dialog";
 import {
   deleteDocumentAction,
   getDownloadUrlAction,
+  getPreviewUrlAction,
 } from "@/lib/storage/actions";
 
 interface Props {
@@ -25,8 +26,26 @@ export function DocumentRowActions({
   const router = useRouter();
   const [pendingDownload, startDownload] = useTransition();
   const [pendingDelete, startDelete] = useTransition();
+  const [pendingPreview, startPreview] = useTransition();
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  function preview() {
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setPreviewOpen(true);
+    startPreview(async () => {
+      const result = await getPreviewUrlAction(documentId);
+      if (!result.ok) {
+        setPreviewError(result.error);
+        return;
+      }
+      setPreviewUrl(result.value.url);
+    });
+  }
 
   function download() {
     setError(null);
@@ -63,6 +82,22 @@ export function DocumentRowActions({
       <Button
         size="sm"
         variant="ghost"
+        onClick={preview}
+        disabled={pendingPreview || scanStatus !== "CLEAN"}
+        aria-label="Prévisualiser le document"
+        title={
+          scanStatus === "CLEAN"
+            ? "Prévisualiser"
+            : scanStatus === "PENDING"
+              ? "Scan antivirus en cours"
+              : "Document non disponible"
+        }
+      >
+        <Eye className="size-4" aria-hidden />
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
         onClick={download}
         disabled={pendingDownload || scanStatus !== "CLEAN"}
         aria-label="Télécharger le document"
@@ -88,6 +123,14 @@ export function DocumentRowActions({
           <Trash2 className="size-4" aria-hidden />
         </Button>
       )}
+      <PreviewDialog
+        open={previewOpen}
+        title="Prévisualisation du document"
+        url={previewUrl}
+        loading={pendingPreview}
+        error={previewError}
+        onClose={() => setPreviewOpen(false)}
+      />
       <ConfirmDialog
         open={confirmOpen}
         title="Supprimer ce document ?"

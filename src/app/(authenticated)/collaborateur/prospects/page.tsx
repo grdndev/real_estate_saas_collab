@@ -91,15 +91,6 @@ export default async function CollabProspectsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Liste des prospects ({others.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProspectsTable prospects={others} canDelete currentUserId={me.id} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
           <CardTitle>Prospects qualifiés ({qualified.length})</CardTitle>
         </CardHeader>
         <CardContent>
@@ -112,6 +103,15 @@ export default async function CollabProspectsPage() {
             canDelete
             currentUserId={me.id}
           />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Liste des prospects ({others.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProspectsTable prospects={others} canDelete currentUserId={me.id} />
         </CardContent>
       </Card>
     </div>

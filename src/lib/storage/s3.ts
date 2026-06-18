@@ -76,6 +76,18 @@ export async function presignDownloadUrl(
   });
 }
 
+/** URL signée pour GET — utilisée pour la prévisualisation inline dans le navigateur. */
+export async function presignInlineUrl(storageKey: string): Promise<string> {
+  const command = new GetObjectCommand({
+    Bucket: getBucket(),
+    Key: storageKey,
+    ResponseContentDisposition: "inline",
+  });
+  return getSignedUrl(getClient(), command, {
+    expiresIn: DOWNLOAD_TTL_SECONDS,
+  });
+}
+
 /** Upload direct d'un buffer depuis le serveur (factures, ressources internes). */
 export async function putObject(
   storageKey: string,
