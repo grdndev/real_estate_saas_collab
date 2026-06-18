@@ -25,6 +25,7 @@ interface Props {
   source: Source;
   label?: string;
   compact?: boolean;
+  multiple?: boolean;
 }
 
 export function DocumentDropZone({
@@ -33,6 +34,7 @@ export function DocumentDropZone({
   source,
   label,
   compact = false,
+  multiple = false,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -56,54 +58,65 @@ export function DocumentDropZone({
   }
 
   function handleFile(file: File) {
+    handleFiles([file]);
+  }
+
+  function handleFiles(files: File[]) {
     setError(null);
-    const validationError = validate(file);
-    if (validationError) {
-      setError(validationError);
-      return;
+    for (const file of files) {
+      const validationError = validate(file);
+      if (validationError) {
+        setError(validationError);
+        return;
+      }
     }
     startTransition(async () => {
-      setProgress("Préparation…");
-      const prepared = await prepareUploadAction({
-        dossierId,
-        documentRequestId: documentRequestId ?? null,
-        fileName: file.name,
-        mimeType: file.type as (typeof ALLOWED_MIME)[number],
-        sizeBytes: file.size,
-        source,
-      });
-      if (!prepared.ok) {
-        setError(prepared.error);
-        setProgress(null);
-        return;
-      }
-      setProgress("Envoi du fichier…");
-      try {
-        const response = await fetch(prepared.value.uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: { "Content-Type": file.type },
-        });
-        if (!response.ok) {
-          throw new Error(`Échec upload (${response.status})`);
-        }
-      } catch (err) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Échec de l'envoi du fichier vers le stockage.",
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i]!;
+        setProgress(
+          files.length > 1
+            ? `Fichier ${i + 1} / ${files.length}…`
+            : "Préparation…",
         );
-        setProgress(null);
-        return;
-      }
-      setProgress("Validation…");
-      const confirmed = await confirmUploadAction({
-        documentId: prepared.value.documentId,
-      });
-      if (!confirmed.ok) {
-        setError(confirmed.error);
-        setProgress(null);
-        return;
+        const prepared = await prepareUploadAction({
+          dossierId,
+          documentRequestId: documentRequestId ?? null,
+          fileName: file.name,
+          mimeType: file.type as (typeof ALLOWED_MIME)[number],
+          sizeBytes: file.size,
+          source,
+        });
+        if (!prepared.ok) {
+          setError(prepared.error);
+          setProgress(null);
+          return;
+        }
+        try {
+          const response = await fetch(prepared.value.uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+          if (!response.ok) {
+            throw new Error(`Échec upload (${response.status})`);
+          }
+        } catch (err) {
+          setError(
+            err instanceof Error
+              ? err.message
+              : "Échec de l'envoi du fichier vers le stockage.",
+          );
+          setProgress(null);
+          return;
+        }
+        const confirmed = await confirmUploadAction({
+          documentId: prepared.value.documentId,
+        });
+        if (!confirmed.ok) {
+          setError(confirmed.error);
+          setProgress(null);
+          return;
+        }
       }
       setProgress(null);
       router.refresh();
@@ -120,8 +133,8 @@ export function DocumentDropZone({
       onDrop={(e) => {
         e.preventDefault();
         setDragOver(false);
-        const file = e.dataTransfer.files?.[0];
-        if (file) handleFile(file);
+        const files = Array.from(e.dataTransfer.files ?? []);
+        if (files.length) handleFiles(files);
       }}
       className={cn(
         "rounded-md border-2 border-dashed transition",
@@ -137,9 +150,10 @@ export function DocumentDropZone({
         type="file"
         accept={ACCEPT_ATTR}
         className="sr-only"
+        multiple={multiple}
         onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
+          const files = Array.from(e.target.files ?? []);
+          if (files.length) handleFiles(files);
           e.target.value = "";
         }}
       />
@@ -175,7 +189,8 @@ export function DocumentDropZone({
           <p className={cn(compact ? "text-xs text-slate-600" : "text-sm")}>
             {progress ?? (
               <>
-                Glissez-déposez un fichier ou{" "}
+                Glissez-déposez{" "}
+                {multiple ? "un ou plusieurs fichiers" : "un fichier"} ou{" "}
                 <button
                   type="button"
                   onClick={pickFile}
@@ -198,7 +213,7 @@ export function DocumentDropZone({
             onClick={pickFile}
             disabled={pending}
           >
-            Choisir un fichier
+            {multiple ? "Choisir des fichiers" : "Choisir un fichier"}
           </Button>
         )}
       </div>

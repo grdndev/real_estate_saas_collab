@@ -332,7 +332,8 @@ export default async function DossierDetailPage({ params }: PageProps) {
                 <DocumentDropZone
                   dossierId={dossier.id}
                   source="COLLABORATOR_UPLOAD"
-                  label="Ajouter un document au dossier"
+                  label="Ajouter des documents au dossier"
+                  multiple={true}
                   compact
                 />
               ) : (
