@@ -6,7 +6,9 @@ import { prisma } from "@/lib/prisma";
 import { requireUser, requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
-import { notify, notifyDossierParticipants } from "@/lib/notifications";
+import { notify } from "@/lib/notifications";
+import { getMailer } from "@/lib/mail";
+import { newMessageMail } from "@/lib/mail/templates";
 import { encrypt } from "@/lib/crypto";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { getRequestContext } from "@/lib/request-context";
@@ -212,20 +214,113 @@ export async function sendMessageAction(
     },
   });
 
-  // Notifie les autres participants (collab + client si différent du sender).
-  await notifyDossierParticipants(
-    parsed.data.dossierId,
-    me.id,
-    "NEW_MESSAGE",
-    "Nouveau message",
-    parsed.data.body.slice(0, 120),
-    me.role === "CLIENT"
-      ? `/collaborateur/dossiers/${parsed.data.dossierId}/messagerie`
-      : "/client/messagerie",
-  );
+  const dossierId = parsed.data.dossierId;
+  const preview = parsed.data.body.slice(0, 120);
+  const senderName = me.name ?? "un participant";
 
-  revalidatePath(`/collaborateur/dossiers/${parsed.data.dossierId}/messagerie`);
+  const dossierActors = await prisma.dossier.findUnique({
+    where: { id: dossierId },
+    select: {
+      clientId: true,
+      notaryId: true,
+      participants: {
+        select: {
+          userId: true,
+          role: true,
+          user: { select: { email: true, firstName: true } },
+        },
+      },
+      client: { select: { email: true, firstName: true } },
+    },
+  });
+
+  if (dossierActors) {
+    // Client
+    if (dossierActors.clientId && dossierActors.clientId !== me.id) {
+      await notify({
+        userId: dossierActors.clientId,
+        kind: "NEW_MESSAGE",
+        title: "Nouveau message",
+        body: preview,
+        link: "/client/messagerie",
+      });
+      if (dossierActors.client?.email) {
+        try {
+          await getMailer().send(
+            newMessageMail(
+              dossierActors.client.email,
+              dossierActors.client.firstName,
+              senderName,
+              parsed.data.body.slice(0, 200),
+              "/client/messagerie",
+            ),
+          );
+        } catch {}
+      }
+    }
+
+    // Collaborateurs
+    for (const participant of dossierActors.participants) {
+      if (
+        participant.userId !== me.id &&
+        (participant.role === "COLLABORATOR_PRIMARY" ||
+          participant.role === "COLLABORATOR_SECONDARY")
+      ) {
+        await notify({
+          userId: participant.userId,
+          kind: "NEW_MESSAGE",
+          title: "Nouveau message",
+          body: preview,
+          link: `/collaborateur/dossiers/${dossierId}/messagerie`,
+        });
+        if (participant.user.email) {
+          try {
+            await getMailer().send(
+              newMessageMail(
+                participant.user.email,
+                participant.user.firstName,
+                senderName,
+                parsed.data.body.slice(0, 200),
+                `/collaborateur/dossiers/${dossierId}/messagerie`,
+              ),
+            );
+          } catch {}
+        }
+      }
+    }
+
+    // Notaire
+    if (dossierActors.notaryId && dossierActors.notaryId !== me.id) {
+      await notify({
+        userId: dossierActors.notaryId,
+        kind: "NEW_MESSAGE",
+        title: "Nouveau message",
+        body: preview,
+        link: `/notaire/${dossierId}/messagerie`,
+      });
+      const notaryUser = await prisma.user.findUnique({
+        where: { id: dossierActors.notaryId },
+        select: { email: true, firstName: true },
+      });
+      if (notaryUser) {
+        try {
+          await getMailer().send(
+            newMessageMail(
+              notaryUser.email,
+              notaryUser.firstName,
+              senderName,
+              parsed.data.body.slice(0, 200),
+              `/notaire/${dossierId}/messagerie`,
+            ),
+          );
+        } catch {}
+      }
+    }
+  }
+
+  revalidatePath(`/collaborateur/dossiers/${dossierId}/messagerie`);
   revalidatePath("/client/messagerie");
+  revalidatePath(`/notaire/${dossierId}/messagerie`);
   return { ok: true, value: { id: message.id } };
 }
 
@@ -236,9 +331,13 @@ export async function markMessagesReadAction(
   const dossier = await findDossierForUser(dossierId, me.id, me.role);
   if (!dossier) return { ok: false, error: "Accès refusé" };
 
-  await prisma.message.updateMany({
-    where: { dossierId, readAt: null, senderId: { not: me.id } },
-    data: { readAt: new Date() },
+  const msgs = await prisma.message.findMany({
+    where: { dossierId, senderId: { not: me.id } },
+    select: { id: true },
+  });
+  await prisma.messageRead.createMany({
+    data: msgs.map((m) => ({ messageId: m.id, userId: me.id })),
+    skipDuplicates: true,
   });
   return { ok: true, value: undefined };
 }

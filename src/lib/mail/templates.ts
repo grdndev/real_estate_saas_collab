@@ -71,6 +71,30 @@ export function passwordResetMail(
   };
 }
 
+export function newMessageMail(
+  to: string,
+  firstName: string,
+  senderName: string,
+  preview: string,
+  link: string,
+): MailMessage {
+  const fullLink = `${baseUrl}${link}`;
+  const excerpt = preview.length > 200 ? preview.slice(0, 200) + "…" : preview;
+  const text =
+    `Bonjour ${firstName},\n\n` +
+    `Vous avez reçu un nouveau message de ${senderName} :\n\n` +
+    `"${excerpt}"\n\n` +
+    `Pour consulter le message, rendez-vous sur : ${fullLink}`;
+  const html = wrapHtml(
+    `Nouveau message de ${senderName}`,
+    `<p style="color:#1B2A4A; font-size:14px;">Bonjour ${firstName},</p>
+     <p style="color:#475569; font-size:14px;">Vous avez reçu un nouveau message de <strong>${senderName}</strong> :</p>
+     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${excerpt}</blockquote>
+     <p style="text-align:center; margin:24px 0;"><a href="${fullLink}" style="background:#1B2A4A; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; font-size:14px; font-weight:500;">Voir le message</a></p>`,
+  );
+  return { to, subject: `Nouveau message de ${senderName}`, html, text };
+}
+
 export function welcomeMail(to: string, firstName: string): MailMessage {
   const link = `${baseUrl}/connexion`;
   const text =

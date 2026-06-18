@@ -210,6 +210,7 @@ model User {
   notifications      Notification[]
   auditLogs          AuditLog[]
   sentMessages       Message[]
+  messageReads       MessageRead[]
   signaturesAsSigner Signature[]          @relation("SignatureSigner")
   ownedProspects     Prospect[]           @relation("ProspectOwner")
   clientProfile      ClientProfile?
@@ -519,10 +520,23 @@ model Message {
 
   createdAt DateTime @default(now())
 
-  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
-  sender  User    @relation(fields: [senderId], references: [id])
+  dossier Dossier       @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  sender  User          @relation(fields: [senderId], references: [id])
+  reads   MessageRead[]
 
   @@index([dossierId, createdAt])
+}
+
+model MessageRead {
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, userId])
+  @@index([messageId])
 }
 
 // =====================================================

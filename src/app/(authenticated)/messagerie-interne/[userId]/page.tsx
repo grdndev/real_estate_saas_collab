@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { DirectMessageComposer } from "@/components/messaging/direct-message-composer";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { markConversationReadAction } from "@/lib/messaging/actions";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Conversation" };
@@ -60,11 +61,7 @@ export default async function ConversationPage({ params }: PageProps) {
     orderBy: { createdAt: "asc" },
   });
 
-  // Marque comme lus les messages reçus de cet interlocuteur.
-  await prisma.directMessage.updateMany({
-    where: { senderId: other.id, recipientId: me.id, readAt: null },
-    data: { readAt: new Date() },
-  });
+  await markConversationReadAction(other.id);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">

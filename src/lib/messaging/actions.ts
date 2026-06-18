@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notifications";
+import { getMailer } from "@/lib/mail";
+import { newMessageMail } from "@/lib/mail/templates";
 import { getRequestContext } from "@/lib/request-context";
 import { isStorageConfigured, putObject } from "@/lib/storage/s3";
 import {
@@ -54,7 +56,13 @@ export async function sendDirectMessageAction(
 
   const recipient = await prisma.user.findUnique({
     where: { id: data.recipientId },
-    select: { id: true, role: true, firstName: true, deletedAt: true },
+    select: {
+      id: true,
+      role: true,
+      firstName: true,
+      email: true,
+      deletedAt: true,
+    },
   });
   if (
     !recipient ||
@@ -101,6 +109,17 @@ export async function sendDirectMessageAction(
     body: data.body?.slice(0, 140) || `Document : ${attachmentName}`,
     link: `/messagerie-interne/${me.id}`,
   });
+  try {
+    await getMailer().send(
+      newMessageMail(
+        recipient.email,
+        recipient.firstName,
+        me.name ?? "un collègue",
+        (data.body || `Document : ${attachmentName}`).slice(0, 200),
+        `/messagerie-interne/${me.id}`,
+      ),
+    );
+  } catch {}
 
   await audit({
     userId: me.id,
