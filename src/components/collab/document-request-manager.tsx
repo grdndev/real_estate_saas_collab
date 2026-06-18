@@ -2,16 +2,23 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Check, Download, Eye, Trash2, X } from "lucide-react";
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PreviewDialog } from "@/components/ui/dialog";
 import {
+  acceptDocumentRequestAction,
   cancelDocumentRequestAction,
+  refuseDocumentRequestAction,
   requestDocumentAction,
 } from "@/lib/client-space/actions";
+import {
+  getDownloadUrlAction,
+  getPreviewUrlAction,
+} from "@/lib/storage/actions";
 
 interface RequestItem {
   id: string;
@@ -19,6 +26,8 @@ interface RequestItem {
   required: boolean;
   fulfilled: boolean;
   hasDocument: boolean;
+  status: "PENDING" | "ACCEPTED" | "REFUSED";
+  documentId: string | null;
 }
 
 interface Props {
@@ -32,6 +41,12 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
   const [label, setLabel] = useState("");
   const [required, setRequired] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewTitle, setPreviewTitle] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
 
   function add() {
     if (label.trim().length < 2) return;
@@ -63,6 +78,54 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
     });
   }
 
+  function accept(requestId: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await acceptDocumentRequestAction({ requestId });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  function refuse(requestId: string) {
+    setError(null);
+    startTransition(async () => {
+      const result = await refuseDocumentRequestAction({ requestId });
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  async function openPreview(documentId: string, title: string) {
+    setPreviewTitle(title);
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setPreviewLoading(true);
+    setPreviewOpen(true);
+    const result = await getPreviewUrlAction(documentId);
+    setPreviewLoading(false);
+    if (result.ok) {
+      setPreviewUrl(result.value.url);
+    } else {
+      setPreviewError(result.error);
+    }
+  }
+
+  async function download(documentId: string) {
+    const result = await getDownloadUrlAction(documentId);
+    if (result.ok) {
+      window.open(result.value.url, "_blank", "noopener,noreferrer");
+    } else {
+      setError(result.error);
+    }
+  }
+
   return (
     <div className="space-y-4">
       {error && (
@@ -80,7 +143,7 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
           {initial.map((item) => (
             <li
               key={item.id}
-              className="flex items-center justify-between gap-3 py-2"
+              className={`flex items-center justify-between gap-3 py-2${item.status === "REFUSED" ? "opacity-50" : ""}`}
             >
               <div className="flex items-center gap-2">
                 <span className="text-equatis-night-800 font-medium">
@@ -91,7 +154,15 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
                     obligatoire
                   </Badge>
                 )}
-                {item.fulfilled || item.hasDocument ? (
+                {item.status === "ACCEPTED" ? (
+                  <Badge variant="success" className="text-[10px]">
+                    acceptée
+                  </Badge>
+                ) : item.status === "REFUSED" ? (
+                  <Badge variant="danger" className="text-[10px]">
+                    refusée
+                  </Badge>
+                ) : item.fulfilled || item.hasDocument ? (
                   <Badge variant="success" className="text-[10px]">
                     déposée
                   </Badge>
@@ -101,18 +172,86 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
                   </Badge>
                 )}
               </div>
-              {!(item.fulfilled || item.hasDocument) && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="text-red-700 hover:bg-red-50"
-                  onClick={() => cancel(item.id)}
-                  disabled={pending}
-                  aria-label={`Supprimer la demande ${item.label}`}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </Button>
-              )}
+
+              <div className="flex items-center gap-1">
+                {item.status === "PENDING" && !item.documentId && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-700 hover:bg-red-50"
+                    onClick={() => cancel(item.id)}
+                    disabled={pending}
+                    aria-label={`Supprimer la demande ${item.label}`}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                )}
+
+                {item.status === "PENDING" && item.documentId && (
+                  <>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openPreview(item.documentId!, item.label)}
+                      aria-label={`Prévisualiser ${item.label}`}
+                    >
+                      <Eye className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => download(item.documentId!)}
+                      aria-label={`Télécharger ${item.label}`}
+                    >
+                      <Download className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-green-700 hover:bg-green-50"
+                      onClick={() => accept(item.id)}
+                      disabled={pending}
+                      aria-label={`Accepter ${item.label}`}
+                    >
+                      <Check className="size-4" aria-hidden />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-700 hover:bg-red-50"
+                      onClick={() => refuse(item.id)}
+                      disabled={pending}
+                      aria-label={`Refuser ${item.label}`}
+                    >
+                      <X className="size-4" aria-hidden />
+                    </Button>
+                  </>
+                )}
+
+                {(item.status === "ACCEPTED" || item.status === "REFUSED") &&
+                  item.documentId && (
+                    <>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          openPreview(item.documentId!, item.label)
+                        }
+                        aria-label={`Prévisualiser ${item.label}`}
+                      >
+                        <Eye className="size-4" aria-hidden />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => download(item.documentId!)}
+                        aria-label={`Télécharger ${item.label}`}
+                      >
+                        <Download className="size-4" aria-hidden />
+                      </Button>
+                    </>
+                  )}
+              </div>
             </li>
           ))}
         </ul>
@@ -156,6 +295,15 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
           Ajouter
         </Button>
       </div>
+
+      <PreviewDialog
+        open={previewOpen}
+        title={previewTitle}
+        url={previewUrl}
+        loading={previewLoading}
+        error={previewError}
+        onClose={() => setPreviewOpen(false)}
+      />
     </div>
   );
 }

@@ -87,6 +87,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
             source: true,
             createdAt: true,
             uploadedById: true,
+            documentRequestId: true,
           },
         },
         signatures: {
@@ -139,6 +140,17 @@ export default async function DossierDetailPage({ params }: PageProps) {
     }),
   ]);
   if (!dossier) notFound();
+
+  const acceptedRequestIds = new Set(
+    dossier.documentRequests
+      .filter((r) => r.status === "ACCEPTED")
+      .map((r) => r.id),
+  );
+  const visibleDocuments = dossier.documents.filter(
+    (doc) =>
+      doc.documentRequestId === null ||
+      acceptedRequestIds.has(doc.documentRequestId),
+  );
 
   const storageReady = isStorageConfigured();
 
@@ -232,6 +244,8 @@ export default async function DossierDetailPage({ params }: PageProps) {
                   required: r.required,
                   fulfilled: r.fulfilled,
                   hasDocument: r.documents.length > 0,
+                  status: r.status,
+                  documentId: r.documents[0]?.id ?? null,
                 }))}
               />
             </CardContent>
@@ -240,17 +254,17 @@ export default async function DossierDetailPage({ params }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>
-                Documents du dossier ({dossier.documents.length})
+                Documents du dossier ({visibleDocuments.length})
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {dossier.documents.length === 0 ? (
+              {visibleDocuments.length === 0 ? (
                 <p className="text-sm text-slate-500">
                   Aucun document n&apos;a encore été déposé.
                 </p>
               ) : (
                 <ul className="divide-y divide-slate-100 text-sm">
-                  {dossier.documents.map((doc) => (
+                  {visibleDocuments.map((doc) => (
                     <li
                       key={doc.id}
                       className="flex flex-wrap items-center justify-between gap-2 py-2"
@@ -556,7 +570,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
                       ]
                     : []),
                 ]}
-                documents={dossier.documents
+                documents={visibleDocuments
                   .filter((d) => d.mimeType === "application/pdf")
                   .map((d) => ({ id: d.id, fileName: d.fileName }))}
                 signatures={dossier.signatures}

@@ -106,6 +106,12 @@ enum DocumentScanStatus {
   ERROR
 }
 
+enum DocumentRequestStatus {
+  PENDING
+  ACCEPTED
+  REFUSED
+}
+
 enum DocumentSource {
   COLLABORATOR_UPLOAD
   CLIENT_UPLOAD
@@ -463,11 +469,12 @@ model ProgrammeDocument {
 
 // Pièces demandées au client par le collaborateur (ex : pièce d'identité recto, RIB, etc.).
 model DocumentRequest {
-  id        String  @id @default(cuid())
+  id        String                @id @default(cuid())
   dossierId String
   label     String
-  required  Boolean @default(true)
-  fulfilled Boolean @default(false)
+  required  Boolean               @default(true)
+  fulfilled Boolean               @default(false)
+  status    DocumentRequestStatus @default(PENDING)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

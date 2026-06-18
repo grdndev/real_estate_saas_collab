@@ -85,6 +85,54 @@ export async function requestDocumentAction(
   return { ok: true, value: { id: created.id } };
 }
 
+export async function acceptDocumentRequestAction({
+  requestId,
+}: {
+  requestId: string;
+}): Promise<ActionResult> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const request = await prisma.documentRequest.findUnique({
+    where: { id: requestId },
+  });
+  if (!request) return { ok: false, error: "Demande introuvable" };
+  await prisma.documentRequest.update({
+    where: { id: requestId },
+    data: { status: "ACCEPTED", fulfilled: true },
+  });
+  revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
+  revalidatePath("/client/documents");
+  return { ok: true, value: undefined };
+}
+
+export async function refuseDocumentRequestAction({
+  requestId,
+}: {
+  requestId: string;
+}): Promise<ActionResult> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const request = await prisma.documentRequest.findUnique({
+    where: { id: requestId },
+    include: { dossier: { select: { clientId: true } } },
+  });
+  if (!request) return { ok: false, error: "Demande introuvable" };
+  await prisma.documentRequest.update({
+    where: { id: requestId },
+    data: { status: "REFUSED" },
+  });
+  if (request.dossier.clientId) {
+    await notify({
+      userId: request.dossier.clientId,
+      kind: "DOCUMENT_REQUESTED",
+      title: "Pièce refusée",
+      body: request.label,
+      link: "/client/documents",
+    });
+  }
+  revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
+  revalidatePath("/client/documents");
+  return { ok: true, value: undefined };
+}
+
 export async function cancelDocumentRequestAction(
   input: z.infer<typeof cancelDocumentRequestSchema>,
 ): Promise<ActionResult> {

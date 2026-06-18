@@ -62,6 +62,7 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
           scanStatus: true,
           source: true,
           createdAt: true,
+          documentRequestId: true,
         },
       },
       documentRequests: {
@@ -76,6 +77,17 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
     },
   });
   if (!dossier) notFound();
+
+  const acceptedRequestIds = new Set(
+    dossier.documentRequests
+      .filter((r) => r.status === "ACCEPTED")
+      .map((r) => r.id),
+  );
+  const visibleDocuments = dossier.documents.filter(
+    (doc) =>
+      doc.documentRequestId === null ||
+      acceptedRequestIds.has(doc.documentRequestId),
+  );
 
   const actorIds = dossier.timelineEvents
     .map((e) => e.actorId)
@@ -170,10 +182,10 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
           <Card>
             <CardHeader>
               <CardTitle>
-                Documents transmis ({dossier.documents.length})
+                Documents transmis ({visibleDocuments.length})
               </CardTitle>
             </CardHeader>
-            {dossier.documents.length === 0 ? (
+            {visibleDocuments.length === 0 ? (
               <EmptyState
                 title="Aucun document"
                 description="Aucun document n'a encore été déposé sur ce dossier."
@@ -191,7 +203,7 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
                   </Tr>
                 </THead>
                 <TBody>
-                  {dossier.documents.map((doc) => (
+                  {visibleDocuments.map((doc) => (
                     <Tr key={doc.id}>
                       <Td className="font-medium">{doc.fileName}</Td>
                       <Td className="text-xs text-slate-500">
