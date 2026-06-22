@@ -333,6 +333,7 @@ model Lot {
   vatRate     Decimal   @db.Decimal(5, 2)
   priceTTC    Decimal   @db.Decimal(12, 2)
   status      LotStatus @default(AVAILABLE)
+  notes       String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

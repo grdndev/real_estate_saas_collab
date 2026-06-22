@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { TrackingImportButtonLazy as TrackingImportButton } from "@/components/collaborateur/tracking-import/tracking-import-button-lazy";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -95,6 +96,12 @@ export default async function CollaborateurDashboardPage() {
     }),
   ]);
 
+  const activeProgrammes = await prisma.programme.findMany({
+    where: { status: "ACTIVE" },
+    select: { id: true, name: true, reference: true },
+    orderBy: { name: "asc" },
+  });
+
   return (
     <div className="flex flex-col gap-8">
       <AutoRefresh />
@@ -107,13 +114,14 @@ export default async function CollaborateurDashboardPage() {
             Vue de vos dossiers en cours.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link href="/collaborateur/clients/nouveau">
             <Button variant="accent">+ Nouveau client</Button>
           </Link>
           <Link href="/collaborateur/dossiers/nouveau">
             <Button variant="outline">Nouveau dossier vide</Button>
           </Link>
+          <TrackingImportButton programmes={activeProgrammes} />
         </div>
       </div>
 

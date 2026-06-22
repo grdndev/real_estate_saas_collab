@@ -1,0 +1,437 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
+import { requireRole } from "@/lib/auth/guards";
+import { audit } from "@/lib/audit";
+import { getRequestContext } from "@/lib/request-context";
+import { generateDossierReference } from "@/lib/dossier/reference";
+import type { ActionResult } from "@/lib/auth/actions";
+import {
+  parseTrackingFileSchema,
+  createTrackingProgrammeSchema,
+  importTrackingLotsSchema,
+  createTrackingDossierSchema,
+} from "@/lib/collaborateur/tracking-import-schemas";
+import {
+  parseTrackingWorkbook,
+  type ParsedTrackingLot,
+} from "@/lib/collaborateur/tracking-import";
+
+export type { ParsedTrackingLot };
+
+function flatten(error: z.ZodError): Record<string, string[]> {
+  return z.flattenError(error).fieldErrors as Record<string, string[]>;
+}
+
+function toDate(iso: string | null): Date | null {
+  if (!iso) return null;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// ---------------------------------------------------------------------------
+// ACTION 1 : parse
+// ---------------------------------------------------------------------------
+
+export async function parseTrackingFileAction(
+  fileB64: string,
+): Promise<ActionResult<{ rows: ParsedTrackingLot[]; errors: string[] }>> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  const parsed = parseTrackingFileSchema.safeParse({ fileB64 });
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Fichier invalide.",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+
+  const buffer = Buffer.from(parsed.data.fileB64, "base64");
+  const result = await parseTrackingWorkbook(buffer);
+  return { ok: true, value: result };
+}
+
+// ---------------------------------------------------------------------------
+// ACTION 2 : programme
+// ---------------------------------------------------------------------------
+
+export async function createTrackingProgrammeAction(
+  input: unknown,
+): Promise<ActionResult<{ programmeId: string }>> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const parsed = createTrackingProgrammeSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide.",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  const data = parsed.data;
+  const ctx = await getRequestContext();
+
+  if (data.mode === "existing") {
+    const prog = await prisma.programme.findUnique({
+      where: { id: data.programmeId! },
+    });
+    if (!prog || prog.status !== "ACTIVE") {
+      return { ok: false, error: "Programme introuvable ou inactif." };
+    }
+    await audit({
+      userId: me.id,
+      action: "PROGRAMME_UPDATED",
+      resourceType: "Programme",
+      resourceId: prog.id,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      metadata: { via: "tracking_import_selected" },
+    });
+    return { ok: true, value: { programmeId: prog.id } };
+  }
+
+  // mode = "new"
+  try {
+    const prog = await prisma.programme.create({
+      data: {
+        name: data.name!,
+        reference: data.reference!.toUpperCase(),
+        city: data.city ?? null,
+        status: "ACTIVE",
+      },
+    });
+    await audit({
+      userId: me.id,
+      action: "PROGRAMME_CREATED",
+      resourceType: "Programme",
+      resourceId: prog.id,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      metadata: { via: "tracking_import" },
+    });
+    return { ok: true, value: { programmeId: prog.id } };
+  } catch (err) {
+    if (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    ) {
+      return {
+        ok: false,
+        error: "Cette référence de programme est déjà utilisée.",
+        fieldErrors: { reference: ["Référence déjà prise."] },
+      };
+    }
+    throw err;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ACTION 3 : lots
+// ---------------------------------------------------------------------------
+
+export async function importTrackingLotsAction(
+  input: unknown,
+): Promise<ActionResult<{ upserted: number; lotIds: Record<string, string> }>> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  const parsed = importTrackingLotsSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide.",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  const { programmeId, lots } = parsed.data;
+
+  const lotIds: Record<string, string> = {};
+  let upserted = 0;
+
+  for (const lot of lots) {
+    const vatRate = new Prisma.Decimal(lot.vatRate);
+    const priceHT = new Prisma.Decimal(lot.priceHT);
+    const priceTTC = priceHT
+      .mul(new Prisma.Decimal(1).add(vatRate.div(100)))
+      .toDecimalPlaces(2);
+
+    const result = await prisma.lot.upsert({
+      where: {
+        programmeId_reference: { programmeId, reference: lot.reference },
+      },
+      create: {
+        programmeId,
+        reference: lot.reference,
+        floor: lot.floor,
+        type: lot.type,
+        surface: new Prisma.Decimal(lot.surface),
+        priceHT,
+        vatRate,
+        priceTTC,
+        notes: lot.notes,
+        status: "AVAILABLE",
+      },
+      update: {
+        floor: lot.floor,
+        type: lot.type,
+        surface: new Prisma.Decimal(lot.surface),
+        priceHT,
+        vatRate,
+        priceTTC,
+        notes: lot.notes,
+      },
+      select: { id: true, reference: true },
+    });
+
+    lotIds[result.reference] = result.id;
+    upserted++;
+  }
+
+  // Sync totalLots count
+  const count = await prisma.lot.count({ where: { programmeId } });
+  await prisma.programme.update({
+    where: { id: programmeId },
+    data: { totalLots: count },
+  });
+
+  return { ok: true, value: { upserted, lotIds } };
+}
+
+// ---------------------------------------------------------------------------
+// ACTION 4 : dossier
+// ---------------------------------------------------------------------------
+
+export async function createTrackingDossierAction(
+  input: unknown,
+): Promise<ActionResult<{ dossierId: string }>> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  const parsed = createTrackingDossierSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide.",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  const { programmeId, lotId, lotFinalStatus, processData, client } =
+    parsed.data;
+  const ctx = await getRequestContext();
+
+  const programme = await prisma.programme.findUnique({
+    where: { id: programmeId },
+  });
+  if (!programme || programme.status !== "ACTIVE") {
+    return { ok: false, error: "Programme invalide." };
+  }
+
+  const lot = await prisma.lot.findUnique({ where: { id: lotId } });
+  if (!lot || lot.programmeId !== programmeId) {
+    return { ok: false, error: "Lot incompatible avec ce programme." };
+  }
+
+  const clientId = client?.existingUserId ?? null;
+
+  if (clientId) {
+    const user = await prisma.user.findUnique({ where: { id: clientId } });
+    if (!user || user.role !== "CLIENT") {
+      return { ok: false, error: "Client introuvable ou rôle invalide." };
+    }
+    const existing = await prisma.dossier.findUnique({
+      where: { clientId },
+    });
+    if (existing) {
+      return { ok: false, error: "Ce client a déjà un dossier." };
+    }
+  }
+
+  // Infer dossier status
+  const actSignedAt = toDate(processData.actSignedAt);
+  const notaryTransmittedAt = toDate(processData.notaryTransmittedAt);
+  const reservationSignedAt = toDate(processData.reservationSignedAt);
+  const optionDate = toDate(processData.optionDate);
+  const guaranteeDepositReceivedAt = toDate(
+    processData.guaranteeDepositReceivedAt,
+  );
+  const reservationEndDate = toDate(processData.reservationEndDate);
+
+  type DS = "NEW_LEAD" | "RESERVATION_SENT" | "SIGNED_AT_NOTARY" | "ACT_SIGNED";
+  let dossierStatus: DS = "NEW_LEAD";
+  if (actSignedAt) dossierStatus = "ACT_SIGNED";
+  else if (notaryTransmittedAt) dossierStatus = "SIGNED_AT_NOTARY";
+  else if (reservationSignedAt) dossierStatus = "RESERVATION_SENT";
+
+  type CS =
+    | "AWAITING_SIGNATURE"
+    | "CONTRACT_SIGNED"
+    | "SENT_TO_NOTARY"
+    | "LOAN_OFFER_RECEIVED";
+  let contractStatus: CS | null = null;
+  if (!actSignedAt) {
+    if (notaryTransmittedAt) contractStatus = "SENT_TO_NOTARY";
+    else if (processData.loanObtained === "cash") contractStatus = null;
+    else if (processData.loanObtained) contractStatus = "LOAN_OFFER_RECEIVED";
+    else if (reservationSignedAt) contractStatus = "CONTRACT_SIGNED";
+    else contractStatus = "AWAITING_SIGNATURE";
+  }
+
+  const optioned = !!optionDate && !reservationSignedAt;
+  const reference = await generateDossierReference();
+
+  const dossier = await prisma.$transaction(async (tx) => {
+    const created = await tx.dossier.create({
+      data: {
+        reference,
+        programmeId,
+        lotId,
+        clientId,
+        status: dossierStatus,
+        contractStatus,
+        optioned,
+        optionExpiresAt: optioned ? optionDate : null,
+        notaryTransmittedAt,
+        closedAt: actSignedAt ?? null,
+      },
+    });
+
+    await tx.dossierParticipant.create({
+      data: {
+        dossierId: created.id,
+        userId: me.id,
+        role: "COLLABORATOR_PRIMARY",
+      },
+    });
+
+    await tx.lot.update({
+      where: { id: lotId },
+      data: { status: lotFinalStatus },
+    });
+
+    // Timeline events in chronological order
+    const events: {
+      date: Date;
+      kind: string;
+      title: string;
+      description?: string;
+    }[] = [];
+
+    if (optionDate)
+      events.push({
+        date: optionDate,
+        kind: "OPTION_TAKEN",
+        title: "Option posée (import)",
+      });
+    if (reservationSignedAt)
+      events.push({
+        date: reservationSignedAt,
+        kind: "RESERVATION_SIGNED",
+        title: "Contrat de réservation signé (import)",
+      });
+    if (notaryTransmittedAt)
+      events.push({
+        date: notaryTransmittedAt,
+        kind: "TRANSMITTED_TO_NOTARY",
+        title: "Envoyé chez le notaire (import)",
+      });
+    if (guaranteeDepositReceivedAt)
+      events.push({
+        date: guaranteeDepositReceivedAt,
+        kind: "GUARANTEE_DEPOSIT_RECEIVED",
+        title: "Dépôt de garantie reçu (import)",
+        description: processData.guaranteeDepositAmount
+          ? `${processData.guaranteeDepositAmount.toLocaleString("fr-FR")} €`
+          : undefined,
+      });
+    if (actSignedAt)
+      events.push({
+        date: actSignedAt,
+        kind: "ACT_SIGNED",
+        title: "Acte signé (import)",
+      });
+
+    events.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+    for (const ev of events) {
+      await tx.timelineEvent.create({
+        data: {
+          dossierId: created.id,
+          kind: ev.kind as never,
+          title: ev.title,
+          description: ev.description ?? null,
+          actorId: me.id,
+        },
+      });
+    }
+
+    // Final CUSTOM event for import trace
+    await tx.timelineEvent.create({
+      data: {
+        dossierId: created.id,
+        kind: "CUSTOM",
+        title: "Import tableau de suivi",
+        description: processData.financingMode ?? null,
+        actorId: me.id,
+      },
+    });
+
+    // Observation → Note
+    if (processData.observation) {
+      await tx.note.create({
+        data: {
+          scope: "DOSSIER",
+          dossierId: created.id,
+          authorId: me.id,
+          body: processData.observation,
+        },
+      });
+    }
+
+    return created;
+  });
+
+  await audit({
+    userId: me.id,
+    action: "DOSSIER_CREATED",
+    resourceType: "Dossier",
+    resourceId: dossier.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: { reference, programmeId, via: "tracking_import" },
+  });
+
+  revalidatePath("/collaborateur");
+  revalidatePath("/collaborateur/dossiers");
+
+  return { ok: true, value: { dossierId: dossier.id } };
+}
+
+// ---------------------------------------------------------------------------
+// HELPER : lookup client by email
+// ---------------------------------------------------------------------------
+
+export async function lookupClientByEmailAction(
+  email: string,
+): Promise<ActionResult<{ userId: string | null }>> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  if (!email) return { ok: true, value: { userId: null } };
+
+  const user = await prisma.user.findUnique({
+    where: { email: email.toLowerCase().trim() },
+    select: { id: true, role: true },
+  });
+
+  if (!user || user.role !== "CLIENT") {
+    return { ok: true, value: { userId: null } };
+  }
+
+  // Check if client already has a dossier
+  const existing = await prisma.dossier.findUnique({
+    where: { clientId: user.id },
+    select: { id: true },
+  });
+
+  return { ok: true, value: { userId: existing ? null : user.id } };
+}
