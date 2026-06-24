@@ -47,6 +47,7 @@ export const importTrackingLotsSchema = z.object({
   programmeId: z.string(),
   lots: z.array(
     z.object({
+      building: z.string().nullable(),
       reference: z.string(),
       floor: z.number().nullable(),
       type: z.string(),

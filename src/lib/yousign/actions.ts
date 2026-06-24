@@ -101,16 +101,15 @@ export async function requestSignatureAction(
       where: { id: dossier.programmeId },
       select: { name: true },
     });
-    const lot = dossier.lotId
-      ? await prisma.lot.findUnique({
-          where: { id: dossier.lotId },
-          select: { reference: true },
-        })
-      : null;
+    const lots = await prisma.lot.findMany({
+      where: { dossierId: dossier.id },
+      select: { reference: true },
+    });
+    const lotReference = lots.map((l) => l.reference).join(", ") || undefined;
     pdfBuffer = generatePlaceholderPdf({
       dossierReference: dossier.reference,
       programmeName: programme?.name ?? "—",
-      lotReference: lot?.reference,
+      lotReference,
       signerName: `${parsed.data.signerFirstName} ${parsed.data.signerLastName}`,
     });
     pdfFileName = `${dossier.reference}_a_signer.pdf`;

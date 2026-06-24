@@ -67,9 +67,7 @@ export const authConfig = {
         return token;
       }
 
-      if (trigger === "update") {
-        token.lastActivity = now;
-      }
+      token.lastActivity = now;
 
       return token;
     },

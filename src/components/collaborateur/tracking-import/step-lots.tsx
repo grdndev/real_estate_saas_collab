@@ -4,9 +4,10 @@ import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { importTrackingLotsAction } from "@/lib/collaborateur/tracking-import-actions";
-import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import";
+import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 
 interface EditableLot {
+  building: string | null;
   reference: string;
   floor: number | null;
   type: string;
@@ -20,13 +21,15 @@ interface Props {
   rows: ParsedTrackingLot[];
   programmeId: string;
   onNext: (lotIds: Record<string, string>) => void;
+  onBack?: () => void;
 }
 
-export function StepLots({ rows, programmeId, onNext }: Props) {
+export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [lots, setLots] = useState<EditableLot[]>(() =>
     rows.map((r) => ({
+      building: r.building,
       reference: r.reference,
       floor: r.floor,
       type: r.type,
@@ -158,7 +161,17 @@ export function StepLots({ rows, programmeId, onNext }: Props) {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {onBack && (
+          <Button
+            variant="outline"
+            onClick={onBack}
+            disabled={pending}
+            className="mr-auto"
+          >
+            ← Retour
+          </Button>
+        )}
         <Button onClick={handleSubmit} disabled={pending}>
           {pending ? "Import en cours…" : `Importer ${lots.length} lots →`}
         </Button>

@@ -90,7 +90,7 @@ export default async function CollaborateurDashboardPage() {
       orderBy: { lastActivityAt: "desc" },
       include: {
         programme: { select: { name: true, reference: true } },
-        lot: { select: { reference: true } },
+        lots: { select: { reference: true } },
         client: { select: { firstName: true, lastName: true } },
       },
     }),
@@ -213,7 +213,7 @@ export default async function CollaborateurDashboardPage() {
                         : "—"}
                     </Td>
                     <Td>{d.programme.name}</Td>
-                    <Td>{d.lot?.reference ?? "—"}</Td>
+                    <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
                     <Td>
                       <Badge variant={sb.variant}>{sb.label}</Badge>
                     </Td>

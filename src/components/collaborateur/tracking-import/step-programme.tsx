@@ -11,11 +11,12 @@ import { createTrackingProgrammeAction } from "@/lib/collaborateur/tracking-impo
 interface Props {
   programmes: Array<{ id: string; name: string; reference: string }>;
   onNext: (programmeId: string) => void;
+  onBack?: () => void;
 }
 
 const NEW_VALUE = "__new__";
 
-export function StepProgramme({ programmes, onNext }: Props) {
+export function StepProgramme({ programmes, onNext, onBack }: Props) {
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useState<string>(
     programmes.length > 0 ? programmes[0]!.id : NEW_VALUE,
@@ -107,7 +108,17 @@ export function StepProgramme({ programmes, onNext }: Props) {
 
       {error && <Alert variant="danger">{error}</Alert>}
 
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {onBack && (
+          <Button
+            variant="outline"
+            onClick={onBack}
+            disabled={pending}
+            className="mr-auto"
+          >
+            ← Retour
+          </Button>
+        )}
         <Button onClick={handleSubmit} disabled={pending}>
           {pending ? "Enregistrement…" : "Suivant →"}
         </Button>

@@ -31,7 +31,7 @@ export default function ListeDossiers({
     status: keyof typeof STATUS_BADGE;
     notaryTransmittedAt: Date | null;
     programme: { name: string };
-    lot: { reference: string } | null;
+    lots: { reference: string }[];
   }>;
 }) {
   const [page, setPage] = useState(0);
@@ -62,7 +62,7 @@ export default function ListeDossiers({
               <Tr key={d.id}>
                 <Td className="font-mono text-xs">{d.reference}</Td>
                 <Td>{d.programme.name}</Td>
-                <Td>{d.lot?.reference ?? "—"}</Td>
+                <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
                 <Td>
                   <Badge variant={sb.variant}>{sb.label}</Badge>
                 </Td>

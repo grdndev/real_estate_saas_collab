@@ -6,7 +6,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { parseTrackingFileAction } from "@/lib/collaborateur/tracking-import-actions";
-import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import";
+import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 
 const ACCEPTED = [
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

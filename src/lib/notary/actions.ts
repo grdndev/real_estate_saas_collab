@@ -180,9 +180,9 @@ export async function notaryUpdateStatusAction(
         actorId: me.id,
       },
     });
-    if (status === "ACT_SIGNED" && dossier.lotId) {
-      await tx.lot.update({
-        where: { id: dossier.lotId },
+    if (status === "ACT_SIGNED") {
+      await tx.lot.updateMany({
+        where: { dossierId: dossier.id },
         data: { status: "SOLD" },
       });
     }

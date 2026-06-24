@@ -46,7 +46,7 @@ export default async function ClientDashboardPage() {
     where: { clientId: me.id },
     include: {
       programme: { select: { name: true, reference: true, city: true } },
-      lot: true,
+      lots: true,
       participants: {
         where: { role: "COLLABORATOR_PRIMARY" },
         include: {
@@ -122,15 +122,26 @@ export default async function ClientDashboardPage() {
               </span>
             )}
           </p>
-          {dossier.lot && (
+          {dossier.lots.length > 0 && (
             <div className="text-slate-700">
               <p>
-                Lot <span className="font-mono">{dossier.lot.reference}</span> ·{" "}
-                {dossier.lot.surface.toString()} m² · {dossier.lot.type}
+                Lot{" "}
+                <span className="font-mono">
+                  {dossier.lots.map((l) => l.reference).join(", ")}
+                </span>{" "}
+                · {dossier.lots.reduce((acc, l) => acc + Number(l.surface), 0)}{" "}
+                m² · {dossier.lots.map((l) => l.type).join(", ")}
               </p>
               <p className="text-slate-600">
                 Prix TTC :{" "}
-                <strong>{eur.format(Number(dossier.lot.priceTTC))}</strong>
+                <strong>
+                  {eur.format(
+                    dossier.lots.reduce(
+                      (acc, l) => acc + Number(l.priceTTC),
+                      0,
+                    ),
+                  )}
+                </strong>
               </p>
             </div>
           )}

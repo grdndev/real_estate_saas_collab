@@ -4,7 +4,8 @@ import React, { useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import";
+import { Alert } from "@/components/ui/alert";
+import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 import { StepUpload } from "./step-upload";
 import { StepProgramme } from "./step-programme";
 import { StepLots } from "./step-lots";
@@ -35,8 +36,8 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
     }
   }, [open]);
 
-  function handleClose() {
-    if (step > 0) {
+  function handleClose(done?: boolean) {
+    if (step > 0 && !done) {
       if (!confirm("Fermer l'assistant d'import ? La progression sera perdue."))
         return;
     }
@@ -90,7 +91,7 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
         </div>
         <button
           type="button"
-          onClick={handleClose}
+          onClick={() => handleClose()}
           className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
           aria-label="Fermer"
         >
@@ -100,6 +101,18 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
 
       {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+        {parseErrors.length > 0 && step === 1 && (
+          <Alert variant="warning" className="mb-4">
+            <p className="mb-1 text-sm font-semibold">
+              Avertissements de lecture du fichier
+            </p>
+            <ul className="space-y-0.5 text-xs">
+              {parseErrors.map((e, i) => (
+                <li key={i}>{e}</li>
+              ))}
+            </ul>
+          </Alert>
+        )}
         {step === 0 && (
           <StepUpload
             onParsed={(b64, rows, errors) => {
@@ -117,6 +130,12 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
               setProgrammeId(id);
               setStep(2);
             }}
+            onBack={() => {
+              setFileB64(null);
+              setParsedRows([]);
+              setParseErrors([]);
+              setStep(0);
+            }}
           />
         )}
         {step === 2 && programmeId && (
@@ -127,6 +146,10 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
               setLotIds(ids);
               setStep(3);
             }}
+            onBack={() => {
+              setProgrammeId(null);
+              setStep(1);
+            }}
           />
         )}
         {step === 3 && programmeId && (
@@ -134,17 +157,8 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
             rows={parsedRows}
             programmeId={programmeId}
             lotIds={lotIds}
-            onDone={handleClose}
+            onDone={() => handleClose(true)}
           />
-        )}
-        {parseErrors.length > 0 && step === 1 && (
-          <div className="mt-4 space-y-1">
-            {parseErrors.map((e, i) => (
-              <p key={i} className="text-xs text-amber-700">
-                {e}
-              </p>
-            ))}
-          </div>
         )}
       </div>
     </dialog>,

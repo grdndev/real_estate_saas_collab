@@ -6,11 +6,11 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import {
-  createTrackingDossierAction,
+  upsertTrackingDossierAction,
   lookupClientByEmailAction,
 } from "@/lib/collaborateur/tracking-import-actions";
-import { createClientAndDossierAction } from "@/lib/dossier/actions";
-import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import";
+import { createClientOnlyAction } from "@/lib/dossier/actions";
+import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 
 interface Props {
   rows: ParsedTrackingLot[];
@@ -19,12 +19,13 @@ interface Props {
   onDone: () => void;
 }
 
-type RowCase = "A" | "B" | "C";
+type RowCase = "A" | "B" | "C" | "SKIP";
 
 interface RowMeta {
   row: ParsedTrackingLot;
   case: RowCase;
   existingUserId: string | null;
+  hasDossier: boolean;
 }
 
 function toProcessData(row: ParsedTrackingLot) {
@@ -51,10 +52,12 @@ function toProcessData(row: ParsedTrackingLot) {
 
 export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
   const [metas, setMetas] = useState<RowMeta[] | null>(null);
+  const [autoProcessDone, setAutoProcessDone] = useState(false);
   const [currentCaseB, setCurrentCaseB] = useState(0);
   const [processed, setProcessed] = useState(0);
   const [errors, setErrors] = useState<string[]>([]);
   const [done, setDone] = useState(false);
+  const [autoErrorsAcknowledged, setAutoErrorsAcknowledged] = useState(false);
   const [pending, startTransition] = useTransition();
 
   // Phase 1: classify all rows
@@ -63,14 +66,43 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
       const result: RowMeta[] = [];
       for (const row of rows) {
         if (!row.buyerEmail) {
-          result.push({ row, case: "C", existingUserId: null });
+          if (
+            row.lotStatus === "AVAILABLE" &&
+            !row.optionDate &&
+            !row.reservationSignedAt &&
+            !row.actSignedAt
+          ) {
+            result.push({
+              row,
+              case: "SKIP",
+              existingUserId: null,
+              hasDossier: false,
+            });
+          } else {
+            result.push({
+              row,
+              case: "C",
+              existingUserId: null,
+              hasDossier: false,
+            });
+          }
           continue;
         }
         const lookup = await lookupClientByEmailAction(row.buyerEmail);
         if (lookup.ok && lookup.value.userId) {
-          result.push({ row, case: "A", existingUserId: lookup.value.userId });
+          result.push({
+            row,
+            case: "A",
+            existingUserId: lookup.value.userId,
+            hasDossier: lookup.value.hasDossier,
+          });
         } else {
-          result.push({ row, case: "B", existingUserId: null });
+          result.push({
+            row,
+            case: "B",
+            existingUserId: null,
+            hasDossier: false,
+          });
         }
       }
       setMetas(result);
@@ -81,20 +113,25 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
   // Phase 2: auto-process A and C cases once metas are ready
   useEffect(() => {
     if (!metas) return;
-    const autoCases = metas.filter((m) => m.case === "A" || m.case === "C");
-    if (autoCases.length === 0) return;
+    let cancelled = false;
+    const safeMetas = metas;
 
     async function processAuto() {
-      let count = 0;
+      const autoCases = safeMetas.filter(
+        (m) => m.case === "A" || m.case === "C",
+      );
+      const caseBRows = safeMetas.filter((m) => m.case === "B");
       const errs: string[] = [];
+
       for (const meta of autoCases) {
+        if (cancelled) return;
         const lotId = lotIds[meta.row.reference];
         if (!lotId) {
           errs.push(`Lot introuvable pour ${meta.row.reference} — ignoré.`);
-          count++;
+          if (!cancelled) setProcessed((p) => p + 1);
           continue;
         }
-        const result = await createTrackingDossierAction({
+        const result = await upsertTrackingDossierAction({
           programmeId,
           lotId,
           lotFinalStatus: meta.row.lotStatus,
@@ -103,27 +140,75 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
             ? { existingUserId: meta.existingUserId }
             : null,
         });
-        if (!result.ok) {
-          errs.push(`${meta.row.reference}: ${result.error}`);
+        if (!cancelled) {
+          if (!result.ok) errs.push(`${meta.row.reference}: ${result.error}`);
+          setProcessed((p) => p + 1);
         }
-        count++;
       }
-      setProcessed((p) => p + count);
-      setErrors((e) => [...e, ...errs]);
 
-      const caseBRows = metas!.filter((m) => m.case === "B");
-      if (caseBRows.length === 0) setDone(true);
+      if (!cancelled) {
+        setErrors((e) => [...e, ...errs]);
+        setAutoProcessDone(true);
+        if (caseBRows.length === 0) setDone(true);
+      }
     }
+
     processAuto();
+    return () => {
+      cancelled = true;
+    };
   }, [metas]);
 
   const caseBRows = metas?.filter((m) => m.case === "B") ?? [];
-  const total = rows.length;
+  const total = metas
+    ? metas.filter((m) => m.case !== "SKIP").length
+    : rows.length;
 
   if (!metas) {
     return (
       <div className="flex flex-col items-center gap-3 py-8 text-sm text-slate-500">
         <span>Classification des acquéreurs…</span>
+      </div>
+    );
+  }
+
+  if (!autoProcessDone) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8 text-sm text-slate-500">
+        <span>
+          Traitement automatique en cours… {processed} / {total}
+        </span>
+      </div>
+    );
+  }
+
+  if (
+    autoProcessDone &&
+    !done &&
+    errors.length > 0 &&
+    caseBRows.length > 0 &&
+    !autoErrorsAcknowledged
+  ) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Alert variant="warning">
+          <p className="mb-2 font-medium">
+            {errors.length} erreur(s) lors du traitement automatique :
+          </p>
+          <ul className="space-y-0.5 text-xs">
+            {errors.map((e, i) => (
+              <li key={i}>{e}</li>
+            ))}
+          </ul>
+        </Alert>
+        <p className="text-sm text-slate-600">
+          {caseBRows.length} dossier(s) nécessitent une action manuelle.
+        </p>
+        <div className="flex justify-end">
+          <Button onClick={() => setAutoErrorsAcknowledged(true)}>
+            Continuer →
+          </Button>
+        </div>
       </div>
     );
   }
@@ -153,6 +238,7 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
   if (caseBRows.length > 0 && currentCaseB < caseBRows.length) {
     return (
       <CaseBForm
+        key={currentCaseB}
         meta={caseBRows[currentCaseB]!}
         programmeId={programmeId}
         lotIds={lotIds}
@@ -191,6 +277,7 @@ interface CaseBFormProps {
     row: ParsedTrackingLot;
     case: RowCase;
     existingUserId: string | null;
+    hasDossier: boolean;
   };
   programmeId: string;
   lotIds: Record<string, string>;
@@ -217,10 +304,10 @@ function CaseBForm({
   startTransition,
   toProcessData,
 }: CaseBFormProps) {
-  const { row } = meta;
+  const { row, hasDossier } = meta;
   const nameParts = (row.buyerName ?? "").trim().split(/\s+/);
-  const [firstName, setFirstName] = useState(nameParts[0] ?? "");
-  const [lastName, setLastName] = useState(nameParts.slice(1).join(" "));
+  const [firstName, setFirstName] = useState(nameParts.slice(1).join(" "));
+  const [lastName, setLastName] = useState(nameParts[0] ?? "");
   const [email, setEmail] = useState(row.buyerEmail ?? "");
   const [phone, setPhone] = useState(row.buyerPhone ?? "");
   const [formError, setFormError] = useState<string | null>(null);
@@ -234,32 +321,25 @@ function CaseBForm({
         return;
       }
 
-      // Create client + base dossier
-      const clientResult = await createClientAndDossierAction({
+      const clientResult = await createClientOnlyAction({
         email,
         firstName,
         lastName,
         phone: phone || undefined,
-        programmeId,
-        lotId,
       });
       if (!clientResult.ok) {
         setFormError(clientResult.error);
         return;
       }
 
-      // Apply tracking data on top
-      const trackResult = await createTrackingDossierAction({
+      const trackResult = await upsertTrackingDossierAction({
         programmeId,
         lotId,
         lotFinalStatus: row.lotStatus,
         processData: toProcessData(row),
         client: { existingUserId: clientResult.value.userId },
       });
-      if (
-        !trackResult.ok &&
-        trackResult.error !== "Ce client a déjà un dossier."
-      ) {
+      if (!trackResult.ok) {
         setFormError(trackResult.error);
         return;
       }
@@ -275,7 +355,7 @@ function CaseBForm({
         onError(`Lot introuvable pour ${row.reference}.`);
         return;
       }
-      const result = await createTrackingDossierAction({
+      const result = await upsertTrackingDossierAction({
         programmeId,
         lotId,
         lotFinalStatus: row.lotStatus,
@@ -302,67 +382,146 @@ function CaseBForm({
         </span>
       </div>
 
-      <p className="text-sm text-slate-600">
-        Aucun compte client trouvé pour{" "}
-        <span className="font-mono">{row.buyerEmail}</span>. Créez le client ou
-        importez sans associer.
-      </p>
+      {hasDossier ? (
+        <>
+          <Alert variant="info">
+            Ce client a déjà un dossier. L&apos;import mettra à jour ses
+            données.
+          </Alert>
+          {formError && <Alert variant="danger">{formError}</Alert>}
+          <div className="flex justify-end gap-2">
+            <Button
+              onClick={() => {
+                setFormError(null);
+                startTransition(async () => {
+                  const lookup = await lookupClientByEmailAction(email);
+                  if (!lookup.ok || !lookup.value.userId) {
+                    setFormError("Aucun compte client trouvé pour cet email.");
+                    return;
+                  }
+                  const lotId = lotIds[row.reference];
+                  if (!lotId) {
+                    setFormError(`Lot introuvable pour ${row.reference}.`);
+                    return;
+                  }
+                  const result = await upsertTrackingDossierAction({
+                    programmeId,
+                    lotId,
+                    lotFinalStatus: row.lotStatus,
+                    processData: toProcessData(row),
+                    client: { existingUserId: lookup.value.userId },
+                  });
+                  if (!result.ok) {
+                    setFormError(result.error);
+                    return;
+                  }
+                  onCreated();
+                });
+              }}
+              disabled={pending}
+            >
+              {pending ? "Mise à jour…" : "Associer et mettre à jour"}
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="text-sm text-slate-600">
+            Aucun compte client trouvé pour{" "}
+            <span className="font-mono">{row.buyerEmail}</span>. Créez le client
+            ou importez sans associer.
+          </p>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <FormField label="Prénom" htmlFor="cb-fn" required>
-          <Input
-            id="cb-fn"
-            value={firstName}
-            onChange={(e) => setFirstName(e.target.value)}
-          />
-        </FormField>
-        <FormField label="Nom" htmlFor="cb-ln" required>
-          <Input
-            id="cb-ln"
-            value={lastName}
-            onChange={(e) => setLastName(e.target.value)}
-          />
-        </FormField>
-        <FormField label="Email" htmlFor="cb-email" required>
-          <Input
-            id="cb-email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </FormField>
-        <FormField label="Téléphone" htmlFor="cb-phone">
-          <Input
-            id="cb-phone"
-            type="tel"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
-        </FormField>
-      </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <FormField label="Prénom" htmlFor="cb-fn" required>
+              <Input
+                id="cb-fn"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+              />
+            </FormField>
+            <FormField label="Nom" htmlFor="cb-ln" required>
+              <Input
+                id="cb-ln"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+              />
+            </FormField>
+            <FormField label="Email" htmlFor="cb-email" required>
+              <Input
+                id="cb-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </FormField>
+            <FormField label="Téléphone" htmlFor="cb-phone">
+              <Input
+                id="cb-phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </FormField>
+          </div>
 
-      {formError && <Alert variant="danger">{formError}</Alert>}
-      {errors.length > 0 && (
-        <Alert variant="warning" className="text-xs">
-          {errors.length} erreur(s) précédente(s).
-        </Alert>
+          {formError && <Alert variant="danger">{formError}</Alert>}
+          {errors.length > 0 && (
+            <Alert variant="warning" className="text-xs">
+              {errors.length} erreur(s) précédente(s).
+            </Alert>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={handleWithoutClient}
+              disabled={pending}
+            >
+              Créer sans client
+            </Button>
+            <Button
+              onClick={handleCreateWithClient}
+              disabled={pending || !firstName || !lastName || !email}
+            >
+              {pending ? "Création…" : "Créer & inviter →"}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={pending || !email}
+              onClick={() => {
+                setFormError(null);
+                startTransition(async () => {
+                  const lookup = await lookupClientByEmailAction(email);
+                  if (!lookup.ok || !lookup.value.userId) {
+                    setFormError("Aucun compte client trouvé pour cet email.");
+                    return;
+                  }
+                  const lotId = lotIds[row.reference];
+                  if (!lotId) {
+                    setFormError(`Lot introuvable pour ${row.reference}.`);
+                    return;
+                  }
+                  const result = await upsertTrackingDossierAction({
+                    programmeId,
+                    lotId,
+                    lotFinalStatus: row.lotStatus,
+                    processData: toProcessData(row),
+                    client: { existingUserId: lookup.value.userId },
+                  });
+                  if (!result.ok) {
+                    setFormError(result.error);
+                    return;
+                  }
+                  onCreated();
+                });
+              }}
+            >
+              {pending ? "Association…" : "Associer le client existant"}
+            </Button>
+          </div>
+        </>
       )}
-
-      <div className="flex justify-end gap-2">
-        <Button
-          variant="outline"
-          onClick={handleWithoutClient}
-          disabled={pending}
-        >
-          Créer sans client
-        </Button>
-        <Button
-          onClick={handleCreateWithClient}
-          disabled={pending || !firstName || !lastName || !email}
-        >
-          {pending ? "Création…" : "Créer & inviter →"}
-        </Button>
-      </div>
     </div>
   );
 }

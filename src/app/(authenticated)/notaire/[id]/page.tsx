@@ -48,7 +48,7 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
     where: { id },
     include: {
       programme: true,
-      lot: true,
+      lots: true,
       client: { select: { firstName: true, lastName: true, email: true } },
       timelineEvents: { orderBy: { occurredAt: "desc" } },
       documents: {
@@ -120,9 +120,9 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
         </p>
         <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
           {dossier.programme.name}
-          {dossier.lot && (
+          {dossier.lots.length > 0 && (
             <span className="ml-2 text-base font-normal text-slate-500">
-              · Lot {dossier.lot.reference}
+              · Lot {dossier.lots.map((l) => l.reference).join(", ")}
             </span>
           )}
         </h1>
@@ -143,15 +143,28 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
                 <p className="text-xs text-slate-500">Programme</p>
                 <p>{dossier.programme.name}</p>
               </div>
-              {dossier.lot && (
+              {dossier.lots.length > 0 && (
                 <>
                   <div>
                     <p className="text-xs text-slate-500">Surface</p>
-                    <p>{dossier.lot.surface.toString()} m²</p>
+                    <p>
+                      {dossier.lots.reduce(
+                        (acc, l) => acc + Number(l.surface),
+                        0,
+                      )}{" "}
+                      m²
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-slate-500">Prix TTC</p>
-                    <p>{eur.format(Number(dossier.lot.priceTTC))}</p>
+                    <p>
+                      {eur.format(
+                        dossier.lots.reduce(
+                          (acc, l) => acc + Number(l.priceTTC),
+                          0,
+                        ),
+                      )}
+                    </p>
                   </div>
                 </>
               )}

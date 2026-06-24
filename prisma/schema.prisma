@@ -325,6 +325,7 @@ model ProgrammePromoter {
 model Lot {
   id          String    @id @default(cuid())
   programmeId String
+  dossierId   String?
   reference   String
   surface     Decimal   @db.Decimal(8, 2)
   floor       Int?
@@ -339,10 +340,11 @@ model Lot {
   updatedAt DateTime @updatedAt
 
   programme Programme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
-  dossiers  Dossier[]
+  dossier   Dossier?  @relation(fields: [dossierId], references: [id])
 
   @@unique([programmeId, reference])
   @@index([programmeId, status])
+  @@index([dossierId])
 }
 
 // Trésorerie prévisionnelle : 1 ligne par mois.
@@ -369,7 +371,6 @@ model Dossier {
   id          String        @id @default(cuid())
   reference   String        @unique
   programmeId String
-  lotId       String?
   clientId    String?       @unique
   status      DossierStatus @default(NEW_LEAD)
   // Axe contractuel parallèle (null tant que le dossier n'est pas en phase contrat).
@@ -388,7 +389,7 @@ model Dossier {
   notaryTransmittedAt DateTime?
 
   programme        Programme            @relation(fields: [programmeId], references: [id])
-  lot              Lot?                 @relation(fields: [lotId], references: [id])
+  lots             Lot[]
   client           User?                @relation("DossierClient", fields: [clientId], references: [id])
   participants     DossierParticipant[]
   documents        Document[]

@@ -36,7 +36,7 @@ export default async function ProgrammeContractsPage({ params }: PageProps) {
     where: { programmeId: id },
     orderBy: { updatedAt: "desc" },
     include: {
-      lot: { select: { reference: true, type: true } },
+      lots: { select: { reference: true, type: true } },
       client: { select: { firstName: true, lastName: true } },
       signatures: { select: { status: true, signedAt: true } },
       appointments: {
@@ -128,7 +128,11 @@ export default async function ProgrammeContractsPage({ params }: PageProps) {
                         : "— Client non associé"}
                     </Td>
                     <Td>
-                      {d.lot ? `${d.lot.reference} · ${d.lot.type}` : "—"}
+                      {d.lots.length > 0
+                        ? d.lots
+                            .map((l) => `${l.reference} · ${l.type}`)
+                            .join(", ")
+                        : "—"}
                     </Td>
                     <Td>
                       {d.contractStatus ? (

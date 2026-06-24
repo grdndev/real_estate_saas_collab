@@ -15,12 +15,8 @@ import {
   importTrackingLotsSchema,
   createTrackingDossierSchema,
 } from "@/lib/collaborateur/tracking-import-schemas";
-import {
-  parseTrackingWorkbook,
-  type ParsedTrackingLot,
-} from "@/lib/collaborateur/tracking-import";
-
-export type { ParsedTrackingLot };
+import { parseTrackingWorkbook } from "@/lib/collaborateur/tracking-import";
+import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
@@ -157,6 +153,10 @@ export async function importTrackingLotsAction(
       .mul(new Prisma.Decimal(1).add(vatRate.div(100)))
       .toDecimalPlaces(2);
 
+    const effectiveNotes = lot.building
+      ? `Bâtiment: ${lot.building}${lot.notes ? ` | ${lot.notes}` : ""}`
+      : (lot.notes ?? null);
+
     const result = await prisma.lot.upsert({
       where: {
         programmeId_reference: { programmeId, reference: lot.reference },
@@ -170,7 +170,7 @@ export async function importTrackingLotsAction(
         priceHT,
         vatRate,
         priceTTC,
-        notes: lot.notes,
+        notes: effectiveNotes,
         status: "AVAILABLE",
       },
       update: {
@@ -180,7 +180,7 @@ export async function importTrackingLotsAction(
         priceHT,
         vatRate,
         priceTTC,
-        notes: lot.notes,
+        notes: effectiveNotes,
       },
       select: { id: true, reference: true },
     });
@@ -203,7 +203,7 @@ export async function importTrackingLotsAction(
 // ACTION 4 : dossier
 // ---------------------------------------------------------------------------
 
-export async function createTrackingDossierAction(
+export async function upsertTrackingDossierAction(
   input: unknown,
 ): Promise<ActionResult<{ dossierId: string }>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
@@ -234,16 +234,24 @@ export async function createTrackingDossierAction(
 
   const clientId = client?.existingUserId ?? null;
 
+  let existingDossier = lot.dossierId
+    ? await prisma.dossier.findUnique({ where: { id: lot.dossierId } })
+    : null;
+
   if (clientId) {
     const user = await prisma.user.findUnique({ where: { id: clientId } });
     if (!user || user.role !== "CLIENT") {
       return { ok: false, error: "Client introuvable ou rôle invalide." };
     }
-    const existing = await prisma.dossier.findUnique({
+    const clientDossier = await prisma.dossier.findUnique({
       where: { clientId },
     });
-    if (existing) {
-      return { ok: false, error: "Ce client a déjà un dossier." };
+    if (clientDossier && clientDossier.id !== (existingDossier?.id ?? "")) {
+      await prisma.lot.update({
+        where: { id: lotId },
+        data: { dossierId: clientDossier.id },
+      });
+      existingDossier = clientDossier;
     }
   }
 
@@ -278,6 +286,121 @@ export async function createTrackingDossierAction(
   }
 
   const optioned = !!optionDate && !reservationSignedAt;
+
+  // Timeline events (shared between create and update paths)
+  const events: {
+    date: Date;
+    kind: string;
+    title: string;
+    description?: string;
+  }[] = [];
+
+  if (optionDate)
+    events.push({
+      date: optionDate,
+      kind: "OPTION_TAKEN",
+      title: "Option posée (import)",
+    });
+  if (reservationSignedAt)
+    events.push({
+      date: reservationSignedAt,
+      kind: "RESERVATION_SIGNED",
+      title: "Contrat de réservation signé (import)",
+    });
+  if (notaryTransmittedAt)
+    events.push({
+      date: notaryTransmittedAt,
+      kind: "TRANSMITTED_TO_NOTARY",
+      title: "Envoyé chez le notaire (import)",
+    });
+  if (guaranteeDepositReceivedAt)
+    events.push({
+      date: guaranteeDepositReceivedAt,
+      kind: "GUARANTEE_DEPOSIT_RECEIVED",
+      title: "Dépôt de garantie reçu (import)",
+      description: processData.guaranteeDepositAmount
+        ? `${processData.guaranteeDepositAmount.toLocaleString("fr-FR")} €`
+        : undefined,
+    });
+  if (actSignedAt)
+    events.push({
+      date: actSignedAt,
+      kind: "ACT_SIGNED",
+      title: "Acte signé (import)",
+    });
+
+  events.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  if (existingDossier) {
+    // --- Cas A : mise à jour ---
+    const STATUS_ORDER = [
+      "NEW_LEAD",
+      "RESERVATION_SENT",
+      "SIGNED_AT_NOTARY",
+      "ACT_SIGNED",
+    ];
+    const currentRank = STATUS_ORDER.indexOf(existingDossier.status);
+    const newRank = STATUS_ORDER.indexOf(dossierStatus);
+    const effectiveStatus =
+      newRank > currentRank ? dossierStatus : existingDossier.status;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.dossier.update({
+        where: { id: existingDossier.id },
+        data: {
+          clientId,
+          status: effectiveStatus,
+          contractStatus,
+          optioned,
+          optionExpiresAt: optioned ? optionDate : null,
+          notaryTransmittedAt,
+          closedAt: actSignedAt ?? null,
+        },
+      });
+
+      await tx.lot.update({
+        where: { id: lotId },
+        data: { status: lotFinalStatus },
+      });
+
+      const existing = await tx.timelineEvent.findMany({
+        where: { dossierId: existingDossier.id },
+        select: { kind: true },
+      });
+      const existingKinds = new Set(existing.map((e) => e.kind));
+
+      for (const ev of events) {
+        if (!existingKinds.has(ev.kind as never)) {
+          await tx.timelineEvent.create({
+            data: {
+              dossierId: existingDossier.id,
+              kind: ev.kind as never,
+              title: ev.title,
+              description: ev.description ?? null,
+              actorId: me.id,
+            },
+          });
+        }
+      }
+    });
+
+    await audit({
+      userId: me.id,
+      action: "DOSSIER_UPDATED",
+      resourceType: "Dossier",
+      resourceId: existingDossier.id,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      metadata: { programmeId, via: "tracking_import" },
+    });
+
+    revalidatePath("/collaborateur");
+    revalidatePath("/collaborateur/dossiers");
+
+    return { ok: true, value: { dossierId: existingDossier.id } };
+  }
+
+  // --- Cas B : création ---
   const reference = await generateDossierReference();
 
   const dossier = await prisma.$transaction(async (tx) => {
@@ -285,7 +408,6 @@ export async function createTrackingDossierAction(
       data: {
         reference,
         programmeId,
-        lotId,
         clientId,
         status: dossierStatus,
         contractStatus,
@@ -306,52 +428,8 @@ export async function createTrackingDossierAction(
 
     await tx.lot.update({
       where: { id: lotId },
-      data: { status: lotFinalStatus },
+      data: { dossierId: created.id, status: lotFinalStatus },
     });
-
-    // Timeline events in chronological order
-    const events: {
-      date: Date;
-      kind: string;
-      title: string;
-      description?: string;
-    }[] = [];
-
-    if (optionDate)
-      events.push({
-        date: optionDate,
-        kind: "OPTION_TAKEN",
-        title: "Option posée (import)",
-      });
-    if (reservationSignedAt)
-      events.push({
-        date: reservationSignedAt,
-        kind: "RESERVATION_SIGNED",
-        title: "Contrat de réservation signé (import)",
-      });
-    if (notaryTransmittedAt)
-      events.push({
-        date: notaryTransmittedAt,
-        kind: "TRANSMITTED_TO_NOTARY",
-        title: "Envoyé chez le notaire (import)",
-      });
-    if (guaranteeDepositReceivedAt)
-      events.push({
-        date: guaranteeDepositReceivedAt,
-        kind: "GUARANTEE_DEPOSIT_RECEIVED",
-        title: "Dépôt de garantie reçu (import)",
-        description: processData.guaranteeDepositAmount
-          ? `${processData.guaranteeDepositAmount.toLocaleString("fr-FR")} €`
-          : undefined,
-      });
-    if (actSignedAt)
-      events.push({
-        date: actSignedAt,
-        kind: "ACT_SIGNED",
-        title: "Acte signé (import)",
-      });
-
-    events.sort((a, b) => a.date.getTime() - b.date.getTime());
 
     for (const ev of events) {
       await tx.timelineEvent.create({
@@ -413,10 +491,10 @@ export async function createTrackingDossierAction(
 
 export async function lookupClientByEmailAction(
   email: string,
-): Promise<ActionResult<{ userId: string | null }>> {
+): Promise<ActionResult<{ userId: string | null; hasDossier: boolean }>> {
   await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
-  if (!email) return { ok: true, value: { userId: null } };
+  if (!email) return { ok: true, value: { userId: null, hasDossier: false } };
 
   const user = await prisma.user.findUnique({
     where: { email: email.toLowerCase().trim() },
@@ -424,7 +502,7 @@ export async function lookupClientByEmailAction(
   });
 
   if (!user || user.role !== "CLIENT") {
-    return { ok: true, value: { userId: null } };
+    return { ok: true, value: { userId: null, hasDossier: false } };
   }
 
   // Check if client already has a dossier
@@ -433,5 +511,9 @@ export async function lookupClientByEmailAction(
     select: { id: true },
   });
 
-  return { ok: true, value: { userId: existing ? null : user.id } };
+  if (existing) {
+    return { ok: true, value: { userId: user.id, hasDossier: true } };
+  }
+
+  return { ok: true, value: { userId: user.id, hasDossier: false } };
 }

@@ -69,7 +69,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
       where: { id },
       include: {
         programme: true,
-        lot: true,
+        lots: true,
         timelineEvents: { orderBy: { occurredAt: "desc" } },
         documentRequests: {
           orderBy: [{ required: "desc" }, { createdAt: "asc" }],
@@ -210,9 +210,9 @@ export default async function DossierDetailPage({ params }: PageProps) {
             </p>
             <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
               {dossier.programme.name}
-              {dossier.lot && (
+              {dossier.lots.length > 0 && (
                 <span className="ml-2 text-base font-normal text-slate-500">
-                  · Lot {dossier.lot.reference}
+                  · Lot {dossier.lots.map((l) => l.reference).join(", ")}
                 </span>
               )}
             </h1>
@@ -428,15 +428,33 @@ export default async function DossierDetailPage({ params }: PageProps) {
               <CardTitle>Lot</CardTitle>
             </CardHeader>
             <CardContent className="space-y-1 text-sm">
-              {dossier.lot ? (
+              {dossier.lots.length > 0 ? (
                 <>
-                  <p className="font-mono">{dossier.lot.reference}</p>
+                  <p className="font-mono">
+                    {dossier.lots.map((l) => l.reference).join(", ")}
+                  </p>
                   <p className="text-slate-600">
-                    {dossier.lot.surface.toString()} m² · {dossier.lot.type}
+                    {dossier.lots
+                      .map((l) => `${l.type} ${l.surface} m²`)
+                      .join(", ")}
+                  </p>
+                  <p className="text-slate-600">
+                    <strong>
+                      {dossier.lots
+                        .map((l) => eur.format(Number(l.priceTTC)))
+                        .join(" + ")}
+                    </strong>
                   </p>
                   <p className="text-slate-600">
                     Prix TTC :{" "}
-                    <strong>{eur.format(Number(dossier.lot.priceTTC))}</strong>
+                    <strong>
+                      {eur.format(
+                        dossier.lots.reduce(
+                          (acc, l) => acc + Number(l.priceTTC),
+                          0,
+                        ),
+                      )}
+                    </strong>
                   </p>
                 </>
               ) : (

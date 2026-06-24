@@ -51,7 +51,6 @@ async function main() {
       data: {
         reference,
         programmeId: programme.id,
-        lotId: lot.id,
         clientId: client.id,
         status: "RESERVATION_SENT",
         lastActivityAt: new Date(),
@@ -66,7 +65,7 @@ async function main() {
     });
     await tx.lot.update({
       where: { id: lot.id },
-      data: { status: "RESERVED" },
+      data: { dossierId: created.id, status: "RESERVED" },
     });
     await tx.user.update({
       where: { id: client.id },

@@ -162,7 +162,6 @@ async function main() {
     data: {
       reference,
       programmeId: programme.id,
-      lotId: lot.id,
       clientId: client.id,
       status: "SIGNED_AT_NOTARY",
       contractStatus: "LOAN_OFFER_SENT_TO_NOTARY",
@@ -177,6 +176,10 @@ async function main() {
         ],
       },
     },
+  });
+  await prisma.lot.update({
+    where: { id: lot.id },
+    data: { dossierId: dossier.id },
   });
 
   // --- Pièces demandées (toutes fournies) ---

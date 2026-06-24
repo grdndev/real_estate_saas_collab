@@ -122,7 +122,6 @@ export async function createDossierAction(
       data: {
         reference,
         programmeId: data.programmeId,
-        lotId: data.lotId ?? null,
         clientId: data.clientId ?? null,
         status: "NEW_LEAD",
       },
@@ -137,7 +136,7 @@ export async function createDossierAction(
     if (data.lotId) {
       await tx.lot.update({
         where: { id: data.lotId },
-        data: { status: "RESERVED" },
+        data: { dossierId: created.id, status: "RESERVED" },
       });
     }
     if (data.clientId) {
@@ -222,10 +221,9 @@ export async function updateDossierStatusAction(
         actorId: me.id,
       },
     });
-    // Si ACT_SIGNED, le lot passe à SOLD.
-    if (data.status === "ACT_SIGNED" && dossier.lotId) {
-      await tx.lot.update({
-        where: { id: dossier.lotId },
+    if (data.status === "ACT_SIGNED") {
+      await tx.lot.updateMany({
+        where: { dossierId: dossier.id },
         data: { status: "SOLD" },
       });
     }
@@ -544,7 +542,6 @@ export async function createClientAndDossierAction(
       data: {
         reference,
         programmeId: data.programmeId,
-        lotId: data.lotId ?? null,
         clientId: createdUser.id,
         status: "NEW_LEAD",
       },
@@ -559,7 +556,7 @@ export async function createClientAndDossierAction(
     if (data.lotId) {
       await tx.lot.update({
         where: { id: data.lotId },
-        data: { status: "RESERVED" },
+        data: { dossierId: createdDossier.id, status: "RESERVED" },
       });
     }
     await tx.timelineEvent.create({
@@ -699,6 +696,90 @@ export async function createClientAndDossierAction(
     ok: true,
     value: { dossierId: dossier.id, reference, userId: user.id },
   };
+}
+
+// =====================================================
+// CREATE CLIENT ONLY (sans dossier — pour l'import tracking)
+// =====================================================
+
+const createClientOnlySchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  phone: z.string().optional(),
+});
+
+export async function createClientOnlyAction(
+  input: unknown,
+): Promise<ActionResult<{ userId: string }>> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const parsed = createClientOnlySchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  const data = parsed.data;
+  const ctx = await getRequestContext();
+
+  const existing = await prisma.user.findUnique({
+    where: { email: data.email.toLowerCase().trim() },
+  });
+  if (existing) {
+    return {
+      ok: false,
+      error:
+        "Un compte existe déjà avec cet email. Utilisez plutôt « Associer un client existant ».",
+    };
+  }
+
+  const placeholderHash = await hashPassword(randomBytes(32).toString("hex"));
+
+  const { user, token } = await prisma.$transaction(async (tx) => {
+    const createdUser = await tx.user.create({
+      data: {
+        email: data.email.toLowerCase().trim(),
+        firstName: data.firstName,
+        lastName: data.lastName,
+        role: "CLIENT",
+        passwordHash: placeholderHash,
+        emailVerifiedAt: new Date(),
+        status: "ACTIVE",
+        phoneEnc: data.phone ? encrypt(data.phone) : null,
+      },
+    });
+    const { token: rawToken, hash } = generateOpaqueToken();
+    await tx.passwordReset.create({
+      data: {
+        userId: createdUser.id,
+        tokenHash: hash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
+      },
+    });
+    return { user: createdUser, token: rawToken };
+  });
+
+  try {
+    await getMailer().send(
+      invitationMail(user.email, user.firstName, "CLIENT", token),
+    );
+  } catch (err) {
+    console.error("[mail] createClientOnly invitation", err);
+  }
+
+  await audit({
+    userId: me.id,
+    action: "USER_CREATED",
+    resourceType: "User",
+    resourceId: user.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: { role: "CLIENT", via: "tracking_import" },
+  });
+
+  return { ok: true, value: { userId: user.id } };
 }
 
 /** Dépose un PDF sur un dossier et, si fourni, marque la pièce demandée comme fournie. */

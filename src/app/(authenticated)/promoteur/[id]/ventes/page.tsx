@@ -51,7 +51,7 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
     where: { programmeId: id },
     orderBy: { createdAt: "desc" },
     include: {
-      lot: { select: { reference: true, type: true, surface: true } },
+      lots: { select: { reference: true, type: true, surface: true } },
     },
   });
 
@@ -157,7 +157,11 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
                   <Tr key={d.id}>
                     <Td className="font-mono text-xs">{d.reference}</Td>
                     <Td>
-                      {d.lot ? `${d.lot.reference} · ${d.lot.type}` : "—"}
+                      {d.lots.length > 0
+                        ? d.lots
+                            .map((l) => `${l.reference} · ${l.type}`)
+                            .join(", ")
+                        : "—"}
                     </Td>
                     <Td>
                       <Badge variant={sb.variant}>{sb.label}</Badge>

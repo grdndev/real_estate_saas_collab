@@ -39,7 +39,7 @@ export default async function ClientsEnAttentePage() {
       include: {
         client: { select: { firstName: true, lastName: true } },
         programme: { select: { name: true } },
-        lot: { select: { reference: true } },
+        lots: { select: { reference: true } },
       },
     }),
     prisma.prospect.findMany({

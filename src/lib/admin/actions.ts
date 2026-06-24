@@ -569,9 +569,7 @@ export async function deleteLotAction(lotId: string): Promise<ActionResult> {
     return { ok: false, error: "Accès refusé à ce programme." };
   }
 
-  // Vérification : pas de dossier rattaché.
-  const dossierCount = await prisma.dossier.count({ where: { lotId } });
-  if (dossierCount > 0) {
+  if (lot.dossierId) {
     return {
       ok: false,
       error: "Impossible de supprimer un lot rattaché à un dossier.",

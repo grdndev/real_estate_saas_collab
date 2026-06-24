@@ -85,7 +85,7 @@ export default async function DossierListPage({ searchParams }: PageProps) {
       skip,
       include: {
         programme: { select: { name: true, reference: true } },
-        lot: { select: { reference: true } },
+        lots: { select: { reference: true } },
         client: { select: { firstName: true, lastName: true } },
         participants: {
           where: { role: "COLLABORATOR_PRIMARY" },
@@ -168,7 +168,7 @@ export default async function DossierListPage({ searchParams }: PageProps) {
                       )}
                     </Td>
                     <Td>{d.programme.name}</Td>
-                    <Td>{d.lot?.reference ?? "—"}</Td>
+                    <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
                     <Td>
                       <Badge variant={sb.variant}>{sb.label}</Badge>
                     </Td>

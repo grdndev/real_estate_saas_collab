@@ -1,37 +1,9 @@
 import ExcelJS from "exceljs";
-
-export interface ParsedTrackingLot {
-  building: string | null;
-  reference: string;
-  floor: number | null;
-  type: string;
-  surface: number;
-  priceHT: number;
-  vatRate: number;
-  lotStatus: "AVAILABLE" | "OPTIONED" | "RESERVED" | "SOLD" | "WITHDRAWN";
-  lotNotes: string | null;
-
-  buyerName: string | null;
-  buyerEmail: string | null;
-  buyerPhone: string | null;
-  observation: string | null;
-
-  financingMode: string | null;
-  optionDate: Date | null;
-  reservationSignedAt: Date | null;
-  notaryTransmittedAt: Date | null;
-  guaranteeDepositAmount: number | null;
-  guaranteeDepositReceivedAt: Date | null;
-  loanFiled: boolean | Date | null;
-  loanObtained: string | null;
-  reservationEndDate: Date | null;
-  actSignedAt: Date | null;
-}
-
-export interface TrackingParseResult {
-  rows: ParsedTrackingLot[];
-  errors: string[];
-}
+import type {
+  ParsedTrackingLot,
+  TrackingParseResult,
+} from "./tracking-import-types";
+export type { ParsedTrackingLot, TrackingParseResult };
 
 function normalize(s: string): string {
   return s
@@ -176,13 +148,13 @@ const NOTES_ALIASES: Record<NotesField, string[]> = {
   nvavecplaceparking: ["nvavecplaceparking"],
   suvtotal: ["suvtotal"],
   suv: ["suv"],
-  surfacedesannexes: ["surfacedesannexes", "annexes"],
+  surfacedesannexes: ["surfacedesannexes"],
   annexes: ["annexes"],
   jardin: ["jardin"],
   commissionagence: ["commissionagence"],
   capourplaceparking: ["capourplaceparking"],
   prixalalocation: ["prixalalocation"],
-  montantcreditdimpot: ["montantcreditdimpot", "creditimpot"],
+  montantcreditdimpot: ["montantcreditdimpot"],
   creditimpot: ["creditimpot"],
   prixderevient: ["prixderevient"],
 };
@@ -205,9 +177,13 @@ function parseFloor(raw: string): number | null {
   if (!raw) return null;
   const norm = normalize(raw);
   if (norm in FLOOR_TEXT) return FLOOR_TEXT[norm]!;
-  // tentative numérique directe (après normalisation)
-  const n = parseNumber(raw);
-  return n != null && Number.isFinite(n) ? Math.trunc(n) : null;
+  // "R+1" → normalize → "r1" : extraire le premier entier trouvé
+  const digits = norm.match(/\d+/);
+  if (digits) {
+    const n = parseInt(digits[0]!, 10);
+    if (Number.isFinite(n)) return n;
+  }
+  return null;
 }
 
 function parseDate(value: ExcelJS.CellValue): Date | null {
