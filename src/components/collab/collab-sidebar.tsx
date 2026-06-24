@@ -11,6 +11,7 @@ import {
   Receipt,
   User,
   Users2,
+  ChartLine,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -24,6 +25,7 @@ const NAV = [
     icon: Hourglass,
   },
   { href: "/collaborateur/facturation", label: "Facturation", icon: Receipt },
+  { href: "/collaborateur/fonds", label: "Suivi des fonds", icon: ChartLine },
   {
     href: "/messagerie-interne",
     label: "Messagerie interne",

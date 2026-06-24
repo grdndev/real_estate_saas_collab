@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'COLLABORATOR', 'PROMOTER', 'NOTARY', 'CLIENT');
 
@@ -35,7 +38,13 @@ CREATE TYPE "NoteScope" AS ENUM ('PROSPECT', 'DOSSIER');
 CREATE TYPE "DocumentScanStatus" AS ENUM ('PENDING', 'CLEAN', 'INFECTED', 'ERROR');
 
 -- CreateEnum
+CREATE TYPE "DocumentRequestStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REFUSED');
+
+-- CreateEnum
 CREATE TYPE "DocumentSource" AS ENUM ('COLLABORATOR_UPLOAD', 'CLIENT_UPLOAD', 'YOUSIGN_SIGNED', 'PROGRAMME_RESOURCE');
+
+-- CreateEnum
+CREATE TYPE "ProgrammeDocumentCategory" AS ENUM ('PLAN', 'PERMIS', 'NOTICE', 'BUDGET', 'ACTE');
 
 -- CreateEnum
 CREATE TYPE "TimelineKind" AS ENUM ('LEAD_CREATED', 'COMMERCIAL_MEETING', 'RESERVATION_SENT', 'RESERVATION_SIGNED', 'TRANSMITTED_TO_NOTARY', 'GUARANTEE_DEPOSIT_RECEIVED', 'LOAN_OFFER_RECEIVED', 'ACT_SIGNED', 'STATUS_CHANGE', 'CONTRACT_STATUS_CHANGE', 'DOCUMENT_REQUESTED', 'OPTION_TAKEN', 'OPTION_REMINDER', 'APPOINTMENT_SCHEDULED', 'INVOICE_SENT', 'CUSTOM');
@@ -151,6 +160,7 @@ CREATE TABLE "ProgrammePromoter" (
 CREATE TABLE "Lot" (
     "id" TEXT NOT NULL,
     "programmeId" TEXT NOT NULL,
+    "dossierId" TEXT,
     "reference" TEXT NOT NULL,
     "surface" DECIMAL(8,2) NOT NULL,
     "floor" INTEGER,
@@ -159,6 +169,7 @@ CREATE TABLE "Lot" (
     "vatRate" DECIMAL(5,2) NOT NULL,
     "priceTTC" DECIMAL(12,2) NOT NULL,
     "status" "LotStatus" NOT NULL DEFAULT 'AVAILABLE',
+    "notes" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -183,7 +194,6 @@ CREATE TABLE "Dossier" (
     "id" TEXT NOT NULL,
     "reference" TEXT NOT NULL,
     "programmeId" TEXT NOT NULL,
-    "lotId" TEXT,
     "clientId" TEXT,
     "status" "DossierStatus" NOT NULL DEFAULT 'NEW_LEAD',
     "contractStatus" "ContractStatus",
@@ -221,6 +231,7 @@ CREATE TABLE "Document" (
     "source" "DocumentSource" NOT NULL,
     "scanStatus" "DocumentScanStatus" NOT NULL DEFAULT 'PENDING',
     "scanCheckedAt" TIMESTAMP(3),
+    "isShared" BOOLEAN NOT NULL DEFAULT false,
     "documentRequestId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deletedAt" TIMESTAMP(3),
@@ -236,7 +247,7 @@ CREATE TABLE "ProgrammeDocument" (
     "storageKey" TEXT NOT NULL,
     "mimeType" TEXT NOT NULL,
     "sizeBytes" INTEGER NOT NULL,
-    "category" TEXT NOT NULL,
+    "category" "ProgrammeDocumentCategory" NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ProgrammeDocument_pkey" PRIMARY KEY ("id")
@@ -249,6 +260,7 @@ CREATE TABLE "DocumentRequest" (
     "label" TEXT NOT NULL,
     "required" BOOLEAN NOT NULL DEFAULT true,
     "fulfilled" BOOLEAN NOT NULL DEFAULT false,
+    "status" "DocumentRequestStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -279,6 +291,15 @@ CREATE TABLE "Message" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "MessageRead" (
+    "messageId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "readAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "MessageRead_pkey" PRIMARY KEY ("messageId","userId")
 );
 
 -- CreateTable
@@ -440,6 +461,38 @@ CREATE TABLE "Invoice" (
     CONSTRAINT "Invoice_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "LotFondsSuivi" (
+    "id" TEXT NOT NULL,
+    "lotId" TEXT NOT NULL,
+    "programmeId" TEXT NOT NULL,
+    "commission" DECIMAL(12,2),
+    "fraisMainLevee" DECIMAL(12,2),
+    "rbstEdd" DECIMAL(12,2),
+    "soldeVendeur" DECIMAL(12,2),
+    "dateEnvoiLr" TIMESTAMP(3),
+    "dateReceptionLr" TIMESTAMP(3),
+    "dateReceptionVirement" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "LotFondsSuivi_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AppelFonds" (
+    "id" TEXT NOT NULL,
+    "lotFondsId" TEXT NOT NULL,
+    "numero" INTEGER NOT NULL,
+    "label" TEXT NOT NULL,
+    "datePrevue" TEXT,
+    "pourcentage" DECIMAL(5,2) NOT NULL,
+    "montant" DECIMAL(12,2) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AppelFonds_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -490,6 +543,9 @@ CREATE INDEX "ProgrammePromoter_promoterId_idx" ON "ProgrammePromoter"("promoter
 
 -- CreateIndex
 CREATE INDEX "Lot_programmeId_status_idx" ON "Lot"("programmeId", "status");
+
+-- CreateIndex
+CREATE INDEX "Lot_dossierId_idx" ON "Lot"("dossierId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Lot_programmeId_reference_key" ON "Lot"("programmeId", "reference");
@@ -550,6 +606,9 @@ CREATE INDEX "TimelineEvent_dossierId_occurredAt_idx" ON "TimelineEvent"("dossie
 
 -- CreateIndex
 CREATE INDEX "Message_dossierId_createdAt_idx" ON "Message"("dossierId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "MessageRead_messageId_idx" ON "MessageRead"("messageId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Signature_yousignProcedureId_key" ON "Signature"("yousignProcedureId");
@@ -626,6 +685,15 @@ CREATE INDEX "Invoice_dossierId_idx" ON "Invoice"("dossierId");
 -- CreateIndex
 CREATE INDEX "Invoice_status_idx" ON "Invoice"("status");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "LotFondsSuivi_lotId_key" ON "LotFondsSuivi"("lotId");
+
+-- CreateIndex
+CREATE INDEX "AppelFonds_lotFondsId_idx" ON "AppelFonds"("lotFondsId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AppelFonds_lotFondsId_numero_key" ON "AppelFonds"("lotFondsId", "numero");
+
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -645,13 +713,13 @@ ALTER TABLE "ProgrammePromoter" ADD CONSTRAINT "ProgrammePromoter_promoterId_fke
 ALTER TABLE "Lot" ADD CONSTRAINT "Lot_programmeId_fkey" FOREIGN KEY ("programmeId") REFERENCES "Programme"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Lot" ADD CONSTRAINT "Lot_dossierId_fkey" FOREIGN KEY ("dossierId") REFERENCES "Dossier"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "TresoreriePrev" ADD CONSTRAINT "TresoreriePrev_programmeId_fkey" FOREIGN KEY ("programmeId") REFERENCES "Programme"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Dossier" ADD CONSTRAINT "Dossier_programmeId_fkey" FOREIGN KEY ("programmeId") REFERENCES "Programme"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Dossier" ADD CONSTRAINT "Dossier_lotId_fkey" FOREIGN KEY ("lotId") REFERENCES "Lot"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Dossier" ADD CONSTRAINT "Dossier_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -685,6 +753,12 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_dossierId_fkey" FOREIGN KEY ("doss
 
 -- AddForeignKey
 ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MessageRead" ADD CONSTRAINT "MessageRead_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "Message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "MessageRead" ADD CONSTRAINT "MessageRead_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Signature" ADD CONSTRAINT "Signature_dossierId_fkey" FOREIGN KEY ("dossierId") REFERENCES "Dossier"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -736,3 +810,13 @@ ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_dossierId_fkey" FOREIGN KEY ("doss
 
 -- AddForeignKey
 ALTER TABLE "Invoice" ADD CONSTRAINT "Invoice_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LotFondsSuivi" ADD CONSTRAINT "LotFondsSuivi_lotId_fkey" FOREIGN KEY ("lotId") REFERENCES "Lot"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LotFondsSuivi" ADD CONSTRAINT "LotFondsSuivi_programmeId_fkey" FOREIGN KEY ("programmeId") REFERENCES "Programme"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AppelFonds" ADD CONSTRAINT "AppelFonds_lotFondsId_fkey" FOREIGN KEY ("lotFondsId") REFERENCES "LotFondsSuivi"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
