@@ -67,6 +67,8 @@ export default async function CollabMessageriePage({ params }: PageProps) {
     createdAt: m.createdAt,
     senderId: m.senderId,
     senderName: `${m.sender.firstName} ${m.sender.lastName}`,
+    sentByEmail: m.sentByEmail,
+    emailAttachmentCount: m.emailAttachmentCount,
   }));
 
   const clientLabel = dossier.client
@@ -95,6 +97,7 @@ export default async function CollabMessageriePage({ params }: PageProps) {
           currentUserId={me.id}
           messages={formatted}
           recipientLabel={clientLabel}
+          canSendByEmail
         />
       </Card>
     </div>

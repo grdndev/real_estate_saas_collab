@@ -516,11 +516,13 @@ model TimelineEvent {
 // =====================================================
 
 model Message {
-  id        String    @id @default(cuid())
-  dossierId String
-  senderId  String
-  body      String
-  readAt    DateTime?
+  id                   String    @id @default(cuid())
+  dossierId            String
+  senderId             String
+  body                 String
+  readAt               DateTime?
+  sentByEmail          Boolean   @default(false)
+  emailAttachmentCount Int       @default(0)
 
   createdAt DateTime @default(now())
 

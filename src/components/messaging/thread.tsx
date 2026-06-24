@@ -2,13 +2,17 @@
 
 import { useState, useTransition, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Send } from "lucide-react";
+import { Paperclip, Send } from "lucide-react";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
-import { sendMessageAction } from "@/lib/client-space/actions";
+import {
+  sendMessageAction,
+  sendMessageByEmailAction,
+} from "@/lib/client-space/actions";
 import { cn } from "@/lib/utils";
+import type { ActionResult } from "@/lib/auth/actions";
 
 export interface MessageRow {
   id: string;
@@ -16,6 +20,8 @@ export interface MessageRow {
   createdAt: Date;
   senderId: string;
   senderName: string;
+  sentByEmail?: boolean;
+  emailAttachmentCount?: number;
 }
 
 interface Props {
@@ -23,6 +29,7 @@ interface Props {
   currentUserId: string;
   messages: MessageRow[];
   recipientLabel: string;
+  canSendByEmail?: boolean;
 }
 
 export function MessageThread({
@@ -30,12 +37,16 @@ export function MessageThread({
   currentUserId,
   messages,
   recipientLabel,
+  canSendByEmail,
 }: Props) {
   const router = useRouter();
   const [body, setBody] = useState("");
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [sendByEmail, setSendByEmail] = useState(false);
+  const [attachments, setAttachments] = useState<File[]>([]);
   const endRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -46,12 +57,23 @@ export function MessageThread({
     if (!trimmed) return;
     setError(null);
     startTransition(async () => {
-      const result = await sendMessageAction({ dossierId, body: trimmed });
+      let result: ActionResult<{ id: string }>;
+      if (sendByEmail) {
+        const fd = new FormData();
+        fd.append("dossierId", dossierId);
+        fd.append("body", trimmed);
+        attachments.forEach((f) => fd.append("attachments", f));
+        result = await sendMessageByEmailAction(fd);
+      } else {
+        result = await sendMessageAction({ dossierId, body: trimmed });
+      }
       if (!result.ok) {
         setError(result.error);
         return;
       }
       setBody("");
+      setSendByEmail(false);
+      setAttachments([]);
       router.refresh();
     });
   }
@@ -83,6 +105,14 @@ export function MessageThread({
                   )}
                 >
                   {msg.body}
+                  {msg.sentByEmail && (
+                    <p className="mt-1 text-xs text-slate-400 italic">
+                      Envoyé par e-mail
+                      {msg.emailAttachmentCount
+                        ? ` · ${msg.emailAttachmentCount} fichier${msg.emailAttachmentCount > 1 ? "s" : ""} joint${msg.emailAttachmentCount > 1 ? "s" : ""}`
+                        : ""}
+                    </p>
+                  )}
                 </div>
                 <p className="text-xs text-slate-400">
                   {isMe ? "Moi" : msg.senderName} ·{" "}
@@ -130,6 +160,64 @@ export function MessageThread({
             </span>
           </Button>
         </div>
+        {canSendByEmail && (
+          <div className="mt-2 flex items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={sendByEmail}
+                onChange={(e) => {
+                  setSendByEmail(e.target.checked);
+                  if (!e.target.checked) setAttachments([]);
+                }}
+                className="h-4 w-4 rounded border-slate-300"
+              />
+              Par email
+            </label>
+            <button
+              type="button"
+              disabled={!sendByEmail}
+              onClick={() => fileInputRef.current?.click()}
+              className="flex items-center gap-1 rounded px-2 py-1 text-sm text-slate-500 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+              aria-label="Joindre des fichiers"
+            >
+              <Paperclip className="size-4" aria-hidden />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                setAttachments((prev) => [...prev, ...files]);
+                e.target.value = "";
+              }}
+            />
+          </div>
+        )}
+        {canSendByEmail && attachments.length > 0 && (
+          <ul className="mt-2 space-y-1">
+            {attachments.map((f, i) => (
+              <li
+                key={i}
+                className="flex items-center gap-2 text-sm text-slate-600"
+              >
+                <span className="max-w-60 truncate">{f.name}</span>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setAttachments((prev) => prev.filter((_, j) => j !== i))
+                  }
+                  className="text-slate-400 hover:text-red-500"
+                  aria-label={`Retirer ${f.name}`}
+                >
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );

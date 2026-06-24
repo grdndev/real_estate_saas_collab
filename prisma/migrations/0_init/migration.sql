@@ -288,6 +288,8 @@ CREATE TABLE "Message" (
     "senderId" TEXT NOT NULL,
     "body" TEXT NOT NULL,
     "readAt" TIMESTAMP(3),
+    "sentByEmail" BOOLEAN NOT NULL DEFAULT false,
+    "emailAttachmentCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")

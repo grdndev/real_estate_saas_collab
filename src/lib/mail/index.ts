@@ -5,6 +5,7 @@ export interface MailMessage {
   subject: string;
   html: string;
   text: string;
+  attachments?: Array<{ name: string; content: string }>;
 }
 
 export interface Mailer {
@@ -13,17 +14,21 @@ export interface Mailer {
 
 class ConsoleMailer implements Mailer {
   async send(message: MailMessage): Promise<void> {
-    console.info(
-      [
-        "",
-        "📧 [DEV MAIL — non envoyé en production]",
-        `   To:      ${message.to}`,
-        `   Subject: ${message.subject}`,
-        "   ---",
-        message.text,
-        "",
-      ].join("\n"),
-    );
+    const lines = [
+      "",
+      "📧 [DEV MAIL — non envoyé en production]",
+      `   To:      ${message.to}`,
+      `   Subject: ${message.subject}`,
+      "   ---",
+      message.text,
+    ];
+    if (message.attachments?.length) {
+      lines.push(
+        `   Pièces jointes: ${message.attachments.map((a) => a.name).join(", ")}`,
+      );
+    }
+    lines.push("");
+    console.info(lines.join("\n"));
   }
 }
 
@@ -47,6 +52,14 @@ class BrevoMailer implements Mailer {
         subject: message.subject,
         htmlContent: message.html,
         textContent: message.text,
+        ...(message.attachments?.length
+          ? {
+              attachment: message.attachments.map((a) => ({
+                content: a.content,
+                name: a.name,
+              })),
+            }
+          : {}),
       }),
     });
 

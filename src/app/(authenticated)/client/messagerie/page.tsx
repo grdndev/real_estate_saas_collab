@@ -57,6 +57,8 @@ export default async function ClientMessageriePage() {
     createdAt: m.createdAt,
     senderId: m.senderId,
     senderName: `${m.sender.firstName} ${m.sender.lastName}`,
+    sentByEmail: m.sentByEmail,
+    emailAttachmentCount: m.emailAttachmentCount,
   }));
 
   return (

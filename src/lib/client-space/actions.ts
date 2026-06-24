@@ -8,7 +8,7 @@ import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { notify } from "@/lib/notifications";
 import { getMailer } from "@/lib/mail";
-import { newMessageMail } from "@/lib/mail/templates";
+import { newMessageMail, messageByEmailMail } from "@/lib/mail/templates";
 import { encrypt } from "@/lib/crypto";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { getRequestContext } from "@/lib/request-context";
@@ -310,6 +310,173 @@ export async function sendMessageAction(
               notaryUser.firstName,
               senderName,
               parsed.data.body.slice(0, 200),
+              `/notaire/${dossierId}/messagerie`,
+            ),
+          );
+        } catch {}
+      }
+    }
+  }
+
+  revalidatePath(`/collaborateur/dossiers/${dossierId}/messagerie`);
+  revalidatePath("/client/messagerie");
+  revalidatePath(`/notaire/${dossierId}/messagerie`);
+  return { ok: true, value: { id: message.id } };
+}
+
+export async function sendMessageByEmailAction(
+  formData: FormData,
+): Promise<ActionResult<{ id: string }>> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const dossierId = formData.get("dossierId");
+  const body = formData.get("body");
+
+  if (!dossierId || typeof dossierId !== "string" || !dossierId.trim()) {
+    return { ok: false, error: "Dossier invalide." };
+  }
+  if (!body || typeof body !== "string") {
+    return { ok: false, error: "Saisie invalide" };
+  }
+  const trimmed = body.trim();
+  if (trimmed.length < 1 || trimmed.length > 4000) {
+    return {
+      ok: false,
+      error: "Le message doit contenir entre 1 et 4000 caractères.",
+    };
+  }
+
+  const files = formData
+    .getAll("attachments")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  const ctx = await getRequestContext();
+
+  const dossier = await findDossierForUser(dossierId, me.id, me.role);
+  if (!dossier) {
+    return { ok: false, error: "Dossier introuvable ou accès refusé." };
+  }
+
+  const message = await prisma.message.create({
+    data: {
+      dossierId,
+      senderId: me.id,
+      body: trimmed,
+      sentByEmail: true,
+      emailAttachmentCount: files.length,
+    },
+  });
+  await prisma.dossier.update({
+    where: { id: dossierId },
+    data: { lastActivityAt: new Date() },
+  });
+
+  await audit({
+    userId: me.id,
+    action: "MESSAGE_SENT",
+    resourceType: "Message",
+    resourceId: message.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: { dossierId, sentByEmail: true, attachmentCount: files.length },
+  });
+
+  const dossierActors = await prisma.dossier.findUnique({
+    where: { id: dossierId },
+    select: {
+      clientId: true,
+      notaryId: true,
+      participants: {
+        select: {
+          userId: true,
+          role: true,
+          user: { select: { email: true, firstName: true } },
+        },
+      },
+      client: { select: { email: true, firstName: true } },
+    },
+  });
+
+  const senderName = me.name ?? "un collaborateur";
+
+  if (dossierActors) {
+    if (dossierActors.clientId && dossierActors.clientId !== me.id) {
+      await notify({
+        userId: dossierActors.clientId,
+        kind: "NEW_MESSAGE",
+        title: "Nouveau message",
+        body: trimmed.slice(0, 120),
+        link: "/client/messagerie",
+      });
+      if (dossierActors.client?.email) {
+        try {
+          const attachments = await Promise.all(
+            files.map(async (f) => ({
+              name: f.name,
+              content: Buffer.from(await f.arrayBuffer()).toString("base64"),
+            })),
+          );
+          await getMailer().send({
+            ...messageByEmailMail(
+              dossierActors.client.email,
+              dossierActors.client.firstName,
+              senderName,
+              trimmed,
+              files.length,
+            ),
+            attachments,
+          });
+        } catch {}
+      }
+    }
+
+    for (const participant of dossierActors.participants) {
+      if (
+        participant.userId !== me.id &&
+        (participant.role === "COLLABORATOR_PRIMARY" ||
+          participant.role === "COLLABORATOR_SECONDARY")
+      ) {
+        await notify({
+          userId: participant.userId,
+          kind: "NEW_MESSAGE",
+          title: "Nouveau message",
+          body: trimmed.slice(0, 120),
+          link: `/collaborateur/dossiers/${dossierId}/messagerie`,
+        });
+        if (participant.user.email) {
+          try {
+            await getMailer().send(
+              newMessageMail(
+                participant.user.email,
+                participant.user.firstName,
+                senderName,
+                trimmed.slice(0, 200),
+                `/collaborateur/dossiers/${dossierId}/messagerie`,
+              ),
+            );
+          } catch {}
+        }
+      }
+    }
+
+    if (dossierActors.notaryId && dossierActors.notaryId !== me.id) {
+      await notify({
+        userId: dossierActors.notaryId,
+        kind: "NEW_MESSAGE",
+        title: "Nouveau message",
+        body: trimmed.slice(0, 120),
+        link: `/notaire/${dossierId}/messagerie`,
+      });
+      const notaryUser = await prisma.user.findUnique({
+        where: { id: dossierActors.notaryId },
+        select: { email: true, firstName: true },
+      });
+      if (notaryUser) {
+        try {
+          await getMailer().send(
+            newMessageMail(
+              notaryUser.email,
+              notaryUser.firstName,
+              senderName,
+              trimmed.slice(0, 200),
               `/notaire/${dossierId}/messagerie`,
             ),
           );

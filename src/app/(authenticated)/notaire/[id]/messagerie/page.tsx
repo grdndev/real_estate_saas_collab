@@ -49,6 +49,8 @@ export default async function NotaireMessageriePage({ params }: PageProps) {
     createdAt: m.createdAt,
     senderId: m.senderId,
     senderName: `${m.sender.firstName} ${m.sender.lastName}`,
+    sentByEmail: m.sentByEmail,
+    emailAttachmentCount: m.emailAttachmentCount,
   }));
 
   const collabs = dossier.participants

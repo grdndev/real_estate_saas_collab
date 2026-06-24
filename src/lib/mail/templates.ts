@@ -95,6 +95,44 @@ export function newMessageMail(
   return { to, subject: `Nouveau message de ${senderName}`, html, text };
 }
 
+export function messageByEmailMail(
+  to: string,
+  firstName: string,
+  senderName: string,
+  body: string,
+  attachmentCount: number,
+): MailMessage {
+  const link = `${baseUrl}/client/messagerie`;
+  const attachmentLine =
+    attachmentCount > 0
+      ? `\n\n${attachmentCount} fichier${attachmentCount > 1 ? "s" : ""} joint${attachmentCount > 1 ? "s" : ""} à cet email.`
+      : "";
+  const text =
+    `Bonjour ${firstName},\n\n` +
+    `Votre conseiller Équatis ${senderName} vous a envoyé un message :\n\n` +
+    `"${body}"` +
+    attachmentLine +
+    `\n\nPour consulter votre messagerie : ${link}`;
+  const attachmentHtml =
+    attachmentCount > 0
+      ? `<p style="color:#475569; font-size:14px; margin-top:12px;">${attachmentCount} fichier${attachmentCount > 1 ? "s" : ""} joint${attachmentCount > 1 ? "s" : ""} à cet email.</p>`
+      : "";
+  const html = wrapHtml(
+    "Message de votre conseiller Équatis",
+    `<p style="color:#1B2A4A; font-size:14px;">Bonjour ${firstName},</p>
+     <p style="color:#475569; font-size:14px;">Votre conseiller <strong>${senderName}</strong> vous a envoyé un message :</p>
+     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${body}</blockquote>
+     ${attachmentHtml}
+     <p style="text-align:center; margin:24px 0;"><a href="${link}" style="background:#1B2A4A; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; font-size:14px; font-weight:500;">Voir ma messagerie</a></p>`,
+  );
+  return {
+    to,
+    subject: "Message de votre conseiller Équatis",
+    html,
+    text,
+  };
+}
+
 export function welcomeMail(to: string, firstName: string): MailMessage {
   const link = `${baseUrl}/connexion`;
   const text =
