@@ -19,7 +19,7 @@ const updateSchema = z.object({
   notes: z.string().nullable(),
   appels: z.array(
     z.object({
-      id: z.string(),
+      numero: z.number(),
       montant: z.number(),
       datePrevue: z.string().nullable(),
     }),
@@ -65,7 +65,7 @@ export async function updateLotFondsSuiviAction(
     dateReceptionVirement: toDate(fields.dateReceptionVirement),
   };
 
-  await Promise.all([
+  const [fondsUpserted] = await Promise.all([
     prisma.lotFondsSuivi.upsert({
       where: { lotId },
       create: { lotId, programmeId: lot.programmeId, ...fondsData },
@@ -78,17 +78,91 @@ export async function updateLotFondsSuiviAction(
   ]);
 
   for (const appel of appels) {
-    await prisma.appelFonds.update({
-      where: { id: appel.id },
-      data: {
+    await prisma.appelFonds.upsert({
+      where: {
+        lotFondsId_numero: {
+          lotFondsId: fondsUpserted.id,
+          numero: appel.numero,
+        },
+      },
+      create: {
+        lotFondsId: fondsUpserted.id,
+        numero: appel.numero,
+        label: "",
+        pourcentage: new Prisma.Decimal(0),
         montant: new Prisma.Decimal(appel.montant),
-        datePrevue: appel.datePrevue || null,
+        datePrevue: appel.datePrevue,
+      },
+      update: {
+        montant: new Prisma.Decimal(appel.montant),
+        datePrevue: appel.datePrevue,
       },
     });
   }
 
   revalidatePath("/collaborateur/fonds");
   revalidatePath(`/collaborateur/fonds/${lotId}`);
+  revalidatePath("/admin/fonds");
+  revalidatePath(`/admin/fonds/${lotId}`);
+
+  return { ok: true, value: undefined };
+}
+
+export async function upsertProgrammeAppelAction(input: {
+  programmeId: string;
+  numero: number;
+  label: string;
+  pourcentage: number;
+  datePrevue: string | null;
+}): Promise<ActionResult<void>> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  const lotsFonds = await prisma.lotFondsSuivi.findMany({
+    where: { programmeId: input.programmeId },
+  });
+
+  for (const lfs of lotsFonds) {
+    await prisma.appelFonds.upsert({
+      where: {
+        lotFondsId_numero: { lotFondsId: lfs.id, numero: input.numero },
+      },
+      create: {
+        lotFondsId: lfs.id,
+        numero: input.numero,
+        label: input.label,
+        pourcentage: new Prisma.Decimal(input.pourcentage),
+        montant: new Prisma.Decimal(0),
+        datePrevue: input.datePrevue,
+      },
+      update: {
+        label: input.label,
+        pourcentage: new Prisma.Decimal(input.pourcentage),
+        datePrevue: input.datePrevue,
+      },
+    });
+  }
+
+  revalidatePath("/collaborateur/fonds");
+  revalidatePath("/admin/fonds");
+
+  return { ok: true, value: undefined };
+}
+
+export async function deleteProgrammeAppelAction(input: {
+  programmeId: string;
+  numero: number;
+}): Promise<ActionResult<void>> {
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  await prisma.appelFonds.deleteMany({
+    where: {
+      numero: input.numero,
+      lotFonds: { programmeId: input.programmeId },
+    },
+  });
+
+  revalidatePath("/collaborateur/fonds");
+  revalidatePath("/admin/fonds");
 
   return { ok: true, value: undefined };
 }

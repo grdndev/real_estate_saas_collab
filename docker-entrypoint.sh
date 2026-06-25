@@ -8,11 +8,9 @@ if [ -z "${DATABASE_URL}" ]; then
   exit 1
 fi
 
-if [ "${RUN_MIGRATIONS:-1}" = "1" ]; then
-  echo "▶ Application des migrations Prisma…"
-  ./node_modules/.bin/prisma migrate deploy
-  echo "✓ Migrations appliquées"
-fi
+echo "▶ Application des migrations Prisma…"
+./node_modules/.bin/prisma migrate deploy
+echo "✓ Migrations appliquées"
 
 echo "▶ Démarrage du serveur Next.js sur ${HOSTNAME}:${PORT}…"
 exec "$@"

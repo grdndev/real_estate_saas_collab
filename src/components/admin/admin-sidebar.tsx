@@ -8,6 +8,7 @@ import {
   Building2,
   File,
   Settings,
+  Banknote,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -15,6 +16,7 @@ const NAV = [
   { href: "/admin", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users },
   { href: "/admin/programmes", label: "Programmes", icon: Building2 },
+  { href: "/admin/fonds", label: "Suivi de fonds", icon: Banknote },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
   { href: "/admin/logs", label: "Logs", icon: File },
 ] as const;

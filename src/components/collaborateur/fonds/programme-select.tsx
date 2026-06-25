@@ -11,14 +11,19 @@ interface ProgrammeOption {
 interface Props {
   programmes: ProgrammeOption[];
   selectedId: string | null;
+  basePath?: string;
 }
 
-export function ProgrammeSelect({ programmes, selectedId }: Props) {
+export function ProgrammeSelect({
+  programmes,
+  selectedId,
+  basePath = "/collaborateur/fonds",
+}: Props) {
   const router = useRouter();
 
   function handleChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value;
-    if (val) router.push(`/collaborateur/fonds?programme=${val}`);
+    if (val) router.push(`${basePath}?programme=${val}`);
   }
 
   return (

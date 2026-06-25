@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
 
 export interface AppelFondsData {
-  id: string;
   numero: number;
   label: string;
   datePrevue: string | null;
@@ -35,6 +34,12 @@ interface Props {
   actSignedDate: string | null;
   notes: string | null;
   fondsSuivi: FondsSuiviData | null;
+  programmeAppelTypes: Array<{
+    numero: number;
+    label: string;
+    pourcentage: number;
+    datePrevue: string | null;
+  }>;
 }
 
 function toDateInput(iso: string | null | undefined): string {
@@ -74,6 +79,7 @@ export function LotFondsForm({
   actSignedDate,
   notes: initialNotes,
   fondsSuivi,
+  programmeAppelTypes,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -91,19 +97,31 @@ export function LotFondsForm({
     notes: initialNotes ?? "",
   });
 
-  const [appels, setAppels] = useState<AppelFondsData[]>(
-    fondsSuivi?.appelsFonds ?? [],
-  );
+  const [appels, setAppels] = useState<AppelFondsData[]>(() => {
+    const existingByNumero = new Map(
+      (fondsSuivi?.appelsFonds ?? []).map((a) => [a.numero, a]),
+    );
+    return programmeAppelTypes.map((type) => {
+      const existing = existingByNumero.get(type.numero);
+      return {
+        numero: type.numero,
+        label: type.label,
+        pourcentage: type.pourcentage,
+        datePrevue: existing?.datePrevue ?? type.datePrevue,
+        montant: existing?.montant ?? 0,
+      };
+    });
+  });
 
   function setField(key: FieldKey, val: string) {
     setFields((prev) => ({ ...prev, [key]: val }));
     setSaved(false);
   }
 
-  function setAppelMontant(id: string, val: string) {
+  function setAppelMontant(numero: number, val: string) {
     setAppels((prev) =>
       prev.map((a) =>
-        a.id === id ? { ...a, montant: parseFloat(val) || 0 } : a,
+        a.numero === numero ? { ...a, montant: parseFloat(val) || 0 } : a,
       ),
     );
     setSaved(false);
@@ -124,7 +142,7 @@ export function LotFondsForm({
         dateReceptionVirement: fields.dateReceptionVirement || null,
         notes: fields.notes || null,
         appels: appels.map((a) => ({
-          id: a.id,
+          numero: a.numero,
           montant: a.montant,
           datePrevue: a.datePrevue,
         })),
@@ -185,7 +203,7 @@ export function LotFondsForm({
               <tbody>
                 {appels.map((a) => (
                   <tr
-                    key={a.id}
+                    key={a.numero}
                     className="border-b border-slate-100 last:border-0"
                   >
                     <td className="px-3 py-2 text-slate-700">{a.label}</td>
@@ -198,7 +216,9 @@ export function LotFondsForm({
                         min={0}
                         step={0.01}
                         value={a.montant}
-                        onChange={(e) => setAppelMontant(a.id, e.target.value)}
+                        onChange={(e) =>
+                          setAppelMontant(a.numero, e.target.value)
+                        }
                         className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
                       />
                     </td>

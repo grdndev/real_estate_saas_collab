@@ -7,7 +7,7 @@ import { ClickableRow } from "@/components/collaborateur/fonds/clickable-row";
 import { FondsTableHeader } from "@/components/collaborateur/fonds/fonds-table-header";
 import { cn } from "@/lib/utils";
 
-export const metadata: Metadata = { title: "Suivi des fonds" };
+export const metadata: Metadata = { title: "Suivi des fonds · Admin" };
 
 interface PageProps {
   searchParams: Promise<{ programme?: string }>;
@@ -30,10 +30,8 @@ function fmtMoney(n: number | null | undefined): string {
   });
 }
 
-export default async function CollaborateurFondsPage({
-  searchParams,
-}: PageProps) {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+export default async function AdminFondsPage({ searchParams }: PageProps) {
+  await requireRole("SUPER_ADMIN");
   const params = await searchParams;
 
   const programmes = await prisma.programme.findMany({
@@ -95,7 +93,6 @@ export default async function CollaborateurFondsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
@@ -112,22 +109,17 @@ export default async function CollaborateurFondsPage({
         </div>
       </div>
 
-      {/* Programme selector */}
       {programmes.length > 0 && (
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-500">Programme :</span>
           <ProgrammeSelect
-            programmes={programmes.map((p) => ({
-              id: p.id,
-              name: p.name,
-              reference: p.reference,
-            }))}
+            programmes={importProgrammes}
             selectedId={selectedId}
+            basePath="/admin/fonds"
           />
         </div>
       )}
 
-      {/* Table */}
       {!programme ? (
         <p className="text-sm text-slate-500">Aucun programme actif.</p>
       ) : lots.length === 0 ? (
@@ -157,25 +149,18 @@ export default async function CollaborateurFondsPage({
                 return (
                   <ClickableRow
                     key={lot.id}
-                    href={`/collaborateur/fonds/${lot.id}`}
+                    href={`/admin/fonds/${lot.id}`}
                     className={rowClass}
                   >
-                    {/* Lot référence */}
                     <td className="sticky left-0 z-10 bg-inherit px-3 py-2 font-mono font-medium whitespace-nowrap">
                       {lot.reference}
                     </td>
-
-                    {/* Acquéreur */}
                     <td className="px-3 py-2 whitespace-nowrap text-slate-700">
                       {clientName ?? <span className="text-slate-400">—</span>}
                     </td>
-
-                    {/* Prix FAI */}
                     <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fmtMoney(Number(lot.priceTTC))}
                     </td>
-
-                    {/* Date signature acte */}
                     <td className="px-3 py-2 whitespace-nowrap text-slate-600">
                       {actSignedDate ? (
                         fmtDate(actSignedDate)
@@ -183,7 +168,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-
                     {appelHeaders.map((h) => {
                       const appel = fs?.appelsFonds.find(
                         (a) => a.numero === h.numero,
@@ -201,11 +185,8 @@ export default async function CollaborateurFondsPage({
                         </td>
                       );
                     })}
-
                     {/* Align with + button */}
                     <td />
-
-                    {/* COM */}
                     <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (
                         fmtMoney(Number(fs.commission))
@@ -213,8 +194,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-
-                    {/* Frais main levée */}
                     <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.fraisMainLevee != null ? (
                         fmtMoney(Number(fs.fraisMainLevee))
@@ -222,8 +201,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-
-                    {/* RBST EDD */}
                     <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.rbstEdd != null ? (
                         fmtMoney(Number(fs.rbstEdd))
@@ -231,8 +208,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-
-                    {/* Solde vendeur */}
                     <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.soldeVendeur != null ? (
                         fmtMoney(Number(fs.soldeVendeur))
@@ -240,8 +215,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-
-                    {/* Suivi LR */}
                     <td className="px-3 py-2 whitespace-nowrap">
                       {fs ? (
                         <div className="flex flex-col gap-0.5 text-slate-600">
@@ -262,8 +235,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </td>
-
-                    {/* Notes */}
                     <td className="max-w-50 px-3 py-2 text-slate-600">
                       {lot.notes ? (
                         <span className="line-clamp-2">{lot.notes}</span>

@@ -13,6 +13,7 @@ import {
   Th,
   Tr,
 } from "@/components/ui/table";
+import { TrackingImportButtonLazy } from "@/components/collaborateur/tracking-import/tracking-import-button-lazy";
 import { prisma } from "@/lib/prisma";
 
 export const metadata: Metadata = { title: "Programmes · Admin" };
@@ -44,9 +45,18 @@ export default async function AdminProgrammesPage() {
             {programmes.length > 1 ? "s" : ""}.
           </p>
         </div>
-        <Link href="/admin/programmes/nouveau">
-          <Button>Nouveau programme</Button>
-        </Link>
+        <div className="flex gap-2">
+          <TrackingImportButtonLazy
+            programmes={programmes.map((p) => ({
+              id: p.id,
+              name: p.name,
+              reference: p.reference,
+            }))}
+          />
+          <Link href="/admin/programmes/nouveau">
+            <Button>Nouveau programme</Button>
+          </Link>
+        </div>
       </div>
 
       <Card>

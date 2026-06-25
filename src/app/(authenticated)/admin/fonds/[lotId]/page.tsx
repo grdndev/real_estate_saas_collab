@@ -8,10 +8,10 @@ interface PageProps {
   params: Promise<{ lotId: string }>;
 }
 
-export const metadata: Metadata = { title: "Détail fonds" };
+export const metadata: Metadata = { title: "Détail fonds · Admin" };
 
-export default async function LotFondsDetailPage({ params }: PageProps) {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+export default async function AdminLotFondsDetailPage({ params }: PageProps) {
+  await requireRole("SUPER_ADMIN");
   const { lotId } = await params;
 
   const lot = await prisma.lot.findUnique({
