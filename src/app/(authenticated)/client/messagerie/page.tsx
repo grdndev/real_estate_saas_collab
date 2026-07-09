@@ -8,8 +8,11 @@ import { markMessagesReadAction } from "@/lib/client-space/actions";
 
 export const metadata: Metadata = { title: "Messagerie" };
 
+// Fil borné aux derniers messages (les plus anciens restent en base).
+const THREAD_PAGE_SIZE = 200;
+
 export default async function ClientMessageriePage() {
-  const me = await requireRole(["CLIENT", "SUPER_ADMIN"]);
+  const me = await requireRole(["CLIENT"]);
 
   const dossier = await prisma.dossier.findUnique({
     where: { clientId: me.id },
@@ -43,13 +46,18 @@ export default async function ClientMessageriePage() {
   // Marque comme lus les messages reçus.
   await markMessagesReadAction(dossier.id);
 
-  const messages = await prisma.message.findMany({
-    where: { dossierId: dossier.id },
-    orderBy: { createdAt: "asc" },
-    include: {
-      sender: { select: { firstName: true, lastName: true } },
-    },
-  });
+  const [totalCount, messages] = await Promise.all([
+    prisma.message.count({ where: { dossierId: dossier.id } }),
+    prisma.message.findMany({
+      where: { dossierId: dossier.id },
+      orderBy: { createdAt: "desc" },
+      take: THREAD_PAGE_SIZE,
+      include: {
+        sender: { select: { firstName: true, lastName: true } },
+      },
+    }),
+  ]);
+  messages.reverse();
 
   const formatted = messages.map((m) => ({
     id: m.id,
@@ -59,6 +67,7 @@ export default async function ClientMessageriePage() {
     senderName: `${m.sender.firstName} ${m.sender.lastName}`,
     sentByEmail: m.sentByEmail,
     emailAttachmentCount: m.emailAttachmentCount,
+    readByOthers: m.readBy.length > 0,
   }));
 
   return (
@@ -77,6 +86,7 @@ export default async function ClientMessageriePage() {
           currentUserId={me.id}
           messages={formatted}
           recipientLabel={referentLabel}
+          truncatedCount={Math.max(0, totalCount - messages.length)}
         />
       </Card>
     </div>

@@ -210,7 +210,6 @@ model User {
   notifications      Notification[]
   auditLogs          AuditLog[]
   sentMessages       Message[]
-  messageReads       MessageRead[]
   signaturesAsSigner Signature[]          @relation("SignatureSigner")
   ownedProspects     Prospect[]           @relation("ProspectOwner")
   clientProfile      ClientProfile?
@@ -516,33 +515,21 @@ model TimelineEvent {
 // =====================================================
 
 model Message {
-  id                   String    @id @default(cuid())
-  dossierId            String
-  senderId             String
-  body                 String
-  readAt               DateTime?
-  sentByEmail          Boolean   @default(false)
-  emailAttachmentCount Int       @default(0)
+  id        String @id @default(cuid())
+  dossierId String
+  senderId  String
+  body      String
+  // IDs des utilisateurs ayant lu le message (hors expéditeur).
+  readBy               String[] @default([])
+  sentByEmail          Boolean  @default(false)
+  emailAttachmentCount Int      @default(0)
 
   createdAt DateTime @default(now())
 
-  dossier Dossier       @relation(fields: [dossierId], references: [id], onDelete: Cascade)
-  sender  User          @relation(fields: [senderId], references: [id])
-  reads   MessageRead[]
+  dossier Dossier @relation(fields: [dossierId], references: [id], onDelete: Cascade)
+  sender  User    @relation(fields: [senderId], references: [id])
 
   @@index([dossierId, createdAt])
-}
-
-model MessageRead {
-  messageId String
-  userId    String
-  readAt    DateTime @default(now())
-
-  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([messageId, userId])
-  @@index([messageId])
 }
 
 // =====================================================

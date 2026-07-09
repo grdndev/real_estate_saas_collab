@@ -11,6 +11,9 @@ import { markMessagesReadAction } from "@/lib/client-space/actions";
 
 export const metadata: Metadata = { title: "Messagerie dossier" };
 
+// Fil borné aux derniers messages (les plus anciens restent en base).
+const THREAD_PAGE_SIZE = 200;
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -53,13 +56,18 @@ export default async function CollabMessageriePage({ params }: PageProps) {
 
   await markMessagesReadAction(dossier.id);
 
-  const messages = await prisma.message.findMany({
-    where: { dossierId: dossier.id },
-    orderBy: { createdAt: "asc" },
-    include: {
-      sender: { select: { firstName: true, lastName: true } },
-    },
-  });
+  const [totalCount, messages] = await Promise.all([
+    prisma.message.count({ where: { dossierId: dossier.id } }),
+    prisma.message.findMany({
+      where: { dossierId: dossier.id },
+      orderBy: { createdAt: "desc" },
+      take: THREAD_PAGE_SIZE,
+      include: {
+        sender: { select: { firstName: true, lastName: true } },
+      },
+    }),
+  ]);
+  messages.reverse();
 
   const formatted = messages.map((m) => ({
     id: m.id,
@@ -69,6 +77,7 @@ export default async function CollabMessageriePage({ params }: PageProps) {
     senderName: `${m.sender.firstName} ${m.sender.lastName}`,
     sentByEmail: m.sentByEmail,
     emailAttachmentCount: m.emailAttachmentCount,
+    readByOthers: m.readBy.length > 0,
   }));
 
   const clientLabel = dossier.client
@@ -98,6 +107,7 @@ export default async function CollabMessageriePage({ params }: PageProps) {
           messages={formatted}
           recipientLabel={clientLabel}
           canSendByEmail
+          truncatedCount={Math.max(0, totalCount - messages.length)}
         />
       </Card>
     </div>

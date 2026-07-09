@@ -164,12 +164,114 @@ export async function cancelDocumentRequestAction(
 
 // =====================================================
 // MESSAGES (CDC §7.4)
+// Conversation à deux parties : le client et les collaborateurs du dossier.
 // =====================================================
+
+const MESSAGING_ROLES = ["CLIENT", "COLLABORATOR", "SUPER_ADMIN"] as const;
+
+const MAX_EMAIL_ATTACHMENTS = 5;
+const MAX_EMAIL_ATTACHMENTS_TOTAL_BYTES = 10 * 1024 * 1024; // 10 Mo (limite Brevo)
+
+interface MessageRecipient {
+  userId: string;
+  email: string | null;
+  firstName: string;
+  link: string;
+}
+
+/** Notifications in-app + e-mails aux destinataires, en parallèle et best-effort. */
+async function notifyMessageRecipients(
+  recipients: MessageRecipient[],
+  senderName: string,
+  preview: string,
+): Promise<void> {
+  await Promise.allSettled(
+    recipients.flatMap((r) => {
+      const tasks: Promise<unknown>[] = [
+        notify({
+          userId: r.userId,
+          kind: "NEW_MESSAGE",
+          title: "Nouveau message",
+          body: preview.slice(0, 120),
+          link: r.link,
+        }),
+      ];
+      if (r.email) {
+        tasks.push(
+          getMailer().send(
+            newMessageMail(
+              r.email,
+              r.firstName,
+              senderName,
+              preview.slice(0, 200),
+              r.link,
+            ),
+          ),
+        );
+      }
+      return tasks;
+    }),
+  );
+}
+
+interface DossierMessageActors {
+  clientId: string | null;
+  client: { email: string; firstName: string } | null;
+  participants: Array<{
+    userId: string;
+    role: string;
+    user: { email: string; firstName: string };
+  }>;
+}
+
+/** Destinataires d'un message : client + collaborateurs du dossier, sauf l'expéditeur. */
+function messageRecipients(
+  actors: DossierMessageActors,
+  dossierId: string,
+  senderId: string,
+): MessageRecipient[] {
+  const recipients: MessageRecipient[] = [];
+  if (actors.clientId && actors.clientId !== senderId) {
+    recipients.push({
+      userId: actors.clientId,
+      email: actors.client?.email ?? null,
+      firstName: actors.client?.firstName ?? "",
+      link: "/client/messagerie",
+    });
+  }
+  for (const participant of actors.participants) {
+    if (
+      participant.userId !== senderId &&
+      (participant.role === "COLLABORATOR_PRIMARY" ||
+        participant.role === "COLLABORATOR_SECONDARY")
+    ) {
+      recipients.push({
+        userId: participant.userId,
+        email: participant.user.email,
+        firstName: participant.user.firstName,
+        link: `/collaborateur/dossiers/${dossierId}/messagerie`,
+      });
+    }
+  }
+  return recipients;
+}
+
+const dossierMessageActorsSelect = {
+  clientId: true,
+  client: { select: { email: true, firstName: true } },
+  participants: {
+    select: {
+      userId: true,
+      role: true,
+      user: { select: { email: true, firstName: true } },
+    },
+  },
+} as const;
 
 export async function sendMessageAction(
   input: SendMessageInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const me = await requireUser();
+  const me = await requireRole([...MESSAGING_ROLES]);
   const parsed = sendMessageSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -188,17 +290,25 @@ export async function sendMessageAction(
   if (!dossier) {
     return { ok: false, error: "Dossier introuvable ou accès refusé." };
   }
+  if (!dossier.clientId) {
+    return {
+      ok: false,
+      error: "Le dossier n'a pas encore de client associé.",
+    };
+  }
 
+  const dossierId = parsed.data.dossierId;
   const message = await prisma.message.create({
     data: {
-      dossierId: parsed.data.dossierId,
+      dossierId,
       senderId: me.id,
       body: parsed.data.body,
     },
   });
-  await prisma.dossier.update({
-    where: { id: parsed.data.dossierId },
+  const actors = await prisma.dossier.update({
+    where: { id: dossierId },
     data: { lastActivityAt: new Date() },
+    select: dossierMessageActorsSelect,
   });
 
   await audit({
@@ -208,116 +318,17 @@ export async function sendMessageAction(
     resourceId: message.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Message envoyé sur le dossier ${parsed.data.dossierId} (${parsed.data.body.length} caractères)`,
+    metadata: `Message envoyé sur le dossier ${dossierId} (${parsed.data.body.length} caractères)`,
   });
 
-  const dossierId = parsed.data.dossierId;
-  const preview = parsed.data.body.slice(0, 120);
-  const senderName = me.name ?? "un participant";
-
-  const dossierActors = await prisma.dossier.findUnique({
-    where: { id: dossierId },
-    select: {
-      clientId: true,
-      notaryId: true,
-      participants: {
-        select: {
-          userId: true,
-          role: true,
-          user: { select: { email: true, firstName: true } },
-        },
-      },
-      client: { select: { email: true, firstName: true } },
-    },
-  });
-
-  if (dossierActors) {
-    // Client
-    if (dossierActors.clientId && dossierActors.clientId !== me.id) {
-      await notify({
-        userId: dossierActors.clientId,
-        kind: "NEW_MESSAGE",
-        title: "Nouveau message",
-        body: preview,
-        link: "/client/messagerie",
-      });
-      if (dossierActors.client?.email) {
-        try {
-          await getMailer().send(
-            newMessageMail(
-              dossierActors.client.email,
-              dossierActors.client.firstName,
-              senderName,
-              parsed.data.body.slice(0, 200),
-              "/client/messagerie",
-            ),
-          );
-        } catch {}
-      }
-    }
-
-    // Collaborateurs
-    for (const participant of dossierActors.participants) {
-      if (
-        participant.userId !== me.id &&
-        (participant.role === "COLLABORATOR_PRIMARY" ||
-          participant.role === "COLLABORATOR_SECONDARY")
-      ) {
-        await notify({
-          userId: participant.userId,
-          kind: "NEW_MESSAGE",
-          title: "Nouveau message",
-          body: preview,
-          link: `/collaborateur/dossiers/${dossierId}/messagerie`,
-        });
-        if (participant.user.email) {
-          try {
-            await getMailer().send(
-              newMessageMail(
-                participant.user.email,
-                participant.user.firstName,
-                senderName,
-                parsed.data.body.slice(0, 200),
-                `/collaborateur/dossiers/${dossierId}/messagerie`,
-              ),
-            );
-          } catch {}
-        }
-      }
-    }
-
-    // Notaire
-    if (dossierActors.notaryId && dossierActors.notaryId !== me.id) {
-      await notify({
-        userId: dossierActors.notaryId,
-        kind: "NEW_MESSAGE",
-        title: "Nouveau message",
-        body: preview,
-        link: `/notaire/${dossierId}/messagerie`,
-      });
-      const notaryUser = await prisma.user.findUnique({
-        where: { id: dossierActors.notaryId },
-        select: { email: true, firstName: true },
-      });
-      if (notaryUser) {
-        try {
-          await getMailer().send(
-            newMessageMail(
-              notaryUser.email,
-              notaryUser.firstName,
-              senderName,
-              parsed.data.body.slice(0, 200),
-              `/notaire/${dossierId}/messagerie`,
-            ),
-          );
-        } catch {}
-      }
-    }
-  }
+  await notifyMessageRecipients(
+    messageRecipients(actors, dossierId, me.id),
+    me.name ?? "un participant",
+    parsed.data.body,
+  );
 
   revalidatePath(`/collaborateur/dossiers/${dossierId}/messagerie`);
   revalidatePath("/client/messagerie");
-  revalidatePath(`/notaire/${dossierId}/messagerie`);
   return { ok: true, value: { id: message.id } };
 }
 
@@ -331,25 +342,85 @@ export async function sendMessageByEmailAction(
   if (!dossierId || typeof dossierId !== "string" || !dossierId.trim()) {
     return { ok: false, error: "Dossier invalide." };
   }
-  if (!body || typeof body !== "string") {
+  if (typeof body !== "string") {
     return { ok: false, error: "Saisie invalide" };
   }
   const trimmed = body.trim();
-  if (trimmed.length < 1 || trimmed.length > 4000) {
-    return {
-      ok: false,
-      error: "Le message doit contenir entre 1 et 4000 caractères.",
-    };
-  }
-
   const files = formData
     .getAll("attachments")
     .filter((f): f is File => f instanceof File && f.size > 0);
+
+  if (trimmed.length === 0 && files.length === 0) {
+    return {
+      ok: false,
+      error: "Saisissez un message ou joignez au moins un fichier.",
+    };
+  }
+  if (trimmed.length > 4000) {
+    return {
+      ok: false,
+      error: "Le message doit contenir au plus 4000 caractères.",
+    };
+  }
+  if (files.length > MAX_EMAIL_ATTACHMENTS) {
+    return {
+      ok: false,
+      error: `Au plus ${MAX_EMAIL_ATTACHMENTS} pièces jointes par envoi.`,
+    };
+  }
+  const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+  if (totalBytes > MAX_EMAIL_ATTACHMENTS_TOTAL_BYTES) {
+    return {
+      ok: false,
+      error: "Les pièces jointes dépassent 10 Mo au total.",
+    };
+  }
+
   const ctx = await getRequestContext();
 
   const dossier = await findDossierForUser(dossierId, me.id, me.role);
   if (!dossier) {
     return { ok: false, error: "Dossier introuvable ou accès refusé." };
+  }
+
+  const actors = await prisma.dossier.findUnique({
+    where: { id: dossierId },
+    select: dossierMessageActorsSelect,
+  });
+  if (!actors?.clientId || !actors.client?.email) {
+    return {
+      ok: false,
+      error: "Le dossier n'a pas de client avec e-mail — envoi impossible.",
+    };
+  }
+
+  const senderName = me.name ?? "un collaborateur";
+
+  // L'e-mail au client est le canal principal : on n'enregistre le message
+  // qu'une fois son envoi confirmé.
+  try {
+    const attachments = await Promise.all(
+      files.map(async (f) => ({
+        name: f.name,
+        content: Buffer.from(await f.arrayBuffer()).toString("base64"),
+      })),
+    );
+    await getMailer().send({
+      ...messageByEmailMail(
+        actors.client.email,
+        actors.client.firstName,
+        senderName,
+        trimmed,
+        files.length,
+      ),
+      attachments,
+    });
+  } catch {
+    return {
+      ok: false,
+      error:
+        "L'envoi de l'e-mail au client a échoué. Le message n'a pas été enregistré, veuillez réessayer.",
+    };
   }
 
   const message = await prisma.message.create({
@@ -376,132 +447,50 @@ export async function sendMessageByEmailAction(
     metadata: `Message envoyé par email sur le dossier ${dossierId} (${files.length} pièce(s) jointe(s))`,
   });
 
-  const dossierActors = await prisma.dossier.findUnique({
-    where: { id: dossierId },
-    select: {
-      clientId: true,
-      notaryId: true,
-      participants: {
-        select: {
-          userId: true,
-          role: true,
-          user: { select: { email: true, firstName: true } },
-        },
-      },
-      client: { select: { email: true, firstName: true } },
-    },
-  });
+  const preview =
+    trimmed || `${files.length} pièce(s) jointe(s) envoyée(s) par e-mail`;
 
-  const senderName = me.name ?? "un collaborateur";
-
-  if (dossierActors) {
-    if (dossierActors.clientId && dossierActors.clientId !== me.id) {
-      await notify({
-        userId: dossierActors.clientId,
-        kind: "NEW_MESSAGE",
-        title: "Nouveau message",
-        body: trimmed.slice(0, 120),
-        link: "/client/messagerie",
-      });
-      if (dossierActors.client?.email) {
-        try {
-          const attachments = await Promise.all(
-            files.map(async (f) => ({
-              name: f.name,
-              content: Buffer.from(await f.arrayBuffer()).toString("base64"),
-            })),
-          );
-          await getMailer().send({
-            ...messageByEmailMail(
-              dossierActors.client.email,
-              dossierActors.client.firstName,
-              senderName,
-              trimmed,
-              files.length,
-            ),
-            attachments,
-          });
-        } catch {}
-      }
-    }
-
-    for (const participant of dossierActors.participants) {
-      if (
-        participant.userId !== me.id &&
-        (participant.role === "COLLABORATOR_PRIMARY" ||
-          participant.role === "COLLABORATOR_SECONDARY")
-      ) {
-        await notify({
-          userId: participant.userId,
-          kind: "NEW_MESSAGE",
-          title: "Nouveau message",
-          body: trimmed.slice(0, 120),
-          link: `/collaborateur/dossiers/${dossierId}/messagerie`,
-        });
-        if (participant.user.email) {
-          try {
-            await getMailer().send(
-              newMessageMail(
-                participant.user.email,
-                participant.user.firstName,
-                senderName,
-                trimmed.slice(0, 200),
-                `/collaborateur/dossiers/${dossierId}/messagerie`,
-              ),
-            );
-          } catch {}
-        }
-      }
-    }
-
-    if (dossierActors.notaryId && dossierActors.notaryId !== me.id) {
-      await notify({
-        userId: dossierActors.notaryId,
-        kind: "NEW_MESSAGE",
-        title: "Nouveau message",
-        body: trimmed.slice(0, 120),
-        link: `/notaire/${dossierId}/messagerie`,
-      });
-      const notaryUser = await prisma.user.findUnique({
-        where: { id: dossierActors.notaryId },
-        select: { email: true, firstName: true },
-      });
-      if (notaryUser) {
-        try {
-          await getMailer().send(
-            newMessageMail(
-              notaryUser.email,
-              notaryUser.firstName,
-              senderName,
-              trimmed.slice(0, 200),
-              `/notaire/${dossierId}/messagerie`,
-            ),
-          );
-        } catch {}
-      }
-    }
-  }
+  // Le client a déjà reçu l'e-mail : notification in-app seulement pour lui,
+  // notification + e-mail pour les autres collaborateurs.
+  const recipients = messageRecipients(actors, dossierId, me.id);
+  await Promise.allSettled([
+    ...(actors.clientId !== me.id
+      ? [
+          notify({
+            userId: actors.clientId,
+            kind: "NEW_MESSAGE",
+            title: "Nouveau message",
+            body: preview.slice(0, 120),
+            link: "/client/messagerie",
+          }),
+        ]
+      : []),
+    notifyMessageRecipients(
+      recipients.filter((r) => r.userId !== actors.clientId),
+      senderName,
+      preview,
+    ),
+  ]);
 
   revalidatePath(`/collaborateur/dossiers/${dossierId}/messagerie`);
   revalidatePath("/client/messagerie");
-  revalidatePath(`/notaire/${dossierId}/messagerie`);
   return { ok: true, value: { id: message.id } };
 }
 
 export async function markMessagesReadAction(
   dossierId: string,
 ): Promise<ActionResult> {
-  const me = await requireUser();
+  const me = await requireRole([...MESSAGING_ROLES]);
   const dossier = await findDossierForUser(dossierId, me.id, me.role);
   if (!dossier) return { ok: false, error: "Accès refusé" };
 
-  const msgs = await prisma.message.findMany({
-    where: { dossierId, senderId: { not: me.id } },
-    select: { id: true },
-  });
-  await prisma.messageRead.createMany({
-    data: msgs.map((m) => ({ messageId: m.id, userId: me.id })),
-    skipDuplicates: true,
+  await prisma.message.updateMany({
+    where: {
+      dossierId,
+      senderId: { not: me.id },
+      NOT: { readBy: { has: me.id } },
+    },
+    data: { readBy: { push: me.id } },
   });
   return { ok: true, value: undefined };
 }

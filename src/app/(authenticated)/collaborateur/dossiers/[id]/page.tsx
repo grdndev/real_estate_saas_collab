@@ -64,82 +64,91 @@ export default async function DossierDetailPage({ params }: PageProps) {
   const accessible = await findDossierForUser(id, me.id, me.role);
   if (!accessible) notFound();
 
-  const [dossier, pendingClients, notaries] = await Promise.all([
-    prisma.dossier.findUnique({
-      where: { id },
-      include: {
-        programme: true,
-        lots: true,
-        timelineEvents: { orderBy: { occurredAt: "desc" } },
-        documentRequests: {
-          orderBy: [{ required: "desc" }, { createdAt: "asc" }],
-          include: { documents: { select: { id: true } } },
-        },
-        documents: {
-          where: { deletedAt: null },
-          orderBy: { createdAt: "desc" },
-          select: {
-            id: true,
-            fileName: true,
-            mimeType: true,
-            sizeBytes: true,
-            scanStatus: true,
-            source: true,
-            isShared: true,
-            createdAt: true,
-            uploadedById: true,
-            documentRequestId: true,
+  const [dossier, pendingClients, notaries, unreadMessages] = await Promise.all(
+    [
+      prisma.dossier.findUnique({
+        where: { id },
+        include: {
+          programme: true,
+          lots: true,
+          timelineEvents: { orderBy: { occurredAt: "desc" } },
+          documentRequests: {
+            orderBy: [{ required: "desc" }, { createdAt: "asc" }],
+            include: { documents: { select: { id: true } } },
           },
-        },
-        signatures: {
-          orderBy: { createdAt: "desc" },
-          select: {
-            id: true,
-            status: true,
-            signerEmail: true,
-            signedAt: true,
-            createdAt: true,
+          documents: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              fileName: true,
+              mimeType: true,
+              sizeBytes: true,
+              scanStatus: true,
+              source: true,
+              isShared: true,
+              createdAt: true,
+              uploadedById: true,
+              documentRequestId: true,
+            },
           },
-        },
-        client: { select: { firstName: true, lastName: true, email: true } },
-        notes: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            author: { select: { id: true, firstName: true, lastName: true } },
+          signatures: {
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              status: true,
+              signerEmail: true,
+              signedAt: true,
+              createdAt: true,
+            },
           },
-        },
-        appointments: { orderBy: { scheduledAt: "desc" } },
-        participants: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true,
-                email: true,
+          client: { select: { firstName: true, lastName: true, email: true } },
+          notes: {
+            orderBy: { createdAt: "desc" },
+            include: {
+              author: { select: { id: true, firstName: true, lastName: true } },
+            },
+          },
+          appointments: { orderBy: { scheduledAt: "desc" } },
+          participants: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                },
               },
             },
           },
+          _count: { select: { messages: true } },
         },
-        _count: { select: { messages: true } },
-      },
-    }),
-    prisma.user.findMany({
-      where: {
-        role: "CLIENT",
-        status: "PENDING_ASSOCIATION",
-        deletedAt: null,
-        clientDossier: null,
-      },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, firstName: true, lastName: true, email: true },
-    }),
-    prisma.user.findMany({
-      where: { role: "NOTARY", status: "ACTIVE", deletedAt: null },
-      orderBy: { lastName: "asc" },
-      select: { id: true, firstName: true, lastName: true, email: true },
-    }),
-  ]);
+      }),
+      prisma.user.findMany({
+        where: {
+          role: "CLIENT",
+          status: "PENDING_ASSOCIATION",
+          deletedAt: null,
+          clientDossier: null,
+        },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      }),
+      prisma.user.findMany({
+        where: { role: "NOTARY", status: "ACTIVE", deletedAt: null },
+        orderBy: { lastName: "asc" },
+        select: { id: true, firstName: true, lastName: true, email: true },
+      }),
+      prisma.message.count({
+        where: {
+          dossierId: id,
+          senderId: { not: me.id },
+          NOT: { readBy: { has: me.id } },
+        },
+      }),
+    ],
+  );
   if (!dossier) notFound();
 
   const acceptedRequestIds = new Set(
@@ -341,6 +350,11 @@ export default async function DossierDetailPage({ params }: PageProps) {
                   <span className="ml-2 text-sm font-normal text-slate-500">
                     ({dossier._count.messages} message
                     {dossier._count.messages > 1 ? "s" : ""})
+                  </span>
+                )}
+                {unreadMessages > 0 && (
+                  <span className="ml-2 rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white">
+                    {unreadMessages} non lu{unreadMessages > 1 ? "s" : ""}
                   </span>
                 )}
               </CardTitle>

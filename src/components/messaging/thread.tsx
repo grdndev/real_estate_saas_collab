@@ -14,6 +14,10 @@ import {
 import { cn } from "@/lib/utils";
 import type { ActionResult } from "@/lib/auth/actions";
 
+const MAX_ATTACHMENTS = 5;
+const MAX_ATTACHMENTS_TOTAL_BYTES = 10 * 1024 * 1024; // 10 Mo
+const REFRESH_INTERVAL_MS = 15_000;
+
 export interface MessageRow {
   id: string;
   body: string;
@@ -22,6 +26,8 @@ export interface MessageRow {
   senderName: string;
   sentByEmail?: boolean;
   emailAttachmentCount?: number;
+  /** Message lu par au moins un destinataire. */
+  readByOthers?: boolean;
 }
 
 interface Props {
@@ -30,6 +36,8 @@ interface Props {
   messages: MessageRow[];
   recipientLabel: string;
   canSendByEmail?: boolean;
+  /** Nombre de messages plus anciens non affichés. */
+  truncatedCount?: number;
 }
 
 export function MessageThread({
@@ -38,6 +46,7 @@ export function MessageThread({
   messages,
   recipientLabel,
   canSendByEmail,
+  truncatedCount = 0,
 }: Props) {
   const router = useRouter();
   const [body, setBody] = useState("");
@@ -52,20 +61,49 @@ export function MessageThread({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
+  // Rafraîchit le fil régulièrement pour voir arriver les réponses.
+  useEffect(() => {
+    const timer = setInterval(() => router.refresh(), REFRESH_INTERVAL_MS);
+    return () => clearInterval(timer);
+  }, [router]);
+
+  const canSubmit =
+    body.trim().length > 0 || (sendByEmail && attachments.length > 0);
+
+  function addFiles(files: File[]) {
+    setError(null);
+    const next = [...attachments, ...files];
+    if (next.length > MAX_ATTACHMENTS) {
+      setError(`Au plus ${MAX_ATTACHMENTS} pièces jointes par envoi.`);
+      return;
+    }
+    const totalBytes = next.reduce((sum, f) => sum + f.size, 0);
+    if (totalBytes > MAX_ATTACHMENTS_TOTAL_BYTES) {
+      setError("Les pièces jointes dépassent 10 Mo au total.");
+      return;
+    }
+    setAttachments(next);
+  }
+
   function submit() {
     const trimmed = body.trim();
-    if (!trimmed) return;
+    if (!canSubmit) return;
     setError(null);
     startTransition(async () => {
       let result: ActionResult<{ id: string }>;
-      if (sendByEmail) {
-        const fd = new FormData();
-        fd.append("dossierId", dossierId);
-        fd.append("body", trimmed);
-        attachments.forEach((f) => fd.append("attachments", f));
-        result = await sendMessageByEmailAction(fd);
-      } else {
-        result = await sendMessageAction({ dossierId, body: trimmed });
+      try {
+        if (sendByEmail) {
+          const fd = new FormData();
+          fd.append("dossierId", dossierId);
+          fd.append("body", trimmed);
+          attachments.forEach((f) => fd.append("attachments", f));
+          result = await sendMessageByEmailAction(fd);
+        } else {
+          result = await sendMessageAction({ dossierId, body: trimmed });
+        }
+      } catch {
+        setError("L'envoi a échoué. Veuillez réessayer.");
+        return;
       }
       if (!result.ok) {
         setError(result.error);
@@ -81,6 +119,13 @@ export function MessageThread({
   return (
     <div className="flex h-full flex-col">
       <div className="flex-1 space-y-3 overflow-y-auto p-4">
+        {truncatedCount > 0 && (
+          <p className="text-center text-xs text-slate-400">
+            {truncatedCount} message{truncatedCount > 1 ? "s" : ""} plus ancien
+            {truncatedCount > 1 ? "s" : ""} non affiché
+            {truncatedCount > 1 ? "s" : ""}.
+          </p>
+        )}
         {messages.length === 0 ? (
           <p className="py-12 text-center text-sm text-slate-500">
             Démarrez la conversation avec {recipientLabel}.
@@ -109,7 +154,7 @@ export function MessageThread({
                     <p className="mt-1 text-xs text-slate-400 italic">
                       Envoyé par e-mail
                       {msg.emailAttachmentCount
-                        ? ` · ${msg.emailAttachmentCount} fichier${msg.emailAttachmentCount > 1 ? "s" : ""} joint${msg.emailAttachmentCount > 1 ? "s" : ""}`
+                        ? ` · ${msg.emailAttachmentCount} fichier${msg.emailAttachmentCount > 1 ? "s" : ""} joint${msg.emailAttachmentCount > 1 ? "s" : ""} à l'e-mail`
                         : ""}
                     </p>
                   )}
@@ -125,6 +170,7 @@ export function MessageThread({
                       timeStyle: "short",
                     })}
                   </time>
+                  {isMe && msg.readByOthers && " · Lu"}
                 </p>
               </div>
             );
@@ -156,7 +202,7 @@ export function MessageThread({
           />
           <Button
             onClick={submit}
-            disabled={pending || body.trim().length === 0}
+            disabled={pending || !canSubmit}
             aria-label="Envoyer le message"
           >
             <Send className="size-4" aria-hidden />
@@ -194,8 +240,7 @@ export function MessageThread({
               multiple
               className="hidden"
               onChange={(e) => {
-                const files = Array.from(e.target.files ?? []);
-                setAttachments((prev) => [...prev, ...files]);
+                addFiles(Array.from(e.target.files ?? []));
                 e.target.value = "";
               }}
             />

@@ -305,10 +305,10 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
             <CardContent className="flex flex-col gap-2">
               <NotaryStatusActions dossierId={dossier.id} />
               <Link
-                href={`/notaire/${dossier.id}/messagerie`}
+                href="/messagerie-interne"
                 className="text-equatis-turquoise-700 inline-flex h-9 items-center justify-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
               >
-                Messagerie avec le collaborateur
+                Contacter le collaborateur (messagerie interne)
               </Link>
             </CardContent>
           </Card>

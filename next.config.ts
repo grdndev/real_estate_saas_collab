@@ -33,6 +33,12 @@ const nextConfig: NextConfig = {
   },
   poweredByHeader: false,
   reactStrictMode: true,
+  experimental: {
+    serverActions: {
+      // Messagerie : jusqu'à 10 Mo de pièces jointes par envoi (+ marge multipart).
+      bodySizeLimit: "12mb",
+    },
+  },
   async headers() {
     return [
       {

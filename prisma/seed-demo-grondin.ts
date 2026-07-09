@@ -386,14 +386,14 @@ async function main() {
         senderId: collab.id,
         body: "Bonjour M. GRONDIN, votre dossier est transmis au notaire. Je reviens vers vous pour le RDV de signature.",
         createdAt: daysAgo(11),
-        readAt: daysAgo(11),
+        readBy: [client.id],
       },
       {
         dossierId: dossier.id,
         senderId: client.id,
         body: "Merci beaucoup ! Je suis disponible la semaine prochaine pour le rendez-vous.",
         createdAt: daysAgo(10),
-        readAt: daysAgo(10),
+        readBy: [collab.id],
       },
       {
         dossierId: dossier.id,

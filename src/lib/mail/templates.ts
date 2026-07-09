@@ -3,6 +3,15 @@ import type { MailMessage } from "@/lib/mail";
 
 const baseUrl = env.NEXT_PUBLIC_APP_URL.replace(/\/$/, "");
 
+/** Échappe le contenu saisi par un utilisateur avant interpolation dans le HTML. */
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
 const wrapHtml = (title: string, body: string) => `
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8"><title>${title}</title></head>
@@ -86,10 +95,10 @@ export function newMessageMail(
     `"${excerpt}"\n\n` +
     `Pour consulter le message, rendez-vous sur : ${fullLink}`;
   const html = wrapHtml(
-    `Nouveau message de ${senderName}`,
-    `<p style="color:#1B2A4A; font-size:14px;">Bonjour ${firstName},</p>
-     <p style="color:#475569; font-size:14px;">Vous avez reçu un nouveau message de <strong>${senderName}</strong> :</p>
-     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${excerpt}</blockquote>
+    `Nouveau message de ${escapeHtml(senderName)}`,
+    `<p style="color:#1B2A4A; font-size:14px;">Bonjour ${escapeHtml(firstName)},</p>
+     <p style="color:#475569; font-size:14px;">Vous avez reçu un nouveau message de <strong>${escapeHtml(senderName)}</strong> :</p>
+     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${escapeHtml(excerpt)}</blockquote>
      <p style="text-align:center; margin:24px 0;"><a href="${fullLink}" style="background:#1B2A4A; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; font-size:14px; font-weight:500;">Voir le message</a></p>`,
   );
   return { to, subject: `Nouveau message de ${senderName}`, html, text };
@@ -119,9 +128,9 @@ export function messageByEmailMail(
       : "";
   const html = wrapHtml(
     "Message de votre conseiller Équatis",
-    `<p style="color:#1B2A4A; font-size:14px;">Bonjour ${firstName},</p>
-     <p style="color:#475569; font-size:14px;">Votre conseiller <strong>${senderName}</strong> vous a envoyé un message :</p>
-     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${body}</blockquote>
+    `<p style="color:#1B2A4A; font-size:14px;">Bonjour ${escapeHtml(firstName)},</p>
+     <p style="color:#475569; font-size:14px;">Votre conseiller <strong>${escapeHtml(senderName)}</strong> vous a envoyé un message :</p>
+     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${escapeHtml(body)}</blockquote>
      ${attachmentHtml}
      <p style="text-align:center; margin:24px 0;"><a href="${link}" style="background:#1B2A4A; color:#fff; padding:12px 24px; text-decoration:none; border-radius:6px; font-size:14px; font-weight:500;">Voir ma messagerie</a></p>`,
   );

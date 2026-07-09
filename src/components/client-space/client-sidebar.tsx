@@ -12,7 +12,12 @@ const NAV = [
   { href: "/profil", label: "Mon profil", icon: User },
 ] as const;
 
-export function ClientSidebar() {
+interface Props {
+  /** Messages non lus dans la conversation du dossier. */
+  unreadMessages?: number;
+}
+
+export function ClientSidebar({ unreadMessages = 0 }: Props) {
   const pathname = usePathname();
   return (
     <aside
@@ -28,6 +33,10 @@ export function ClientSidebar() {
           item.href === "/client"
             ? pathname === "/client"
             : pathname?.startsWith(item.href);
+        const badge =
+          item.href === "/client/messagerie" && unreadMessages > 0
+            ? unreadMessages
+            : 0;
         return (
           <Link
             key={item.href}
@@ -42,6 +51,14 @@ export function ClientSidebar() {
           >
             <Icon className="size-4" aria-hidden />
             <span>{item.label}</span>
+            {badge > 0 && (
+              <span
+                className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs font-semibold text-white"
+                aria-label={`${badge} message${badge > 1 ? "s" : ""} non lu${badge > 1 ? "s" : ""}`}
+              >
+                {badge > 99 ? "99+" : badge}
+              </span>
+            )}
           </Link>
         );
       })}

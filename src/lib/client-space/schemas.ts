@@ -18,9 +18,9 @@ export const sendMessageSchema = z.object({
   dossierId: z.string().min(1),
   body: z
     .string()
+    .trim()
     .min(1, "Message vide")
-    .max(4000, "Message trop long (4000 caractères max)")
-    .trim(),
+    .max(4000, "Message trop long (4000 caractères max)"),
 });
 export type SendMessageInput = z.infer<typeof sendMessageSchema>;
 
