@@ -123,12 +123,7 @@ export async function prepareUploadAction(
     resourceId: document.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      dossierId: dossier.id,
-      step: "prepare",
-      mime: data.mimeType,
-      size: data.sizeBytes,
-    },
+    metadata: `Dépôt d'un document sur le dossier ${dossier.id} (type ${data.mimeType}, ${data.sizeBytes} octets)`,
   });
 
   return {
@@ -266,14 +261,12 @@ export async function getDownloadUrlAction(
   }
 
   // Vérification d'accès via le dossier rattaché.
-  if (document.dossierId) {
-    const dossier = await findDossierForUser(
-      document.dossierId,
-      me.id,
-      me.role,
-    );
-    if (!dossier) return { ok: false, error: "Accès refusé." };
+  // Refus par défaut si le document n'est rattaché à aucun dossier.
+  if (!document.dossierId) {
+    return { ok: false, error: "Accès refusé." };
   }
+  const dossier = await findDossierForUser(document.dossierId, me.id, me.role);
+  if (!dossier) return { ok: false, error: "Accès refusé." };
 
   const ctx = await getRequestContext();
   const url = await presignDownloadUrl(document.storageKey, document.fileName);
@@ -285,7 +278,7 @@ export async function getDownloadUrlAction(
     resourceId: document.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { dossierId: document.dossierId },
+    metadata: `Document « ${document.fileName} » téléchargé (dossier ${document.dossierId})`,
   });
 
   return { ok: true, value: { url } };
@@ -317,14 +310,12 @@ export async function getPreviewUrlAction(
     };
   }
 
-  if (document.dossierId) {
-    const dossier = await findDossierForUser(
-      document.dossierId,
-      me.id,
-      me.role,
-    );
-    if (!dossier) return { ok: false, error: "Accès refusé." };
+  // Refus par défaut si le document n'est rattaché à aucun dossier.
+  if (!document.dossierId) {
+    return { ok: false, error: "Accès refusé." };
   }
+  const dossier = await findDossierForUser(document.dossierId, me.id, me.role);
+  if (!dossier) return { ok: false, error: "Accès refusé." };
 
   const ctx = await getRequestContext();
   const url = await presignInlineUrl(document.storageKey);
@@ -336,7 +327,7 @@ export async function getPreviewUrlAction(
     resourceId: document.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { dossierId: document.dossierId },
+    metadata: `Document « ${document.fileName} » consulté en aperçu (dossier ${document.dossierId})`,
   });
 
   return { ok: true, value: { url } };
@@ -410,7 +401,7 @@ export async function deleteDocumentAction(
     resourceId: document.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { dossierId: document.dossierId },
+    metadata: `Document « ${document.fileName} » supprimé (dossier ${document.dossierId})`,
   });
 
   if (document.dossierId) {

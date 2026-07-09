@@ -108,7 +108,7 @@ export async function transmitToNotaryAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { notaryId: parsed.data.notaryId },
+    metadata: `Dossier transmis au notaire ${parsed.data.notaryId}`,
   });
 
   // Notifier le notaire
@@ -195,7 +195,7 @@ export async function notaryUpdateStatusAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { from: dossier.status, to: status, by: "notary" },
+    metadata: `Statut du dossier modifié par le notaire : ${dossier.status} → ${status}`,
   });
 
   // Notifier les participants (sauf le notaire qui agit).
@@ -337,7 +337,7 @@ export async function flagMissingPieceAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "missing_piece_flagged", label: parsed.data.label },
+    metadata: `Pièce manquante signalée par le notaire : « ${parsed.data.label} »`,
   });
 
   // Notifier les collaborateurs du dossier.
@@ -417,7 +417,7 @@ export async function relaunchNotaryAction(input: {
       resourceType: "Dossier",
       resourceId: dossier.id,
       createdAt: { gte: new Date(Date.now() - 12 * 60 * 60_000) },
-      metadata: { path: ["step"], equals: "notary_relaunch" },
+      metadata: { startsWith: "Notaire" },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -503,12 +503,7 @@ export async function relaunchNotaryAction(input: {
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      step: "notary_relaunch",
-      notaryId: notary.id,
-      daysSinceTransmission,
-      hasComment: Boolean(parsed.data.comment),
-    },
+    metadata: `Notaire ${notary.id} relancé, ${daysSinceTransmission} jour(s) après la transmission${parsed.data.comment ? ", avec commentaire" : ""}`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);

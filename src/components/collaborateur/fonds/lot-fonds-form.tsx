@@ -177,7 +177,7 @@ export function LotFondsForm({
         </div>
         <div>
           <p className="text-xs text-slate-400">Date signature acte</p>
-          <p className="text-sm font-medium">
+          <p className="text-sm font-medium" suppressHydrationWarning>
             {actSignedDate
               ? new Date(actSignedDate).toLocaleDateString("fr-FR")
               : "—"}

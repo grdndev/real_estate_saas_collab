@@ -122,7 +122,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
       action: "DOSSIER_UPDATED",
       resourceType: "Dossier",
       resourceId: d.id,
-      metadata: { step: "auto_relaunch", days },
+      metadata: `Relance automatique du dossier après ${days} jours sans activité`,
     });
     relaunched++;
   }

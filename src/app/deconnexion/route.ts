@@ -20,6 +20,7 @@ export async function POST() {
       resourceId: session.user.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
+      metadata: "Déconnexion de la plateforme",
     });
   }
   await signOut({ redirect: false });

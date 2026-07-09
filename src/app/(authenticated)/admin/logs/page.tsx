@@ -1,11 +1,13 @@
 import { prisma } from "@/lib/prisma";
-import ActivityLog from "./activity-log";
+import Link from "next/link";
 
 export default async function AdminLogsPage() {
-  const logs = await prisma.auditLog.findMany({
-    orderBy: { createdAt: "desc" },
-    include: { user: { select: { firstName: true, lastName: true } } },
-    take: 1000,
+  const users = await prisma.user.findMany({
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+    },
   });
 
   return (
@@ -18,7 +20,15 @@ export default async function AdminLogsPage() {
           Suivez les actions des utilisateurs et les événements système.
         </p>
       </div>
-      <ActivityLog logs={logs} />
+      <div>
+        {users.map((user) => (
+          <Link key={user.id} href={`/admin/logs/${user.id}`} className="mb-4">
+            <h2 className="text-equatis-night-800 text-lg font-medium">
+              {user.firstName} {user.lastName}
+            </h2>
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

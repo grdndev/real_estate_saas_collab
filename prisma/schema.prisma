@@ -621,7 +621,7 @@ model AuditLog {
   action       String
   resourceType String
   resourceId   String?
-  metadata     Json?
+  metadata     String?
   ip           String?
   userAgent    String?
 

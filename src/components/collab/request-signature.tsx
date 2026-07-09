@@ -128,7 +128,10 @@ export function RequestSignatureBlock({
               <li key={s.id} className="flex items-center justify-between py-2">
                 <div>
                   <p className="font-mono text-xs">{s.signerEmail}</p>
-                  <p className="text-xs text-slate-500">
+                  <p
+                    className="text-xs text-slate-500"
+                    suppressHydrationWarning
+                  >
                     {s.signedAt
                       ? `Signée le ${s.signedAt.toLocaleDateString("fr-FR")}`
                       : `Envoyée le ${s.createdAt.toLocaleDateString("fr-FR")}`}

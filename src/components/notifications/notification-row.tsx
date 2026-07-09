@@ -122,7 +122,8 @@ export function NotificationRow({
           <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium text-slate-500">
             {kindLabel}
           </span>
-          <time dateTime={createdAt.toISOString()}>
+          {/* Temps relatif : horloges serveur/client différentes au SSR. */}
+          <time dateTime={createdAt.toISOString()} suppressHydrationWarning>
             {relativeTime(createdAt)}
           </time>
         </p>

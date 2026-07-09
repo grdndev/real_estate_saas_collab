@@ -11,6 +11,7 @@ import { generateOpaqueToken } from "@/lib/auth/tokens";
 import { getMailer } from "@/lib/mail";
 import { invitationMail } from "@/lib/mail/admin-templates";
 import { getRequestContext } from "@/lib/request-context";
+import { invalidateSettingsCache } from "@/lib/settings";
 import {
   inviteUserSchema,
   createProgrammeSchema,
@@ -97,7 +98,7 @@ export async function inviteUserAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { invitedRole: role, via: "admin_invitation" },
+    metadata: `Utilisateur ${user.email} invité avec le rôle ${role} via l'interface admin`,
   });
 
   revalidatePath("/admin/utilisateurs");
@@ -137,7 +138,9 @@ export async function setUserStatusAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { transition: active ? "→ACTIVE" : "→SUSPENDED" },
+    metadata: active
+      ? "Compte utilisateur réactivé"
+      : "Compte utilisateur suspendu",
   });
 
   revalidatePath("/admin/utilisateurs");
@@ -184,7 +187,7 @@ export async function forceResetUserPasswordAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "admin_forced_reset" },
+    metadata: "Réinitialisation du mot de passe forcée par un administrateur",
   });
   return { ok: true, value: undefined };
 }
@@ -212,7 +215,8 @@ export async function revokeUserSessionsAction(
     resourceId: userId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { action: "sessions_revoked" },
+    metadata:
+      "Sessions actives de l'utilisateur révoquées par un administrateur",
   });
 
   revalidatePath(`/admin/utilisateurs/${userId}`);
@@ -257,7 +261,7 @@ export async function createProgrammeAction(
       resourceId: programme.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { reference: programme.reference },
+      metadata: `Programme ${programme.reference} créé`,
     });
     revalidatePath("/admin/programmes");
     return { ok: true, value: { id: programme.id } };
@@ -309,6 +313,7 @@ export async function updateProgrammeAction(
     resourceId: parsed.data.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    metadata: "Informations du programme mises à jour",
   });
   revalidatePath("/admin/programmes");
   revalidatePath(`/admin/programmes/${parsed.data.id}`);
@@ -333,7 +338,7 @@ export async function archiveProgrammeAction(
     resourceId: programmeId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { transition: "→ARCHIVED" },
+    metadata: "Programme archivé",
   });
   revalidatePath("/admin/programmes");
   return { ok: true, value: undefined };
@@ -486,7 +491,7 @@ export async function createLotAction(
       resourceId: lot.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { status: data.status, programmeId: data.programmeId },
+      metadata: `Lot créé avec le statut ${data.status} (programme ${data.programmeId})`,
     });
     revalidatePath(`/admin/programmes/${data.programmeId}`);
     return { ok: true, value: { id: lot.id } };
@@ -548,6 +553,7 @@ export async function updateLotAction(
     resourceId: data.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    metadata: `Lot mis à jour (programme ${data.programmeId})`,
   });
   revalidatePath(`/admin/programmes/${data.programmeId}`);
   return { ok: true, value: undefined };
@@ -588,7 +594,7 @@ export async function deleteLotAction(lotId: string): Promise<ActionResult> {
     resourceId: lotId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { action: "deleted" },
+    metadata: `Lot supprimé (programme ${lot.programmeId})`,
   });
   revalidatePath(`/admin/programmes/${lot.programmeId}`);
   return { ok: true, value: undefined };
@@ -622,6 +628,7 @@ export async function updateSettingsAction(
       }),
     ),
   );
+  invalidateSettingsCache();
 
   await audit({
     userId: me.id,
@@ -629,7 +636,7 @@ export async function updateSettingsAction(
     resourceType: "Setting",
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { keys: entries.map(([k]) => k) },
+    metadata: `Paramètres de la plateforme mis à jour : ${entries.map(([k]) => k).join(", ")}`,
   });
   revalidatePath("/admin/parametres");
   return { ok: true, value: undefined };

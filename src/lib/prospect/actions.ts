@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth/guards";
+import { requireRole, type SessionUser } from "@/lib/auth/guards";
+import { programmesForPromoter } from "@/lib/promoter/access";
 import { audit } from "@/lib/audit";
 import { getRequestContext } from "@/lib/request-context";
 import {
@@ -31,6 +32,21 @@ function revalidateAll() {
   for (const p of REVALIDATE_PATHS) revalidatePath(p);
 }
 
+/**
+ * Cloisonnement PROMOTER : un promoteur ne peut agir que sur les prospects
+ * rattachés à ses propres programmes (même frontière que la page
+ * /promoteur/prospects). Les autres rôles ne sont pas restreints.
+ */
+async function isWithinPromoterScope(
+  me: SessionUser,
+  programmeId: string | null | undefined,
+): Promise<boolean> {
+  if (me.role !== "PROMOTER") return true;
+  if (!programmeId) return false;
+  const allowed = await programmesForPromoter(me.id);
+  return allowed.includes(programmeId);
+}
+
 export async function createProspectAction(
   input: CreateProspectInput,
 ): Promise<ActionResult<{ id: string }>> {
@@ -44,6 +60,9 @@ export async function createProspectAction(
     };
   }
   const data = parsed.data;
+  if (!(await isWithinPromoterScope(me, data.programmeId))) {
+    return { ok: false, error: "Programme hors de votre périmètre" };
+  }
   const ctx = await getRequestContext();
 
   try {
@@ -67,7 +86,7 @@ export async function createProspectAction(
       resourceId: prospect.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { source: "manual" },
+      metadata: "Prospect créé manuellement",
     });
     revalidateAll();
     return { ok: true, value: { id: prospect.id } };
@@ -97,6 +116,9 @@ export async function updateProspectStatusAction(
     where: { id: parsed.data.prospectId },
   });
   if (!prospect) return { ok: false, error: "Prospect introuvable" };
+  if (!(await isWithinPromoterScope(me, prospect.programmeId))) {
+    return { ok: false, error: "Prospect hors de votre périmètre" };
+  }
 
   // Statut « qualifié » : prospect capable d'acheter mais avec délai.
   // On pose une échéance de relance par défaut à 3 mois (CDC évolution §2).
@@ -116,7 +138,7 @@ export async function updateProspectStatusAction(
     resourceId: parsed.data.prospectId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { from: prospect.status, to: parsed.data.status },
+    metadata: `Statut du prospect modifié : ${prospect.status} → ${parsed.data.status}`,
   });
   revalidateAll();
   return { ok: true, value: undefined };
@@ -194,6 +216,9 @@ export async function importProspectsAction(
       fieldErrors: flatten(parsed.error),
     };
   }
+  if (!(await isWithinPromoterScope(me, parsed.data.programmeId))) {
+    return { ok: false, error: "Programme hors de votre périmètre" };
+  }
   const ctx = await getRequestContext();
   const rows = parseCsv(parsed.data.csv);
   if (rows.length === 0) {
@@ -239,11 +264,7 @@ export async function importProspectsAction(
     resourceType: "Prospect",
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      source: parsed.data.source || "google_forms",
-      imported,
-      skipped,
-    },
+    metadata: `Import de prospects depuis ${parsed.data.source || "google_forms"} : ${imported} importé(s), ${skipped} ignoré(s)`,
   });
 
   revalidateAll();
@@ -260,6 +281,9 @@ export async function deleteProspectAction(
     where: { id: prospectId },
   });
   if (!prospect) return { ok: false, error: "Prospect introuvable" };
+  if (!(await isWithinPromoterScope(me, prospect.programmeId))) {
+    return { ok: false, error: "Prospect hors de votre périmètre" };
+  }
   if (prospect.convertedDossierId) {
     return {
       ok: false,
@@ -274,7 +298,7 @@ export async function deleteProspectAction(
     resourceId: prospectId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { action: "deleted" },
+    metadata: "Prospect supprimé",
   });
   revalidateAll();
   return { ok: true, value: undefined };

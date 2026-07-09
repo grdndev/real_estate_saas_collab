@@ -68,7 +68,7 @@ export async function requestDocumentAction(
     resourceId: created.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { dossierId: data.dossierId, label: data.label },
+    metadata: `Demande de document « ${data.label} » créée (dossier ${data.dossierId})`,
   });
 
   // Notifier le client si associé.
@@ -208,10 +208,7 @@ export async function sendMessageAction(
     resourceId: message.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      dossierId: parsed.data.dossierId,
-      length: parsed.data.body.length,
-    },
+    metadata: `Message envoyé sur le dossier ${parsed.data.dossierId} (${parsed.data.body.length} caractères)`,
   });
 
   const dossierId = parsed.data.dossierId;
@@ -376,7 +373,7 @@ export async function sendMessageByEmailAction(
     resourceId: message.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { dossierId, sentByEmail: true, attachmentCount: files.length },
+    metadata: `Message envoyé par email sur le dossier ${dossierId} (${files.length} pièce(s) jointe(s))`,
   });
 
   const dossierActors = await prisma.dossier.findUnique({
@@ -555,7 +552,8 @@ export async function updateClientProfileAction(
     resourceId: me.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { fields: ["firstName", "lastName", "phone", "address"] },
+    metadata:
+      "Coordonnées du profil mises à jour (prénom, nom, téléphone, adresse)",
   });
 
   revalidatePath("/profil");
@@ -609,7 +607,7 @@ export async function changeClientPasswordAction(
     resourceId: me.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "self_change" },
+    metadata: "Mot de passe modifié par l'utilisateur",
   });
   return { ok: true, value: undefined };
 }
@@ -630,7 +628,7 @@ export async function requestAccountDeletionAction(): Promise<ActionResult> {
     resourceId: me.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { transition: "→DELETION_REQUESTED", step: "rgpd_request" },
+    metadata: "Demande de suppression de compte (RGPD)",
   });
   revalidatePath("/profil");
   return { ok: true, value: undefined };

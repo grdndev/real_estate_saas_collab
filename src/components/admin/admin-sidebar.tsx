@@ -18,7 +18,7 @@ const NAV = [
   { href: "/admin/programmes", label: "Programmes", icon: Building2 },
   { href: "/admin/fonds", label: "Suivi de fonds", icon: Banknote },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
-  { href: "/admin/logs", label: "Logs", icon: File },
+  { href: "/admin/logs", label: "Activité", icon: File },
 ] as const;
 
 export function AdminSidebar() {

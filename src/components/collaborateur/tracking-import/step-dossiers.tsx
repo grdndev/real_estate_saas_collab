@@ -62,9 +62,11 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
 
   // Phase 1: classify all rows
   useEffect(() => {
+    let cancelled = false;
     async function classify() {
       const result: RowMeta[] = [];
       for (const row of rows) {
+        if (cancelled) return;
         if (!row.buyerEmail) {
           if (
             row.lotStatus === "AVAILABLE" &&
@@ -105,9 +107,12 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
           });
         }
       }
-      setMetas(result);
+      if (!cancelled) setMetas(result);
     }
     classify();
+    return () => {
+      cancelled = true;
+    };
   }, [rows]);
 
   // Phase 2: auto-process A and C cases once metas are ready
@@ -157,6 +162,9 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
     return () => {
       cancelled = true;
     };
+    // `lotIds` et `programmeId` sont figés par le parent avant le montage de
+    // cette étape ; les ajouter relancerait inutilement le traitement auto.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [metas]);
 
   const caseBRows = metas?.filter((m) => m.case === "B") ?? [];

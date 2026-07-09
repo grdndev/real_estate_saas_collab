@@ -29,7 +29,7 @@ export interface AuditEntry {
   action: AuditAction;
   resourceType: string;
   resourceId?: string | null;
-  metadata?: Record<string, unknown>;
+  metadata?: string | null;
   ip?: string | null;
   userAgent?: string | null;
 }
@@ -45,9 +45,7 @@ export async function audit(entry: AuditEntry): Promise<void> {
       action: entry.action,
       resourceType: entry.resourceType,
       resourceId: entry.resourceId ?? null,
-      metadata: entry.metadata
-        ? (JSON.parse(JSON.stringify(entry.metadata)) as object)
-        : undefined,
+      metadata: entry.metadata ?? null,
       ip: entry.ip ?? null,
       userAgent: entry.userAgent ?? null,
     },

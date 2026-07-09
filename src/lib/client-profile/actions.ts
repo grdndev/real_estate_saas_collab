@@ -106,7 +106,7 @@ export async function upsertClientProfileAction(
     resourceId: dossier.clientId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "client_profile_updated", dossierId: dossier.id },
+    metadata: `Fiche client mise à jour (dossier ${dossier.id})`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);

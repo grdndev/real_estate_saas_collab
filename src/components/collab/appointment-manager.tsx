@@ -101,10 +101,15 @@ export function AppointmentManager({
               <div className="flex items-center justify-between gap-2">
                 <span className="flex items-center gap-1.5 font-medium">
                   <CalendarClock className="size-4" aria-hidden />
-                  {new Date(a.scheduledAt).toLocaleString("fr-FR", {
-                    dateStyle: "long",
-                    timeStyle: "short",
-                  })}
+                  <time
+                    dateTime={new Date(a.scheduledAt).toISOString()}
+                    suppressHydrationWarning
+                  >
+                    {new Date(a.scheduledAt).toLocaleString("fr-FR", {
+                      dateStyle: "long",
+                      timeStyle: "short",
+                    })}
+                  </time>
                 </span>
                 <Badge
                   variant={a.status === "CANCELLED" ? "danger" : "success"}

@@ -196,10 +196,13 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   const norm = normalize(raw);
   if (norm === "ok" || norm === "x") return null;
 
-  // DD/MM/YYYY
+  // DD/MM/YYYY — en UTC, comme les dates série Excel et ISO ci-dessous,
+  // pour que la date calendaire ne dépende pas du fuseau du serveur.
   const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) {
-    const d = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+    const d = new Date(
+      Date.UTC(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1])),
+    );
     return isNaN(d.getTime()) ? null : d;
   }
 

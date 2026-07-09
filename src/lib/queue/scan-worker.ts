@@ -62,11 +62,7 @@ async function handleScanJob(job: Job<ScanDocumentJob>): Promise<void> {
         action: "DOCUMENT_DELETED",
         resourceType: "Document",
         resourceId: documentId,
-        metadata: {
-          step: "scan_failed",
-          verdict: result.verdict,
-          signature: result.signature,
-        },
+        metadata: `Document rejeté par l'analyse antivirus (verdict : ${result.verdict}${result.signature ? `, signature : ${result.signature}` : ""})`,
       });
     }
   } catch (err) {

@@ -128,7 +128,7 @@ export async function sendDirectMessageAction(
     resourceId: message.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { recipientId: data.recipientId, hasAttachment: !!attachmentKey },
+    metadata: `Message interne envoyé à l'utilisateur ${data.recipientId}${attachmentKey ? " avec pièce jointe" : ""}`,
   });
 
   revalidatePath("/messagerie-interne");

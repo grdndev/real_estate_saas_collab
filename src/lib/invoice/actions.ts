@@ -93,7 +93,7 @@ export async function createInvoiceAction(
     resourceId: invoice.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { dossierId: dossier.id, number: data.number },
+    metadata: `Facture ${data.number} créée (dossier ${dossier.id})`,
   });
 
   revalidatePath("/collaborateur/facturation");
@@ -155,7 +155,7 @@ export async function sendInvoiceToNotaryAction(
     resourceId: invoiceId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "sent_to_notary" },
+    metadata: `Facture ${invoice.number} transmise au notaire (dossier ${invoice.dossier.reference})`,
   });
 
   revalidatePath("/collaborateur/facturation");

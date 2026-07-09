@@ -215,13 +215,7 @@ export async function requestSignatureAction(
     resourceId: signature.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      dossierId: dossier.id,
-      procedureId: procedure.id,
-      signer: parsed.data.signerEmail,
-      yousignDocumentId,
-      hasSourceDocument: Boolean(parsed.data.documentId),
-    },
+    metadata: `Signature demandée à ${parsed.data.signerEmail} (dossier ${dossier.id}, procédure Yousign ${procedure.id})`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -330,7 +324,7 @@ export async function notifySignatureUpdate(
       newStatus === "SIGNED" ? "SIGNATURE_COMPLETED" : "SIGNATURE_REQUESTED",
     resourceType: "Signature",
     resourceId: signature.id,
-    metadata: { newStatus, procedureId },
+    metadata: `Statut de la signature mis à jour : ${newStatus} (procédure Yousign ${procedureId})`,
   });
 }
 

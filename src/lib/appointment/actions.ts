@@ -127,7 +127,7 @@ export async function createAppointmentAction(
     resourceId: appointment.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "appointment_created", dossierId: dossier.id },
+    metadata: `Rendez-vous notaire créé (dossier ${dossier.reference})`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -177,7 +177,7 @@ export async function cancelAppointmentAction(
     resourceId: appointmentId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "appointment_cancelled" },
+    metadata: `Rendez-vous notaire annulé (dossier ${dossier.reference})`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);

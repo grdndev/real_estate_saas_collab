@@ -57,10 +57,6 @@ export function DocumentDropZone({
     return null;
   }
 
-  function handleFile(file: File) {
-    handleFiles([file]);
-  }
-
   function handleFiles(files: File[]) {
     setError(null);
     for (const file of files) {

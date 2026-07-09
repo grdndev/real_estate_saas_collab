@@ -32,7 +32,7 @@ export const authConfig = {
   },
   providers: [],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       const inactivityMs =
         (await getSettings()).SESSION_INACTIVITY_MINUTES * 60 * 1000;
       const now = Date.now();

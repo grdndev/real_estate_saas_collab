@@ -116,10 +116,15 @@ export function MessageThread({
                 </div>
                 <p className="text-xs text-slate-400">
                   {isMe ? "Moi" : msg.senderName} ·{" "}
-                  {msg.createdAt.toLocaleString("fr-FR", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
+                  <time
+                    dateTime={msg.createdAt.toISOString()}
+                    suppressHydrationWarning
+                  >
+                    {msg.createdAt.toLocaleString("fr-FR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </time>
                 </p>
               </div>
             );

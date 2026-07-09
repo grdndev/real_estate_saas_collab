@@ -49,7 +49,10 @@ export async function addNoteAction(
     resourceId: note.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { scope: data.scope },
+    metadata:
+      data.scope === "PROSPECT"
+        ? "Note partagée créée sur un prospect"
+        : "Note partagée créée sur un dossier",
   });
 
   if (data.scope === "PROSPECT") {

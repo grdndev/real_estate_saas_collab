@@ -164,11 +164,7 @@ export async function createDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      reference,
-      programmeId: data.programmeId,
-      hasClient: Boolean(data.clientId),
-    },
+    metadata: `Dossier ${reference} créé (programme ${data.programmeId}${data.clientId ? ", avec client associé" : ""})`,
   });
 
   revalidatePath("/collaborateur");
@@ -236,7 +232,7 @@ export async function updateDossierStatusAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { from: dossier.status, to: data.status },
+    metadata: `Statut du dossier modifié : ${dossier.status} → ${data.status}`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -315,7 +311,7 @@ export async function assignClientAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { action: "client_assigned", clientId: data.clientId },
+    metadata: `Client ${data.clientId} associé au dossier`,
   });
 
   // Notifier le client de l'association (déclencheur CDC §8.5)
@@ -378,7 +374,7 @@ export async function assignCollaboratorAction(
     resourceId: data.dossierId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { action: "collaborator_assigned", role: data.role },
+    metadata: `Collaborateur associé au dossier avec le rôle ${data.role}`,
   });
   revalidatePath(`/collaborateur/dossiers/${data.dossierId}`);
   return { ok: true, value: undefined };
@@ -412,6 +408,7 @@ export async function revealClientNameAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    metadata: "Identité du client révélée sur le dossier",
   });
 
   return {
@@ -618,12 +615,7 @@ export async function createClientAndDossierAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      role: "CLIENT",
-      via: "collab_create",
-      dossierId: dossier.id,
-      reference,
-    },
+    metadata: `Compte client créé par un collaborateur (dossier ${reference})`,
   });
   await audit({
     userId: me.id,
@@ -632,7 +624,7 @@ export async function createClientAndDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { reference, programmeId: data.programmeId, clientCreated: true },
+    metadata: `Dossier ${reference} créé avec un nouveau client (programme ${data.programmeId})`,
   });
 
   // Pièces déposées dès la création (best-effort — n'invalide pas la création).
@@ -776,7 +768,7 @@ export async function createClientOnlyAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { role: "CLIENT", via: "tracking_import" },
+    metadata: "Compte client créé via l'import d'un fichier de suivi",
   });
 
   return { ok: true, value: { userId: user.id } };
@@ -858,7 +850,7 @@ export async function relaunchClientAction(
       resourceType: "Dossier",
       resourceId: dossier.id,
       createdAt: { gte: new Date(Date.now() - 12 * 60 * 60_000) },
-      metadata: { path: ["step"], equals: "client_relaunch" },
+      metadata: { startsWith: "Client relancé" },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -932,10 +924,7 @@ export async function relaunchClientAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      step: "client_relaunch",
-      hasComment: Boolean(parsed.data.comment),
-    },
+    metadata: `Client relancé sur le dossier${parsed.data.comment ? ", avec commentaire" : ""}`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -1001,7 +990,9 @@ export async function setDossierOptionAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "option", optioned: data.optioned },
+    metadata: data.optioned
+      ? "Option posée sur le dossier"
+      : "Option retirée du dossier",
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -1063,7 +1054,7 @@ export async function recordOptionReminderAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "option_reminder" },
+    metadata: "Relance de l'option envoyée au client",
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -1131,11 +1122,7 @@ export async function updateContractStatusAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      axis: "contract",
-      from: dossier.contractStatus,
-      to: data.contractStatus,
-    },
+    metadata: `Statut contractuel du dossier modifié : ${dossier.contractStatus} → ${data.contractStatus}`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);

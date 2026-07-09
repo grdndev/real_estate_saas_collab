@@ -22,7 +22,6 @@ const STEP_LABELS = ["Fichier", "Programme", "Lots", "Dossiers"];
 export function TrackingImportModal({ open, onClose, programmes }: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [step, setStep] = React.useState<0 | 1 | 2 | 3>(0);
-  const [fileB64, setFileB64] = React.useState<string | null>(null);
   const [parsedRows, setParsedRows] = React.useState<ParsedTrackingLot[]>([]);
   const [parseErrors, setParseErrors] = React.useState<string[]>([]);
   const [programmeId, setProgrammeId] = React.useState<string | null>(null);
@@ -42,7 +41,6 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
         return;
     }
     setStep(0);
-    setFileB64(null);
     setParsedRows([]);
     setParseErrors([]);
     setProgrammeId(null);
@@ -115,8 +113,7 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
         )}
         {step === 0 && (
           <StepUpload
-            onParsed={(b64, rows, errors) => {
-              setFileB64(b64);
+            onParsed={(_b64, rows, errors) => {
               setParsedRows(rows);
               setParseErrors(errors);
               setStep(1);
@@ -131,7 +128,6 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
               setStep(2);
             }}
             onBack={() => {
-              setFileB64(null);
               setParsedRows([]);
               setParseErrors([]);
               setStep(0);

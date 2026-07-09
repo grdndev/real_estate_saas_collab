@@ -168,7 +168,12 @@ export function ProspectsTable({
                   </div>
                 </Td>
                 <Td className="text-xs text-slate-500">
-                  {p.createdAt.toLocaleDateString("fr-FR")}
+                  <time
+                    dateTime={p.createdAt.toISOString()}
+                    suppressHydrationWarning
+                  >
+                    {p.createdAt.toLocaleDateString("fr-FR")}
+                  </time>
                 </Td>
                 <Td>
                   <button

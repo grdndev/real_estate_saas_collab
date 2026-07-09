@@ -90,8 +90,10 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
+            {/* key par index : liste de taille fixe, jamais réordonnée ;
+                la référence est éditable (et non garantie unique). */}
             {lots.map((lot, i) => (
-              <tr key={lot.reference} className="hover:bg-slate-50">
+              <tr key={i} className="hover:bg-slate-50">
                 <td className="px-2 py-1">
                   <input
                     className="w-full rounded border border-slate-200 px-1.5 py-1 font-mono text-xs"

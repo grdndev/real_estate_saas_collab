@@ -1,24 +1,18 @@
 "use client";
 
-import { type JsonValue } from "@/generated/prisma/internal/prismaNamespace";
 import { useState } from "react";
 
-type fetchLogs = ({
-  user: {
-    firstName: string;
-    lastName: string;
-  } | null;
-} & {
+type fetchLogs = {
   id: string;
   userId: string | null;
   action: string;
   resourceType: string;
   resourceId: string | null;
-  metadata: JsonValue;
+  metadata: string | null;
   ip: string | null;
   userAgent: string | null;
   createdAt: Date;
-})[];
+}[];
 
 export default function ActivityLog({ logs }: { logs: fetchLogs }) {
   const [page, setPage] = useState(0);
@@ -44,11 +38,7 @@ export default function ActivityLog({ logs }: { logs: fetchLogs }) {
               <span className="text-xs text-slate-500">
                 {event.createdAt.toLocaleString("fr-FR")}
               </span>
-              <span className="text-slate-600">
-                {event.user
-                  ? `${event.user.firstName} ${event.user.lastName}`
-                  : "système"}
-              </span>
+              <span className="text-slate-600">{event.metadata || "—"}</span>
               <span className="text-right text-xs text-slate-600">
                 {event.userAgent || "N/A"} - {event.ip || "N/A"}
               </span>

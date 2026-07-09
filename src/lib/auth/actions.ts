@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { AuthError } from "next-auth";
 import { z } from "zod";
 import { signIn, signOut } from "@/auth";
@@ -61,17 +60,6 @@ export async function loginAction(
   }
   const { email, password, from, remember } = parsed.data;
   const ctx = await getRequestContext();
-  const h = await headers();
-  const reqMeta = {
-    host: h.get("host"),
-    forwardedHost: h.get("x-forwarded-host"),
-    forwardedProto: h.get("x-forwarded-proto"),
-    forwardedPort: h.get("x-forwarded-port"),
-    origin: h.get("origin"),
-    referer: h.get("referer"),
-    userAgent: h.get("user-agent"),
-    hasCookie: !!h.get("cookie"),
-  };
 
   // Trace de tentative (avant l'évaluation du mot de passe).
   await prisma.loginAttempt.create({
@@ -120,7 +108,7 @@ export async function loginAction(
         resourceType: "User",
         ip: ctx.ip,
         userAgent: ctx.userAgent,
-        metadata: { email },
+        metadata: `Échec de connexion avec l'email ${email}`,
       });
       return { ok: false, error: "Email ou mot de passe incorrect." };
     }
@@ -134,6 +122,7 @@ export async function loginAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    metadata: "Connexion réussie",
   });
 
   // Si "from" pointe vers une URL légitime, on s'y rend ; sinon, dashboard du rôle.
@@ -202,7 +191,7 @@ export async function signupClientAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { role: "CLIENT", via: "self_signup" },
+    metadata: "Compte client créé par auto-inscription",
   });
 
   const { token, hash } = generateOpaqueToken();
@@ -293,7 +282,7 @@ export async function verifyEmailAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { transition: "PENDING_EMAIL→PENDING_ASSOCIATION" },
+    metadata: "Email vérifié — compte en attente d'association à un dossier",
   });
 
   return { ok: true, value: undefined };
@@ -327,7 +316,7 @@ export async function requestPasswordResetAction(
       resourceId: user.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { step: "reset_requested" },
+      metadata: "Réinitialisation du mot de passe demandée",
     });
 
     const { token, hash } = generateOpaqueToken();
@@ -407,7 +396,7 @@ export async function applyPasswordResetAction(
     resourceId: reset.userId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "reset_applied" },
+    metadata: "Mot de passe réinitialisé via le lien envoyé par email",
   });
 
   return { ok: true, value: undefined };
@@ -424,6 +413,7 @@ export async function logoutAction(): Promise<never> {
     resourceType: "User",
     ip: ctx.ip,
     userAgent: ctx.userAgent,
+    metadata: "Déconnexion de la plateforme",
   });
   await signOut({ redirect: false });
   redirect("/connexion");

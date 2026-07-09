@@ -84,7 +84,7 @@ export async function createTrackingProgrammeAction(
       resourceId: prog.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { via: "tracking_import_selected" },
+      metadata: `Programme ${prog.reference} sélectionné pour l'import d'un fichier de suivi`,
     });
     return { ok: true, value: { programmeId: prog.id } };
   }
@@ -106,7 +106,7 @@ export async function createTrackingProgrammeAction(
       resourceId: prog.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { via: "tracking_import" },
+      metadata: `Programme ${prog.reference} créé via l'import d'un fichier de suivi`,
     });
     return { ok: true, value: { programmeId: prog.id } };
   } catch (err) {
@@ -264,6 +264,9 @@ export async function upsertTrackingDossierAction(
     processData.guaranteeDepositReceivedAt,
   );
   const reservationEndDate = toDate(processData.reservationEndDate);
+  // L'expiration de l'option est la fin de réservation ; à défaut, la date
+  // de prise d'option (mieux vaut une option affichée expirée qu'aucune date).
+  const optionExpiry = reservationEndDate ?? optionDate;
 
   type DS = "NEW_LEAD" | "RESERVATION_SENT" | "SIGNED_AT_NOTARY" | "ACT_SIGNED";
   let dossierStatus: DS = "NEW_LEAD";
@@ -352,7 +355,7 @@ export async function upsertTrackingDossierAction(
           status: effectiveStatus,
           contractStatus,
           optioned,
-          optionExpiresAt: optioned ? optionDate : null,
+          optionExpiresAt: optioned ? optionExpiry : null,
           notaryTransmittedAt,
           closedAt: actSignedAt ?? null,
         },
@@ -391,7 +394,7 @@ export async function upsertTrackingDossierAction(
       resourceId: existingDossier.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: { programmeId, via: "tracking_import" },
+      metadata: `Dossier mis à jour via l'import d'un fichier de suivi (programme ${programmeId})`,
     });
 
     revalidatePath("/collaborateur");
@@ -412,7 +415,7 @@ export async function upsertTrackingDossierAction(
         status: dossierStatus,
         contractStatus,
         optioned,
-        optionExpiresAt: optioned ? optionDate : null,
+        optionExpiresAt: optioned ? optionExpiry : null,
         notaryTransmittedAt,
         closedAt: actSignedAt ?? null,
       },
@@ -476,7 +479,7 @@ export async function upsertTrackingDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { reference, programmeId, via: "tracking_import" },
+    metadata: `Dossier ${reference} créé via l'import d'un fichier de suivi (programme ${programmeId})`,
   });
 
   revalidatePath("/collaborateur");

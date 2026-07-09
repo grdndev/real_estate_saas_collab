@@ -90,7 +90,7 @@ export async function upsertTreasuryEntryAction(
     resourceId: parsed.data.programmeId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { step: "treasury_entry", month: parsed.data.month },
+    metadata: `Trésorerie du mois ${parsed.data.month} saisie (programme ${parsed.data.programmeId})`,
   });
 
   revalidatePath(`/promoteur/${parsed.data.programmeId}/tresorerie`);
@@ -189,7 +189,7 @@ export async function importProgrammeAction(
     resourceId: programme.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { via: "excel_import", reference, lotsCreated: lots.length },
+    metadata: `Programme ${reference} créé par import Excel (${lots.length} lots)`,
   });
 
   revalidatePath("/promoteur");
@@ -280,11 +280,7 @@ export async function prepareProgrammeDocumentUploadAction(input: {
     resourceId: doc.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: {
-      programmeId: parsed.data.programmeId,
-      step: "prepare",
-      category: parsed.data.category,
-    },
+    metadata: `Dépôt d'un document de programme (programme ${parsed.data.programmeId}, catégorie ${parsed.data.category})`,
   });
 
   return { ok: true, value: { documentId: doc.id, uploadUrl } };
@@ -331,7 +327,7 @@ export async function deleteProgrammeDocumentAction(
     resourceId: documentId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { programmeId: doc.programmeId },
+    metadata: `Document de programme supprimé (programme ${doc.programmeId})`,
   });
 
   revalidatePath(`/promoteur/${doc.programmeId}`);
@@ -363,7 +359,7 @@ export async function getProgrammeDocumentDownloadUrlAction(
     resourceId: documentId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: { programmeId: doc.programmeId },
+    metadata: `Document de programme « ${doc.fileName} » téléchargé (programme ${doc.programmeId})`,
   });
 
   return { ok: true, value: { url } };

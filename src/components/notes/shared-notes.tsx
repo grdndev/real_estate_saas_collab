@@ -83,10 +83,15 @@ export function SharedNotes({ scope, targetId, notes, currentUserId }: Props) {
               <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
                 <span>
                   {n.authorName} ·{" "}
-                  {new Date(n.createdAt).toLocaleString("fr-FR", {
-                    dateStyle: "short",
-                    timeStyle: "short",
-                  })}
+                  <time
+                    dateTime={new Date(n.createdAt).toISOString()}
+                    suppressHydrationWarning
+                  >
+                    {new Date(n.createdAt).toLocaleString("fr-FR", {
+                      dateStyle: "short",
+                      timeStyle: "short",
+                    })}
+                  </time>
                 </span>
                 {n.authorId === currentUserId && (
                   <button
