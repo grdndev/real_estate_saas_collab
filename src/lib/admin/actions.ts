@@ -347,7 +347,7 @@ export async function archiveProgrammeAction(
 export async function assignPromoterAction(
   input: z.infer<typeof assignPromoterSchema>,
 ): Promise<ActionResult> {
-  await requireRole("SUPER_ADMIN");
+  const me = await requireRole("SUPER_ADMIN");
   const parsed = assignPromoterSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Saisie invalide" };
@@ -376,6 +376,16 @@ export async function assignPromoterAction(
     create: parsed.data,
     update: {},
   });
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "PROMOTER_ASSIGNED",
+    resourceType: "Programme",
+    resourceId: parsed.data.programmeId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Promoteur assigné au programme ${programme.name}`,
+  });
   revalidatePath(`/admin/programmes/${parsed.data.programmeId}`);
   return { ok: true, value: undefined };
 }
@@ -383,7 +393,7 @@ export async function assignPromoterAction(
 export async function unassignPromoterAction(
   input: z.infer<typeof assignPromoterSchema>,
 ): Promise<ActionResult> {
-  await requireRole("SUPER_ADMIN");
+  const me = await requireRole("SUPER_ADMIN");
   const parsed = assignPromoterSchema.safeParse(input);
   if (!parsed.success) {
     return { ok: false, error: "Saisie invalide" };
@@ -409,6 +419,16 @@ export async function unassignPromoterAction(
         promoterId: parsed.data.promoterId,
       },
     },
+  });
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "PROMOTER_UNASSIGNED",
+    resourceType: "Programme",
+    resourceId: parsed.data.programmeId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Promoteur retiré du programme ${programme.name}`,
   });
   revalidatePath(`/admin/programmes/${parsed.data.programmeId}`);
   return { ok: true, value: undefined };

@@ -92,7 +92,7 @@ export async function acceptDocumentRequestAction({
 }: {
   requestId: string;
 }): Promise<ActionResult> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const request = await prisma.documentRequest.findUnique({
     where: { id: requestId },
   });
@@ -100,6 +100,16 @@ export async function acceptDocumentRequestAction({
   await prisma.documentRequest.update({
     where: { id: requestId },
     data: { status: "ACCEPTED", fulfilled: true },
+  });
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_REQUEST_UPDATED",
+    resourceType: "DocumentRequest",
+    resourceId: request.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Pièce « ${request.label} » acceptée (dossier ${request.dossierId})`,
   });
   revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
   revalidatePath("/client/documents");
@@ -111,7 +121,7 @@ export async function refuseDocumentRequestAction({
 }: {
   requestId: string;
 }): Promise<ActionResult> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const request = await prisma.documentRequest.findUnique({
     where: { id: requestId },
     include: { dossier: { select: { clientId: true } } },
@@ -120,6 +130,16 @@ export async function refuseDocumentRequestAction({
   await prisma.documentRequest.update({
     where: { id: requestId },
     data: { status: "REFUSED" },
+  });
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_REQUEST_UPDATED",
+    resourceType: "DocumentRequest",
+    resourceId: request.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Pièce « ${request.label} » refusée (dossier ${request.dossierId})`,
   });
   if (request.dossier.clientId) {
     await notify({
@@ -157,6 +177,16 @@ export async function cancelDocumentRequestAction(
   if (!dossier) return { ok: false, error: "Accès refusé" };
 
   await prisma.documentRequest.delete({ where: { id: request.id } });
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_REQUEST_UPDATED",
+    resourceType: "DocumentRequest",
+    resourceId: request.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Demande de pièce « ${request.label} » annulée (dossier ${request.dossierId})`,
+  });
   revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
   revalidatePath("/client");
   return { ok: true, value: undefined };

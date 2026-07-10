@@ -5,6 +5,8 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
+import { audit } from "@/lib/audit";
+import { getRequestContext } from "@/lib/request-context";
 import type { ActionResult } from "@/lib/auth/actions";
 import { parseFondsWorkbook } from "@/lib/collaborateur/fonds-import";
 import type {
@@ -96,9 +98,7 @@ function parseMonthYear(mois: string, annee: number): Date | null {
 // ACTION 1 : parse
 // ---------------------------------------------------------------------------
 
-export async function parseFondsFileAction(
-  fileB64: string,
-): Promise<
+export async function parseFondsFileAction(fileB64: string): Promise<
   ActionResult<{
     rows: ParsedFondsLot[];
     appelTypes: ParsedFondsAppelType[];
@@ -126,7 +126,7 @@ export async function importFondsSuiviAction(input: {
   appelTypes: unknown[];
   rows: unknown[];
 }): Promise<ActionResult<{ matched: number; unmatched: string[] }>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
   const parsed = importSchema.safeParse(input);
   if (!parsed.success) {
@@ -294,6 +294,17 @@ export async function importFondsSuiviAction(input: {
       update: { income: new Prisma.Decimal(income) },
     });
   }
+
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "FONDS_UPDATED",
+    resourceType: "Programme",
+    resourceId: programmeId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Import du suivi des fonds : ${matched} lot(s) mis à jour, ${unmatched.length} non reconnu(s)`,
+  });
 
   revalidatePath("/collaborateur/fonds");
 

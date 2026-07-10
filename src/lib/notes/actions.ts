@@ -79,6 +79,20 @@ export async function deleteNoteAction(noteId: string): Promise<ActionResult> {
 
   await prisma.note.delete({ where: { id: noteId } });
 
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "NOTE_DELETED",
+    resourceType: "Note",
+    resourceId: note.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata:
+      note.scope === "PROSPECT"
+        ? `Note partagée supprimée sur le prospect ${note.prospectId}`
+        : `Note partagée supprimée sur le dossier ${note.dossierId}`,
+  });
+
   if (note.scope === "PROSPECT") {
     revalidatePath("/collaborateur/prospects");
   } else if (note.dossierId) {

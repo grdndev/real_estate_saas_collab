@@ -5,6 +5,8 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
+import { audit } from "@/lib/audit";
+import { getRequestContext } from "@/lib/request-context";
 import type { ActionResult } from "@/lib/auth/actions";
 
 const updateSchema = z.object({
@@ -35,7 +37,7 @@ function toDate(iso: string | null | undefined): Date | null {
 export async function updateLotFondsSuiviAction(
   input: unknown,
 ): Promise<ActionResult<void>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Données invalides." };
@@ -44,7 +46,7 @@ export async function updateLotFondsSuiviAction(
 
   const lot = await prisma.lot.findUnique({
     where: { id: lotId },
-    select: { programmeId: true },
+    select: { programmeId: true, reference: true },
   });
   if (!lot) return { ok: false, error: "Lot introuvable." };
 
@@ -100,6 +102,17 @@ export async function updateLotFondsSuiviAction(
     });
   }
 
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "FONDS_UPDATED",
+    resourceType: "LotFondsSuivi",
+    resourceId: fondsUpserted.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Suivi des fonds mis à jour pour le lot ${lot.reference} (${appels.length} appel(s) de fonds)`,
+  });
+
   revalidatePath("/collaborateur/fonds");
   revalidatePath(`/collaborateur/fonds/${lotId}`);
   revalidatePath("/admin/fonds");
@@ -115,7 +128,7 @@ export async function upsertProgrammeAppelAction(input: {
   pourcentage: number;
   datePrevue: string | null;
 }): Promise<ActionResult<void>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
   const lotsFonds = await prisma.lotFondsSuivi.findMany({
     where: { programmeId: input.programmeId },
@@ -142,6 +155,17 @@ export async function upsertProgrammeAppelAction(input: {
     });
   }
 
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "FONDS_UPDATED",
+    resourceType: "Programme",
+    resourceId: input.programmeId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Appel de fonds n°${input.numero} « ${input.label} » défini sur ${lotsFonds.length} lot(s)`,
+  });
+
   revalidatePath("/collaborateur/fonds");
   revalidatePath("/admin/fonds");
 
@@ -152,13 +176,24 @@ export async function deleteProgrammeAppelAction(input: {
   programmeId: string;
   numero: number;
 }): Promise<ActionResult<void>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
   await prisma.appelFonds.deleteMany({
     where: {
       numero: input.numero,
       lotFonds: { programmeId: input.programmeId },
     },
+  });
+
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "FONDS_UPDATED",
+    resourceType: "Programme",
+    resourceId: input.programmeId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Appel de fonds n°${input.numero} supprimé du programme`,
   });
 
   revalidatePath("/collaborateur/fonds");

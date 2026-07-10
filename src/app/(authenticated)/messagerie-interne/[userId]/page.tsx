@@ -51,6 +51,8 @@ export default async function ConversationPage({ params }: PageProps) {
     notFound();
   }
 
+  await markConversationReadAction(other.id);
+
   const messages = await prisma.directMessage.findMany({
     where: {
       OR: [
@@ -60,8 +62,6 @@ export default async function ConversationPage({ params }: PageProps) {
     },
     orderBy: { createdAt: "asc" },
   });
-
-  await markConversationReadAction(other.id);
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">

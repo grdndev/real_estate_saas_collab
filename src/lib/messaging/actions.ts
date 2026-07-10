@@ -148,7 +148,5 @@ export async function markConversationReadAction(
     data: { readAt: new Date() },
   });
 
-  revalidatePath("/messagerie-interne");
-  revalidatePath(`/messagerie-interne/${otherUserId}`);
   return { ok: true, value: undefined };
 }

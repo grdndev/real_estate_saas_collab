@@ -418,7 +418,7 @@ export async function deleteDocumentAction(
 export async function toggleDocumentVisibilityAction(
   documentId: string,
 ): Promise<ActionResult> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   if (!documentId) return { ok: false, error: "Identifiant manquant" };
 
   const document = await prisma.document.findUnique({
@@ -437,6 +437,17 @@ export async function toggleDocumentVisibilityAction(
   await prisma.document.update({
     where: { id: documentId },
     data: { isShared: !document.isShared },
+  });
+
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "DOCUMENT_VISIBILITY_CHANGED",
+    resourceType: "Document",
+    resourceId: document.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Document « ${document.fileName} » ${document.isShared ? "masqué au client" : "partagé avec le client"} (dossier ${document.dossierId})`,
   });
 
   if (document.dossierId) {
