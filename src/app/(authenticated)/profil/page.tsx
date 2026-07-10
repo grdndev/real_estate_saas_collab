@@ -37,6 +37,9 @@ export default async function ProfilePage() {
   const me = await requireUser();
   const user = await prisma.user.findUniqueOrThrow({
     where: { id: me.id },
+    include: {
+      clientProfile: true,
+    },
   });
 
   const address = decodeAddress(user.addressEnc);
@@ -50,6 +53,16 @@ export default async function ProfilePage() {
     postalCode: address?.postalCode ?? "",
     city: address?.city ?? "",
     country: address?.country ?? "France",
+    birthName: user.clientProfile?.birthName ?? "",
+    birthDate: user.clientProfile?.birthDate?.toISOString().slice(0, 10) ?? "",
+    birthPlace: user.clientProfile?.birthPlace ?? "",
+    profession: user.clientProfile?.profession ?? "",
+    nationality: user.clientProfile?.nationality ?? "",
+    familyStatus: user.clientProfile?.familyStatus ?? "",
+    marriageDate:
+      user.clientProfile?.marriageDate?.toISOString().slice(0, 10) ?? "",
+    marriagePlace: user.clientProfile?.marriagePlace ?? "",
+    marriageContract: user.clientProfile?.marriageContract ?? "",
   };
 
   const isClient = me.role === "CLIENT";

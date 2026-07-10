@@ -8,7 +8,11 @@ import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { notify } from "@/lib/notifications";
 import { getMailer } from "@/lib/mail";
-import { newMessageMail, messageByEmailMail } from "@/lib/mail/templates";
+import {
+  newMessageMail,
+  messageByEmailMail,
+  documentDeclinedMail,
+} from "@/lib/mail/templates";
 import { encrypt } from "@/lib/crypto";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { getRequestContext } from "@/lib/request-context";
@@ -24,9 +28,17 @@ import {
   type UpdateProfileInput,
 } from "@/lib/client-space/schemas";
 import type { ActionResult } from "@/lib/auth/actions";
+import { FAMILY_STATUS_LABEL } from "../client-profile/schemas";
+import { type FamilyStatus } from "@/generated/prisma/enums";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
+}
+
+function parseDate(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 // =====================================================
@@ -118,13 +130,17 @@ export async function acceptDocumentRequestAction({
 
 export async function refuseDocumentRequestAction({
   requestId,
+  reason,
 }: {
   requestId: string;
+  reason: string;
 }): Promise<ActionResult> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const request = await prisma.documentRequest.findUnique({
     where: { id: requestId },
-    include: { dossier: { select: { clientId: true } } },
+    include: {
+      dossier: { select: { client: { select: { id: true, email: true } } } },
+    },
   });
   if (!request) return { ok: false, error: "Demande introuvable" };
   await prisma.documentRequest.update({
@@ -139,17 +155,23 @@ export async function refuseDocumentRequestAction({
     resourceId: request.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Pièce « ${request.label} » refusée (dossier ${request.dossierId})`,
+    metadata: `Pièce « ${request.label} » refusée (dossier ${request.dossierId} - Raison : ${reason})`,
   });
-  if (request.dossier.clientId) {
+
+  if (request.dossier.client) {
     await notify({
-      userId: request.dossier.clientId,
+      userId: request.dossier.client.id,
       kind: "DOCUMENT_REQUESTED",
       title: "Pièce refusée",
-      body: request.label,
+      body: `${request.label}`,
       link: "/client/documents",
     });
+
+    getMailer().send(
+      documentDeclinedMail(request.dossier.client.email, request.label, reason),
+    );
   }
+
   revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
   revalidatePath("/client/documents");
   return { ok: true, value: undefined };
@@ -546,22 +568,45 @@ export async function updateClientProfileAction(
   }
   const data = parsed.data;
   const ctx = await getRequestContext();
+  const familyStatus =
+    data.familyStatus && data.familyStatus in FAMILY_STATUS_LABEL
+      ? (data.familyStatus as FamilyStatus)
+      : null;
 
-  await prisma.user.update({
-    where: { id: me.id },
-    data: {
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phoneEnc: encrypt(data.phone),
-      addressEnc: encrypt(
-        JSON.stringify({
-          line: data.addressLine,
-          postalCode: data.postalCode,
-          city: data.city,
-          country: data.country,
-        }),
-      ),
-    },
+  const profileData = {
+    birthName: data.birthName || null,
+    birthDate: parseDate(data.birthDate ?? ""),
+    birthPlace: data.birthPlace || null,
+    profession: data.profession || null,
+    nationality: data.nationality || null,
+    familyStatus,
+    marriageDate: parseDate(data.marriageDate ?? ""),
+    marriagePlace: data.marriagePlace || null,
+    marriageContract: data.marriageContract || null,
+  };
+
+  await prisma.$transaction(async (tx) => {
+    await prisma.user.update({
+      where: { id: me.id },
+      data: {
+        firstName: data.firstName,
+        lastName: data.lastName,
+        phoneEnc: encrypt(data.phone),
+        addressEnc: encrypt(
+          JSON.stringify({
+            line: data.addressLine,
+            postalCode: data.postalCode,
+            city: data.city,
+            country: data.country,
+          }),
+        ),
+      },
+    });
+    await tx.clientProfile.upsert({
+      where: { userId: me.id },
+      create: { userId: me.id, ...profileData },
+      update: profileData,
+    });
   });
 
   await audit({

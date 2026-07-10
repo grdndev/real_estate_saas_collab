@@ -162,3 +162,28 @@ export function welcomeMail(to: string, firstName: string): MailMessage {
     text,
   };
 }
+
+export function documentDeclinedMail(
+  to: string,
+  document: string,
+  reason: string,
+): MailMessage {
+  const text =
+    `Bonjour,\n\n` +
+    `Le document "${document}" que vous avez soumis a été refusé pour la raison suivante :\n\n` +
+    `"${reason}"\n\n` +
+    `Veuillez soumettre un nouveau document conforme aux exigences.`;
+  const html = wrapHtml(
+    "Document refusé",
+    `<p style="color:#1B2A4A; font-size:14px;">Bonjour,</p>
+     <p style="color:#475569; font-size:14px;">Le document <strong>${escapeHtml(document)}</strong> que vous avez soumis a été refusé pour la raison suivante :</p>
+     <blockquote style="border-left:3px solid #0FB8A9; margin:16px 0; padding:8px 16px; color:#475569; font-size:14px; font-style:italic;">${escapeHtml(reason)}</blockquote>
+     <p style="color:#475569; font-size:14px;">Veuillez soumettre un nouveau document conforme aux exigences.</p>`,
+  );
+  return {
+    to,
+    subject: `Document refusé : ${document}`,
+    html,
+    text,
+  };
+}

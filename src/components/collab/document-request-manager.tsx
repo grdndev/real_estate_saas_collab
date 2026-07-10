@@ -8,7 +8,7 @@ import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PreviewDialog } from "@/components/ui/dialog";
+import { ConfirmDialog, PreviewDialog } from "@/components/ui/dialog";
 import {
   acceptDocumentRequestAction,
   cancelDocumentRequestAction,
@@ -47,6 +47,9 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
+
+  const [refuseTarget, setRefuseTarget] = useState<RequestItem | null>(null);
+  const [refuseReason, setRefuseReason] = useState("");
 
   function add() {
     if (label.trim().length < 2) return;
@@ -90,14 +93,17 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
     });
   }
 
-  function refuse(requestId: string) {
+  function refuse(requestId: string, reason: string) {
     setError(null);
     startTransition(async () => {
-      const result = await refuseDocumentRequestAction({ requestId });
+      const result = await refuseDocumentRequestAction({ requestId, reason });
       if (!result.ok) {
         setError(result.error);
         return;
       }
+
+      setRefuseTarget(null);
+      setRefuseReason("");
       router.refresh();
     });
   }
@@ -219,7 +225,10 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
                       variant="ghost"
                       size="sm"
                       className="text-red-700 hover:bg-red-50"
-                      onClick={() => refuse(item.id)}
+                      onClick={() => {
+                        setRefuseTarget(item);
+                        setRefuseReason("");
+                      }}
                       disabled={pending}
                       aria-label={`Refuser ${item.label}`}
                     >
@@ -303,6 +312,26 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
         loading={previewLoading}
         error={previewError}
         onClose={() => setPreviewOpen(false)}
+      />
+      <ConfirmDialog
+        open={refuseTarget !== null}
+        title={`Refuser « ${refuseTarget?.label} »`}
+        destructive
+        pending={pending}
+        confirmLabel="Refuser"
+        description={
+          <textarea
+            className="mt-1 w-full rounded-md border border-slate-300 p-2 text-sm"
+            rows={3}
+            placeholder="Raison du refus (visible par le client)"
+            value={refuseReason}
+            onChange={(e) => setRefuseReason(e.target.value)}
+          />
+        }
+        onConfirm={() =>
+          refuseTarget && refuse(refuseTarget.id, refuseReason.trim())
+        }
+        onCancel={() => setRefuseTarget(null)}
       />
     </div>
   );
