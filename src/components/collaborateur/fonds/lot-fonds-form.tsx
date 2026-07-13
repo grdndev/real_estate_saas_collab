@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
 
 export interface AppelFondsData {
@@ -191,26 +192,25 @@ export function LotFondsForm({
           <h2 className="mb-3 text-sm font-semibold text-slate-700">
             Appels de fonds
           </h2>
-          <div className="overflow-x-auto rounded-lg border border-slate-200">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50 text-xs font-medium text-slate-500">
-                  <th className="px-3 py-2 text-left">Appel</th>
-                  <th className="px-3 py-2 text-right">%</th>
-                  <th className="px-3 py-2 text-right">Montant (€)</th>
-                </tr>
-              </thead>
-              <tbody>
+          <div className="rounded-lg border border-slate-200">
+            <Table>
+              <THead className="tracking-normal text-slate-500 normal-case">
+                <Tr>
+                  <Th className="px-3 py-2 font-medium">Appel</Th>
+                  <Th className="px-3 py-2 text-right font-medium">%</Th>
+                  <Th className="px-3 py-2 text-right font-medium">
+                    Montant (€)
+                  </Th>
+                </Tr>
+              </THead>
+              <TBody>
                 {appels.map((a) => (
-                  <tr
-                    key={a.numero}
-                    className="border-b border-slate-100 last:border-0"
-                  >
-                    <td className="px-3 py-2 text-slate-700">{a.label}</td>
-                    <td className="px-3 py-2 text-right text-slate-500 tabular-nums">
+                  <Tr key={a.numero}>
+                    <Td className="px-3 py-2 text-slate-700">{a.label}</Td>
+                    <Td className="px-3 py-2 text-right text-slate-500 tabular-nums">
                       {a.pourcentage}%
-                    </td>
-                    <td className="px-3 py-2 text-right">
+                    </Td>
+                    <Td className="px-3 py-2 text-right">
                       <input
                         type="number"
                         min={0}
@@ -221,11 +221,11 @@ export function LotFondsForm({
                         }
                         className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
                       />
-                    </td>
-                  </tr>
+                    </Td>
+                  </Tr>
                 ))}
-              </tbody>
-            </table>
+              </TBody>
+            </Table>
           </div>
         </section>
       )}

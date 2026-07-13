@@ -5,6 +5,7 @@ import { FondsImportButtonLazy } from "@/components/collaborateur/fonds-import/f
 import { ProgrammeSelect } from "@/components/collaborateur/fonds/programme-select";
 import { ClickableRow } from "@/components/collaborateur/fonds/clickable-row";
 import { FondsTableHeader } from "@/components/collaborateur/fonds/fonds-table-header";
+import { Table, TBody, Td } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Suivi des fonds · Admin" };
@@ -125,13 +126,13 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
       ) : lots.length === 0 ? (
         <p className="text-sm text-slate-500">Aucun lot dans ce programme.</p>
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-slate-200">
-          <table className="w-full min-w-max border-collapse text-xs">
+        <div className="rounded-lg border border-slate-200">
+          <Table className="min-w-max border-collapse text-xs">
             <FondsTableHeader
               programmeId={programme.id}
               appelHeaders={appelHeaders}
             />
-            <tbody>
+            <TBody>
               {lots.map((lot) => {
                 const fs = lot.fondsSuivi;
                 const isEmpty = !fs;
@@ -142,7 +143,6 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                   : null;
 
                 const rowClass = cn(
-                  "border-b border-slate-100 last:border-0",
                   isEmpty ? "bg-slate-50/60" : "hover:bg-slate-50",
                 );
 
@@ -152,28 +152,28 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                     href={`/admin/fonds/${lot.id}`}
                     className={rowClass}
                   >
-                    <td className="sticky left-0 z-10 bg-inherit px-3 py-2 font-mono font-medium whitespace-nowrap">
+                    <Td className="sticky left-0 z-10 bg-inherit px-3 py-2 font-mono font-medium whitespace-nowrap">
                       {lot.reference}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-700">
+                    </Td>
+                    <Td className="px-3 py-2 whitespace-nowrap text-slate-700">
                       {clientName ?? <span className="text-slate-400">—</span>}
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    </Td>
+                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fmtMoney(Number(lot.priceTTC))}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap text-slate-600">
+                    </Td>
+                    <Td className="px-3 py-2 whitespace-nowrap text-slate-600">
                       {actSignedDate ? (
                         fmtDate(actSignedDate)
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
+                    </Td>
                     {appelHeaders.map((h) => {
                       const appel = fs?.appelsFonds.find(
                         (a) => a.numero === h.numero,
                       );
                       return (
-                        <td
+                        <Td
                           key={h.numero}
                           className="px-3 py-2 text-right whitespace-nowrap tabular-nums"
                         >
@@ -182,40 +182,40 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
-                        </td>
+                        </Td>
                       );
                     })}
                     {/* Align with + button */}
-                    <td />
-                    <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="p-0" />
+                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (
                         fmtMoney(Number(fs.commission))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    </Td>
+                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.fraisMainLevee != null ? (
                         fmtMoney(Number(fs.fraisMainLevee))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    </Td>
+                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.rbstEdd != null ? (
                         fmtMoney(Number(fs.rbstEdd))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
-                    <td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    </Td>
+                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.soldeVendeur != null ? (
                         fmtMoney(Number(fs.soldeVendeur))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">
+                    </Td>
+                    <Td className="px-3 py-2 whitespace-nowrap">
                       {fs ? (
                         <div className="flex flex-col gap-0.5 text-slate-600">
                           <span>
@@ -234,19 +234,19 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
-                    <td className="max-w-50 px-3 py-2 text-slate-600">
+                    </Td>
+                    <Td className="max-w-50 px-3 py-2 text-slate-600">
                       {lot.notes ? (
                         <span className="line-clamp-2">{lot.notes}</span>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
-                    </td>
+                    </Td>
                   </ClickableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TBody>
+          </Table>
         </div>
       )}
     </div>

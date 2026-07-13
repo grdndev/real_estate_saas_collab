@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { importTrackingLotsAction } from "@/lib/collaborateur/tracking-import-actions";
 import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 
@@ -71,10 +72,10 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
         d&apos;importer.
       </p>
 
-      <div className="overflow-x-auto rounded-md border border-slate-200">
-        <table className="w-full text-xs">
-          <thead className="bg-slate-50 text-slate-600">
-            <tr>
+      <div className="rounded-md border border-slate-200">
+        <Table className="text-xs">
+          <THead className="border-b-0 tracking-normal text-slate-600 normal-case">
+            <Tr>
               {[
                 "Référence",
                 "Étage",
@@ -83,25 +84,25 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 "Prix HT (€)",
                 "TVA (%)",
               ].map((h) => (
-                <th key={h} className="px-2 py-2 text-left font-medium">
+                <Th key={h} className="px-2 py-2 font-medium">
                   {h}
-                </th>
+                </Th>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+            </Tr>
+          </THead>
+          <TBody>
             {/* key par index : liste de taille fixe, jamais réordonnée ;
                 la référence est éditable (et non garantie unique). */}
             {lots.map((lot, i) => (
-              <tr key={i} className="hover:bg-slate-50">
-                <td className="px-2 py-1">
+              <Tr key={i} className="hover:bg-slate-50">
+                <Td className="px-2 py-1">
                   <input
                     className="w-full rounded border border-slate-200 px-1.5 py-1 font-mono text-xs"
                     value={lot.reference}
                     onChange={(e) => update(i, "reference", e.target.value)}
                   />
-                </td>
-                <td className="px-2 py-1">
+                </Td>
+                <Td className="px-2 py-1">
                   <input
                     type="number"
                     className="w-16 rounded border border-slate-200 px-1.5 py-1 text-xs"
@@ -114,15 +115,15 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                       )
                     }
                   />
-                </td>
-                <td className="px-2 py-1">
+                </Td>
+                <Td className="px-2 py-1">
                   <input
                     className="w-full rounded border border-slate-200 px-1.5 py-1 text-xs"
                     value={lot.type}
                     onChange={(e) => update(i, "type", e.target.value)}
                   />
-                </td>
-                <td className="px-2 py-1">
+                </Td>
+                <Td className="px-2 py-1">
                   <input
                     type="number"
                     step="0.01"
@@ -132,8 +133,8 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                       update(i, "surface", Number(e.target.value))
                     }
                   />
-                </td>
-                <td className="px-2 py-1">
+                </Td>
+                <Td className="px-2 py-1">
                   <input
                     type="number"
                     step="0.01"
@@ -143,8 +144,8 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                       update(i, "priceHT", Number(e.target.value))
                     }
                   />
-                </td>
-                <td className="px-2 py-1">
+                </Td>
+                <Td className="px-2 py-1">
                   <input
                     type="number"
                     step="0.1"
@@ -154,11 +155,11 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                       update(i, "vatRate", Number(e.target.value))
                     }
                   />
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}

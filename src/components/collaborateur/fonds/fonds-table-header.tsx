@@ -6,6 +6,7 @@ import {
   upsertProgrammeAppelAction,
   deleteProgrammeAppelAction,
 } from "@/lib/collaborateur/fonds-actions";
+import { Th, THead, Tr } from "@/components/ui/table";
 
 interface AppelHeader {
   numero: number;
@@ -33,23 +34,23 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
 
   return (
     <>
-      <thead>
-        <tr className="border-b border-slate-200 bg-slate-50">
-          <th className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
+      <THead>
+        <Tr className="border-b border-slate-200 bg-slate-50">
+          <Th className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
             Lot
-          </th>
-          <th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
             Acquéreur
-          </th>
-          <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
             Prix FAI
-          </th>
-          <th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
             Date signature
-          </th>
+          </Th>
 
           {appelHeaders.map((h) => (
-            <th
+            <Th
               key={h.numero}
               onClick={() => {
                 setForm({
@@ -67,10 +68,10 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
                 ? Math.floor(h.pourcentage).toString()
                 : h.pourcentage.toFixed(1)}
               %
-            </th>
+            </Th>
           ))}
 
-          <th
+          <Th
             onClick={() => {
               setForm({ label: "", pourcentage: "", datePrevue: "" });
               setModalState({ type: "add" });
@@ -79,28 +80,28 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
             title="Ajouter un appel de fonds"
           >
             +
-          </th>
+          </Th>
 
-          <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
+          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
             COM
-          </th>
-          <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
             Frais
-          </th>
-          <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
             RBST EDD
-          </th>
-          <th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
             Solde vendeur
-          </th>
-          <th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
             Suivi LR
-          </th>
-          <th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
+          </Th>
+          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
             Commentaire
-          </th>
-        </tr>
-      </thead>
+          </Th>
+        </Tr>
+      </THead>
 
       {modalState.type !== "closed" && (
         <div

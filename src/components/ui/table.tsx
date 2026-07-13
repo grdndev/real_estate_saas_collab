@@ -6,7 +6,7 @@ export function Table({
   ...props
 }: React.TableHTMLAttributes<HTMLTableElement>) {
   return (
-    <div className="overflow-x-auto">
+    <div className="max-h-96 overflow-x-auto overflow-y-auto">
       <table className={cn("w-full text-left text-sm", className)} {...props} />
     </div>
   );
@@ -19,7 +19,7 @@ export function THead({
   return (
     <thead
       className={cn(
-        "text-equatis-night-700 border-b border-slate-200 bg-slate-50 text-xs tracking-wider uppercase",
+        "text-equatis-night-700 sticky top-0 z-10 border-b border-slate-200 bg-slate-50 text-xs tracking-wider uppercase",
         className,
       )}
       {...props}

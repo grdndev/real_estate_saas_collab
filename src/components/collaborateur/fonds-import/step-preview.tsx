@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { importFondsSuiviAction } from "@/lib/collaborateur/fonds-import-actions";
 import type {
   ParsedFondsLot,
@@ -144,54 +145,48 @@ export function StepPreview({
         {draftRows.length !== 1 ? "s" : ""}. Vérifiez avant d&apos;importer.
       </p>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table
-          className="w-full text-sm"
-          style={{ minWidth: `${300 + appelTypes.length * 140}px` }}
-        >
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="sticky left-0 bg-slate-50 px-3 py-2 text-left text-xs font-medium text-slate-500">
+      <div className="rounded-lg border border-slate-200">
+        <Table style={{ minWidth: `${300 + appelTypes.length * 140}px` }}>
+          <THead className="tracking-normal normal-case">
+            <Tr>
+              <Th className="sticky left-0 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
                 Lot
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">
+              </Th>
+              <Th className="px-3 py-2 text-xs font-medium text-slate-500">
                 Acquéreur
-              </th>
+              </Th>
               {appelTypes.map((at) => (
-                <th
+                <Th
                   key={at.numero}
                   className="min-w-28 px-3 py-2 text-right text-xs font-medium text-slate-500"
                 >
                   ({at.numero}) {at.mois} {at.annee} — {at.pourcentage}%
-                </th>
+                </Th>
               ))}
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-500">
+              <Th className="px-3 py-2 text-right text-xs font-medium text-slate-500">
                 Total
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </Th>
+            </Tr>
+          </THead>
+          <TBody>
             {draftRows.map((row) => {
               const total = row.appelsFonds.reduce((s, a) => s + a.montant, 0);
               return (
-                <tr
-                  key={row.lotReference}
-                  className="border-b border-slate-100 last:border-0 hover:bg-slate-50"
-                >
-                  <td className="sticky left-0 bg-white px-3 py-2 font-mono text-xs hover:bg-slate-50">
+                <Tr key={row.lotReference} className="hover:bg-slate-50">
+                  <Td className="sticky left-0 bg-white px-3 py-2 font-mono text-xs hover:bg-slate-50">
                     {row.lotReference}
-                  </td>
-                  <td className="px-3 py-2 text-slate-700">
+                  </Td>
+                  <Td className="px-3 py-2 text-slate-700">
                     {row.nomAcquereur ?? (
                       <span className="text-slate-400">—</span>
                     )}
-                  </td>
+                  </Td>
                   {appelTypes.map((at) => {
                     const montant =
                       row.appelsFonds.find((a) => a.numero === at.numero)
                         ?.montant ?? 0;
                     return (
-                      <td
+                      <Td
                         key={at.numero}
                         className="min-w-28 px-3 py-2 text-right tabular-nums"
                       >
@@ -209,21 +204,21 @@ export function StepPreview({
                           }
                           className="focus:border-equatis-turquoise-400 w-24 rounded border border-slate-200 bg-white px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
                         />
-                      </td>
+                      </Td>
                     );
                   })}
-                  <td className="px-3 py-2 text-right font-semibold tabular-nums">
+                  <Td className="px-3 py-2 text-right font-semibold tabular-nums">
                     {total > 0 ? (
                       fmt(total)
                     ) : (
                       <span className="text-slate-400">—</span>
                     )}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               );
             })}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
 
       {error && <Alert variant="danger">{error}</Alert>}

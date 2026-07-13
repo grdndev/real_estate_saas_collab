@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Button } from "@/components/ui/button";
+import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import type { ParsedFondsAppelType } from "@/lib/collaborateur/fonds-import-types";
 
 interface Props {
@@ -37,58 +38,55 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
         </p>
       </div>
 
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="w-10 px-3 py-2 text-left text-xs font-medium text-slate-500">
+      <div className="rounded-lg border border-slate-200">
+        <Table>
+          <THead className="tracking-normal normal-case">
+            <Tr>
+              <Th className="w-10 px-3 py-2 text-xs font-medium text-slate-500">
                 N°
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">
+              </Th>
+              <Th className="px-3 py-2 text-xs font-medium text-slate-500">
                 Label
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">
+              </Th>
+              <Th className="px-3 py-2 text-xs font-medium text-slate-500">
                 Mois
-              </th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-slate-500">
+              </Th>
+              <Th className="px-3 py-2 text-xs font-medium text-slate-500">
                 Année
-              </th>
-              <th className="px-3 py-2 text-right text-xs font-medium text-slate-500">
+              </Th>
+              <Th className="px-3 py-2 text-right text-xs font-medium text-slate-500">
                 %
-              </th>
-            </tr>
-          </thead>
-          <tbody>
+              </Th>
+            </Tr>
+          </THead>
+          <TBody>
             {draft.map((a, i) => (
-              <tr
-                key={a.numero}
-                className="border-b border-slate-100 last:border-0"
-              >
-                <td className="px-3 py-2 font-mono text-xs text-slate-600">
+              <Tr key={a.numero}>
+                <Td className="px-3 py-2 font-mono text-xs text-slate-600">
                   {a.numero}
-                </td>
-                <td className="max-w-[200px] px-3 py-2 text-xs text-slate-700">
+                </Td>
+                <Td className="max-w-[200px] px-3 py-2 text-xs text-slate-700">
                   <span title={a.label}>
                     {a.label.length > 60 ? a.label.slice(0, 60) + "…" : a.label}
                   </span>
-                </td>
-                <td className="px-3 py-2">
+                </Td>
+                <Td className="px-3 py-2">
                   <input
                     type="text"
                     value={a.mois}
                     onChange={(e) => update(i, "mois", e.target.value)}
                     className="focus:border-equatis-turquoise-500 w-32 rounded border border-slate-300 px-2 py-1 text-xs focus:outline-none"
                   />
-                </td>
-                <td className="px-3 py-2">
+                </Td>
+                <Td className="px-3 py-2">
                   <input
                     type="number"
                     value={a.annee}
                     onChange={(e) => update(i, "annee", Number(e.target.value))}
                     className="focus:border-equatis-turquoise-500 w-20 rounded border border-slate-300 px-2 py-1 text-xs focus:outline-none"
                   />
-                </td>
-                <td className="px-3 py-2">
+                </Td>
+                <Td className="px-3 py-2">
                   <input
                     type="number"
                     step="0.01"
@@ -98,11 +96,11 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
                     }
                     className="focus:border-equatis-turquoise-500 w-16 rounded border border-slate-300 px-2 py-1 text-right text-xs focus:outline-none"
                   />
-                </td>
-              </tr>
+                </Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
+          </TBody>
+        </Table>
       </div>
 
       <div className="flex justify-end gap-2">

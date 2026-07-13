@@ -80,7 +80,7 @@ export default async function DossierListPage({ searchParams }: PageProps) {
     prisma.dossier.count({ where }),
     prisma.dossier.findMany({
       where,
-      orderBy: { lastActivityAt: "desc" },
+      orderBy: { reference: "asc" },
       take: PAGE_SIZE,
       skip,
       include: {

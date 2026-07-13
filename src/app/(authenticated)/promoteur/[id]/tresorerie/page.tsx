@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TBody, Th, THead, Tr } from "@/components/ui/table";
 import { TreasuryRow } from "@/components/promoter/treasury-row";
 import { TreasuryChart } from "@/components/promoter/treasury-chart";
 import { requireRole } from "@/lib/auth/guards";
@@ -313,40 +314,34 @@ export default async function ProgrammeTreasuryPage({ params }: PageProps) {
             </div>
           </div>
         </CardHeader>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead className="text-equatis-night-700 border-b border-slate-200 bg-slate-50 text-xs tracking-wider uppercase">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Mois</th>
-                <th className="px-4 py-3 text-right font-semibold">
-                  Entrées (€)
-                </th>
-                <th className="px-4 py-3 text-right font-semibold">
-                  Dépenses (€)
-                </th>
-                <th className="px-4 py-3 text-right font-semibold">Solde</th>
-                <th className="px-4 py-3" />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {months.map((d) => {
-                const monthIso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
-                const entry = byKey.get(monthIso);
-                const monthLabel = `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-                return (
-                  <TreasuryRow
-                    key={monthIso}
-                    programmeId={id}
-                    monthIso={monthIso}
-                    monthLabel={monthLabel}
-                    initialIncome={entry ? Number(entry.income) : 0}
-                    initialExpense={entry ? Number(entry.expense) : 0}
-                  />
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <THead>
+            <Tr>
+              <Th>Mois</Th>
+              <Th className="text-right">Entrées (€)</Th>
+              <Th className="text-right">Dépenses (€)</Th>
+              <Th className="text-right">Solde</Th>
+              <Th />
+            </Tr>
+          </THead>
+          <TBody>
+            {months.map((d) => {
+              const monthIso = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+              const entry = byKey.get(monthIso);
+              const monthLabel = `${MONTH_NAMES[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+              return (
+                <TreasuryRow
+                  key={monthIso}
+                  programmeId={id}
+                  monthIso={monthIso}
+                  monthLabel={monthLabel}
+                  initialIncome={entry ? Number(entry.income) : 0}
+                  initialExpense={entry ? Number(entry.expense) : 0}
+                />
+              );
+            })}
+          </TBody>
+        </Table>
       </Card>
     </div>
   );
