@@ -69,6 +69,41 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   return null;
 }
 
+const MONTHS: Record<string, number> = {
+  janvier: 1,
+  fevrier: 2,
+  mars: 3,
+  avril: 4,
+  mai: 5,
+  juin: 6,
+  juillet: 7,
+  aout: 8,
+  septembre: 9,
+  octobre: 10,
+  novembre: 11,
+  decembre: 12,
+};
+
+/** "Janvier" + 2027 → "2027-01" (format input type="month"), "" si non reconnu. */
+function monthYearToMonthValue(
+  mois: string | null,
+  annee: number | null,
+): string {
+  if (!mois || !annee) return "";
+  const norm = mois
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/\p{Diacritic}/gu, "")
+    .replace(/[^a-z]/g, " ")
+    .trim();
+  for (const [name, num] of Object.entries(MONTHS)) {
+    if (norm.includes(name)) {
+      return `${annee}-${String(num).padStart(2, "0")}`;
+    }
+  }
+  return "";
+}
+
 const SKIP_LOT_NORMS = new Set(["total", "envoi", "recu", "solde", ""]);
 
 function detectHeaderRow(sheet: ExcelJS.Worksheet): { rowIdx: number } | null {
@@ -246,7 +281,6 @@ function parseSheet1(sheet: ExcelJS.Worksheet): {
       appelsFonds.push({
         numero: ac.numero,
         label: ac.label,
-        datePrevue: ac.datePrevue,
         pourcentage: ac.pourcentage,
         montant,
       });
@@ -382,8 +416,7 @@ export async function parseFondsWorkbook(
     .map((ac) => ({
       numero: ac.numero,
       label: ac.label,
-      mois: ac.mois ?? "",
-      annee: ac.annee ?? 0,
+      datePrevue: monthYearToMonthValue(ac.mois, ac.annee),
       pourcentage: ac.pourcentage,
     }));
 

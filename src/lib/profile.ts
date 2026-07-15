@@ -26,3 +26,12 @@ export function decodePhone(phoneEnc: string | null): string {
     return "";
   }
 }
+
+export function decodeText(enc: string | null): string {
+  if (!enc) return "";
+  try {
+    return decrypt(enc);
+  } catch {
+    return "";
+  }
+}

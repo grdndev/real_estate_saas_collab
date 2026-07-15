@@ -191,6 +191,8 @@ model User {
   // Stockés sous forme `iv:tag:ciphertext` en base64.
   phoneEnc   String?
   addressEnc String?
+  // Adresses email supplémentaires (conjoint, etc.) — texte libre chiffré.
+  additionalEmailsEnc String?
 
   failedLoginCount Int       @default(0)
   lockedUntil      DateTime?
@@ -807,7 +809,8 @@ model AppelFonds {
   lotFondsId  String
   numero      Int
   label       String
-  datePrevue  String?
+  // Date prévue de l'appel : détermine son déblocage (datePrevue <= aujourd'hui).
+  datePrevue  DateTime
   pourcentage Decimal  @db.Decimal(5, 2)
   montant     Decimal  @db.Decimal(12, 2)
   createdAt   DateTime @default(now())

@@ -149,9 +149,8 @@ export async function importTrackingLotsAction(
   for (const lot of lots) {
     const vatRate = new Prisma.Decimal(lot.vatRate);
     const priceHT = new Prisma.Decimal(lot.priceHT);
-    const priceTTC = priceHT
-      .mul(new Prisma.Decimal(1).add(vatRate.div(100)))
-      .toDecimalPlaces(2);
+    // TTC importé du fichier (colonne "Prix FAI"), conservé tel quel.
+    const priceTTC = new Prisma.Decimal(lot.priceTTC);
 
     const effectiveNotes = lot.building
       ? `Bâtiment: ${lot.building}${lot.notes ? ` | ${lot.notes}` : ""}`

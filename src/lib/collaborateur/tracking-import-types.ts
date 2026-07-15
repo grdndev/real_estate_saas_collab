@@ -5,6 +5,7 @@ export interface ParsedTrackingLot {
   type: string;
   surface: number;
   priceHT: number;
+  priceTTC: number;
   vatRate: number;
   lotStatus: "AVAILABLE" | "OPTIONED" | "RESERVED" | "SOLD" | "WITHDRAWN";
   lotNotes: string | null;

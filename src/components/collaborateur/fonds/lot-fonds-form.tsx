@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
@@ -10,7 +11,7 @@ import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
 export interface AppelFondsData {
   numero: number;
   label: string;
-  datePrevue: string | null;
+  datePrevue: string;
   pourcentage: number;
   montant: number;
 }
@@ -39,13 +40,20 @@ interface Props {
     numero: number;
     label: string;
     pourcentage: number;
-    datePrevue: string | null;
+    datePrevue: string;
+    debloque: boolean;
   }>;
 }
 
 function toDateInput(iso: string | null | undefined): string {
   if (!iso) return "";
   return iso.slice(0, 10);
+}
+
+function fmtMonth(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 }
 
 function parseNum(s: string): number | null {
@@ -114,6 +122,11 @@ export function LotFondsForm({
     });
   });
 
+  const debloqueByNumero = new Map(
+    programmeAppelTypes.map((t) => [t.numero, t.debloque]),
+  );
+  const nbDebloques = programmeAppelTypes.filter((t) => t.debloque).length;
+
   function setField(key: FieldKey, val: string) {
     setFields((prev) => ({ ...prev, [key]: val }));
     setSaved(false);
@@ -160,7 +173,7 @@ export function LotFondsForm({
   return (
     <div className="flex flex-col gap-6">
       {/* Read-only summary */}
-      <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-5">
         <div>
           <p className="text-xs text-slate-400">Programme</p>
           <p className="text-sm font-medium">{programmeName}</p>
@@ -184,6 +197,16 @@ export function LotFondsForm({
               : "—"}
           </p>
         </div>
+        {programmeAppelTypes.length > 0 && (
+          <div>
+            <p className="text-xs text-slate-400">Avancement</p>
+            <p className="text-sm font-medium">
+              {nbDebloques}/{programmeAppelTypes.length} appel
+              {nbDebloques > 1 ? "s" : ""} demandé
+              {nbDebloques > 1 ? "s" : ""}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Appels de fonds */}
@@ -204,26 +227,45 @@ export function LotFondsForm({
                 </Tr>
               </THead>
               <TBody>
-                {appels.map((a) => (
-                  <Tr key={a.numero}>
-                    <Td className="px-3 py-2 text-slate-700">{a.label}</Td>
-                    <Td className="px-3 py-2 text-right text-slate-500 tabular-nums">
-                      {a.pourcentage}%
-                    </Td>
-                    <Td className="px-3 py-2 text-right">
-                      <input
-                        type="number"
-                        min={0}
-                        step={0.01}
-                        value={a.montant}
-                        onChange={(e) =>
-                          setAppelMontant(a.numero, e.target.value)
-                        }
-                        className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
-                      />
-                    </Td>
-                  </Tr>
-                ))}
+                {appels.map((a) => {
+                  const debloque = debloqueByNumero.get(a.numero) ?? false;
+                  return (
+                    <Tr
+                      key={a.numero}
+                      className={debloque ? undefined : "bg-slate-50/60"}
+                    >
+                      <Td className="px-3 py-2 text-slate-700">
+                        <span className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={debloque ? undefined : "text-slate-400"}
+                          >
+                            {a.label}
+                          </span>
+                          {!debloque && (
+                            <Badge variant="neutral" suppressHydrationWarning>
+                              À venir · {fmtMonth(a.datePrevue)}
+                            </Badge>
+                          )}
+                        </span>
+                      </Td>
+                      <Td className="px-3 py-2 text-right text-slate-500 tabular-nums">
+                        {a.pourcentage}%
+                      </Td>
+                      <Td className="px-3 py-2 text-right">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          value={a.montant}
+                          onChange={(e) =>
+                            setAppelMontant(a.numero, e.target.value)
+                          }
+                          className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
+                        />
+                      </Td>
+                    </Tr>
+                  );
+                })}
               </TBody>
             </Table>
           </div>

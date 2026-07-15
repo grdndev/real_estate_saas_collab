@@ -31,6 +31,16 @@ function fmtMoney(n: number | null | undefined): string {
   });
 }
 
+function fmtMonth(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("fr-FR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export default async function AdminFondsPage({ searchParams }: PageProps) {
   await requireRole("SUPER_ADMIN");
   const params = await searchParams;
@@ -65,6 +75,7 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
   const programme = programmes.find((p) => p.id === selectedId) ?? null;
   const lots = programme?.lots ?? [];
 
+  const now = new Date();
   const appelHeaders = programme
     ? (
         await prisma.appelFonds.findMany({
@@ -82,9 +93,15 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
         numero: a.numero,
         label: a.label,
         pourcentage: Number(a.pourcentage),
-        datePrevue: a.datePrevue ?? null,
+        datePrevue: a.datePrevue.toISOString(),
+        debloque: a.datePrevue <= now,
       }))
     : [];
+
+  // Seuls les appels débloqués (date prévue atteinte) apparaissent dans le tableau.
+  const appelsDebloques = appelHeaders.filter((h) => h.debloque);
+  const debloqueNumeros = new Set(appelsDebloques.map((h) => h.numero));
+  const prochainAppel = appelHeaders.find((h) => !h.debloque) ?? null;
 
   const importProgrammes = programmes.map((p) => ({
     id: p.id,
@@ -102,6 +119,20 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
           {programme && (
             <p className="mt-1 text-sm text-slate-500">
               {programme.name} — {programme.reference}
+            </p>
+          )}
+          {programme && appelHeaders.length > 0 && (
+            <p className="mt-1 text-sm text-slate-500">
+              Avancement : {appelsDebloques.length}/{appelHeaders.length} appel
+              {appelsDebloques.length > 1 ? "s" : ""} débloqué
+              {appelsDebloques.length > 1 ? "s" : ""}
+              {prochainAppel && (
+                <>
+                  {" "}
+                  — prochain : ({prochainAppel.numero}){" "}
+                  {fmtMonth(prochainAppel.datePrevue)}
+                </>
+              )}
             </p>
           )}
         </div>
@@ -168,7 +199,35 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-                    {appelHeaders.map((h) => {
+                    {/* Progression */}
+                    <Td className="px-3 py-2 whitespace-nowrap">
+                      {fs && appelHeaders.length > 0 ? (
+                        (() => {
+                          const montantAppele = fs.appelsFonds
+                            .filter((a) => debloqueNumeros.has(a.numero))
+                            .reduce((s, a) => s + Number(a.montant), 0);
+                          const montantTotal = fs.appelsFonds.reduce(
+                            (s, a) => s + Number(a.montant),
+                            0,
+                          );
+                          return (
+                            <div className="flex flex-col gap-0.5 text-slate-600">
+                              <span>
+                                {appelsDebloques.length}/{appelHeaders.length}{" "}
+                                appel{appelsDebloques.length > 1 ? "s" : ""}
+                              </span>
+                              <span className="tabular-nums">
+                                {fmtMoney(montantAppele)} /{" "}
+                                {fmtMoney(montantTotal)} €
+                              </span>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </Td>
+                    {appelsDebloques.map((h) => {
                       const appel = fs?.appelsFonds.find(
                         (a) => a.numero === h.numero,
                       );
@@ -185,7 +244,7 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                         </Td>
                       );
                     })}
-                    {/* Align with + button */}
+                    {/* Align with "Gérer" column */}
                     <Td className="p-0" />
                     <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (

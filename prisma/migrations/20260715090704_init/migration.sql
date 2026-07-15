@@ -1,6 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'COLLABORATOR', 'PROMOTER', 'NOTARY', 'CLIENT');
 
@@ -70,6 +67,7 @@ CREATE TABLE "User" (
     "lastName" TEXT NOT NULL,
     "phoneEnc" TEXT,
     "addressEnc" TEXT,
+    "additionalEmailsEnc" TEXT,
     "failedLoginCount" INTEGER NOT NULL DEFAULT 0,
     "lockedUntil" TIMESTAMP(3),
     "lastLoginAt" TIMESTAMP(3),
@@ -287,21 +285,12 @@ CREATE TABLE "Message" (
     "dossierId" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
     "body" TEXT NOT NULL,
-    "readAt" TIMESTAMP(3),
+    "readBy" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "sentByEmail" BOOLEAN NOT NULL DEFAULT false,
     "emailAttachmentCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "MessageRead" (
-    "messageId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "readAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "MessageRead_pkey" PRIMARY KEY ("messageId","userId")
 );
 
 -- CreateTable
@@ -355,7 +344,7 @@ CREATE TABLE "AuditLog" (
     "action" TEXT NOT NULL,
     "resourceType" TEXT NOT NULL,
     "resourceId" TEXT,
-    "metadata" JSONB,
+    "metadata" TEXT,
     "ip" TEXT,
     "userAgent" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -487,7 +476,7 @@ CREATE TABLE "AppelFonds" (
     "lotFondsId" TEXT NOT NULL,
     "numero" INTEGER NOT NULL,
     "label" TEXT NOT NULL,
-    "datePrevue" TEXT,
+    "datePrevue" TIMESTAMP(3) NOT NULL,
     "pourcentage" DECIMAL(5,2) NOT NULL,
     "montant" DECIMAL(12,2) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -608,9 +597,6 @@ CREATE INDEX "TimelineEvent_dossierId_occurredAt_idx" ON "TimelineEvent"("dossie
 
 -- CreateIndex
 CREATE INDEX "Message_dossierId_createdAt_idx" ON "Message"("dossierId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "MessageRead_messageId_idx" ON "MessageRead"("messageId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Signature_yousignProcedureId_key" ON "Signature"("yousignProcedureId");
@@ -757,12 +743,6 @@ ALTER TABLE "Message" ADD CONSTRAINT "Message_dossierId_fkey" FOREIGN KEY ("doss
 ALTER TABLE "Message" ADD CONSTRAINT "Message_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "MessageRead" ADD CONSTRAINT "MessageRead_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "Message"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "MessageRead" ADD CONSTRAINT "MessageRead_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "Signature" ADD CONSTRAINT "Signature_dossierId_fkey" FOREIGN KEY ("dossierId") REFERENCES "Dossier"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -821,4 +801,3 @@ ALTER TABLE "LotFondsSuivi" ADD CONSTRAINT "LotFondsSuivi_programmeId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "AppelFonds" ADD CONSTRAINT "AppelFonds_lotFondsId_fkey" FOREIGN KEY ("lotFondsId") REFERENCES "LotFondsSuivi"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-

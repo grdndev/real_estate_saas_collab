@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import type { ParsedFondsAppelType } from "@/lib/collaborateur/fonds-import-types";
@@ -26,6 +27,8 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
     );
   }
 
+  const missingDates = draft.filter((a) => !a.datePrevue);
+
   return (
     <div className="flex flex-col gap-4">
       <div>
@@ -33,8 +36,9 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
           Vérifiez les appels de fonds détectés dans le fichier.
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Corrigez le mois, l&apos;année ou le pourcentage si nécessaire avant
-          de continuer.
+          Corrigez la date prévue ou le pourcentage si nécessaire avant de
+          continuer. La date prévue est obligatoire : elle détermine le
+          déblocage de l&apos;appel dans le suivi des fonds.
         </p>
       </div>
 
@@ -49,10 +53,7 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
                 Label
               </Th>
               <Th className="px-3 py-2 text-xs font-medium text-slate-500">
-                Mois
-              </Th>
-              <Th className="px-3 py-2 text-xs font-medium text-slate-500">
-                Année
+                Date prévue
               </Th>
               <Th className="px-3 py-2 text-right text-xs font-medium text-slate-500">
                 %
@@ -65,25 +66,19 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
                 <Td className="px-3 py-2 font-mono text-xs text-slate-600">
                   {a.numero}
                 </Td>
-                <Td className="max-w-[200px] px-3 py-2 text-xs text-slate-700">
+                <Td className="max-w-50 px-3 py-2 text-xs text-slate-700">
                   <span title={a.label}>
                     {a.label.length > 60 ? a.label.slice(0, 60) + "…" : a.label}
                   </span>
                 </Td>
                 <Td className="px-3 py-2">
                   <input
-                    type="text"
-                    value={a.mois}
-                    onChange={(e) => update(i, "mois", e.target.value)}
-                    className="focus:border-equatis-turquoise-500 w-32 rounded border border-slate-300 px-2 py-1 text-xs focus:outline-none"
-                  />
-                </Td>
-                <Td className="px-3 py-2">
-                  <input
-                    type="number"
-                    value={a.annee}
-                    onChange={(e) => update(i, "annee", Number(e.target.value))}
-                    className="focus:border-equatis-turquoise-500 w-20 rounded border border-slate-300 px-2 py-1 text-xs focus:outline-none"
+                    type="month"
+                    value={a.datePrevue}
+                    onChange={(e) => update(i, "datePrevue", e.target.value)}
+                    className={`focus:border-equatis-turquoise-500 w-40 rounded border px-2 py-1 text-xs focus:outline-none ${
+                      a.datePrevue ? "border-slate-300" : "border-red-400"
+                    }`}
                   />
                 </Td>
                 <Td className="px-3 py-2">
@@ -103,11 +98,26 @@ export function StepAppels({ appelTypes, onNext, onBack }: Props) {
         </Table>
       </div>
 
+      {missingDates.length > 0 && (
+        <Alert variant="warning">
+          La date prévue n&apos;a pas pu être lue pour{" "}
+          {missingDates.length === 1
+            ? `l'appel n°${missingDates[0]!.numero}`
+            : `les appels n°${missingDates.map((a) => a.numero).join(", ")}`}
+          . Renseignez-la pour continuer.
+        </Alert>
+      )}
+
       <div className="flex justify-end gap-2">
         <Button variant="outline" onClick={onBack} className="mr-auto">
           ← Retour
         </Button>
-        <Button onClick={() => onNext(draft)}>Suivant →</Button>
+        <Button
+          onClick={() => onNext(draft)}
+          disabled={missingDates.length > 0}
+        >
+          Suivant →
+        </Button>
       </div>
     </div>
   );

@@ -21,8 +21,8 @@ const parseFileSchema = z.object({
 const appelTypeSchema = z.object({
   numero: z.number(),
   label: z.string(),
-  mois: z.string(),
-  annee: z.number(),
+  // "YYYY-MM" — obligatoire : le déblocage des appels dépend de cette date.
+  datePrevue: z.string().regex(/^\d{4}-\d{2}$/),
   pourcentage: z.number(),
 });
 
@@ -46,7 +46,6 @@ const importSchema = z.object({
         z.object({
           numero: z.number(),
           label: z.string(),
-          datePrevue: z.string().nullable(),
           pourcentage: z.number(),
           montant: z.number(),
         }),
@@ -65,33 +64,12 @@ function digitsOnly(s: string): string {
   return s.replace(/\D/g, "");
 }
 
-function parseMonthYear(mois: string, annee: number): Date | null {
-  const MONTHS: Record<string, number> = {
-    janvier: 1,
-    fevrier: 2,
-    mars: 3,
-    avril: 4,
-    mai: 5,
-    juin: 6,
-    juillet: 7,
-    aout: 8,
-    septembre: 9,
-    octobre: 10,
-    novembre: 11,
-    decembre: 12,
-  };
-  const norm = mois
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z]/g, " ")
-    .trim();
-  for (const [name, num] of Object.entries(MONTHS)) {
-    if (norm.includes(name)) {
-      return new Date(Date.UTC(annee, num - 1, 1));
-    }
-  }
-  return null;
+/** "YYYY-MM" → Date au 1er du mois (UTC). */
+function monthValueToDate(value: string): Date | null {
+  const m = value.match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
+  return isNaN(d.getTime()) ? null : d;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,6 +111,18 @@ export async function importFondsSuiviAction(input: {
     return { ok: false, error: "Saisie invalide." };
   }
   const { programmeId, appelTypes, rows } = parsed.data;
+
+  const datePrevueByNumero = new Map<number, Date>();
+  for (const at of appelTypes) {
+    const d = monthValueToDate(at.datePrevue);
+    if (!d) {
+      return {
+        ok: false,
+        error: `Date prévue manquante ou invalide pour l'appel n°${at.numero}.`,
+      };
+    }
+    datePrevueByNumero.set(at.numero, d);
+  }
 
   // Load all lots for this programme once
   const programmeLots = await prisma.lot.findMany({
@@ -217,7 +207,7 @@ export async function importFondsSuiviAction(input: {
           lotFondsId: fondsSuivi.id,
           numero: at.numero,
           label: at.label,
-          datePrevue: `${at.mois} ${at.annee}`.trim() || null,
+          datePrevue: datePrevueByNumero.get(at.numero)!,
           pourcentage: new Prisma.Decimal(at.pourcentage),
           montant: new Prisma.Decimal(montant),
         };
@@ -267,7 +257,7 @@ export async function importFondsSuiviAction(input: {
   // 6. TresoreriePrev — accumulate monthly income across appelTypes
   const monthMap = new Map<string, { month: Date; income: number }>();
   for (const at of appelTypes) {
-    const monthDate = parseMonthYear(at.mois, at.annee);
+    const monthDate = datePrevueByNumero.get(at.numero);
     if (!monthDate) continue;
     const key = `${monthDate.getUTCFullYear()}-${String(monthDate.getUTCMonth() + 1).padStart(2, "0")}`;
     const totalIncome = rows.reduce((sum, row) => {

@@ -35,9 +35,13 @@ export function ProgrammeImportForm() {
   const [error, setError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<string[]>([]);
   const [success, setSuccess] = useState<string | null>(null);
+  const [createdProgrammeId, setCreatedProgrammeId] = useState<string | null>(
+    null,
+  );
   const [name, setName] = useState("");
   const [reference, setReference] = useState("");
   const [city, setCity] = useState("");
+  const [vatRate, setVatRate] = useState("8.5");
   const [file, setFile] = useState<File | null>(null);
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -58,6 +62,7 @@ export function ProgrammeImportForm() {
     setError(null);
     setWarnings([]);
     setSuccess(null);
+    setCreatedProgrammeId(null);
     if (!file) {
       setError("Déposez le fichier Excel des lots.");
       return;
@@ -70,28 +75,36 @@ export function ProgrammeImportForm() {
         setError("Lecture du fichier impossible.");
         return;
       }
+      const parsedVat = Number(vatRate.replace(",", "."));
       const result = await importProgrammeAction({
         name,
         reference,
         city,
+        vatRate: Number.isFinite(parsedVat) ? parsedVat : 8.5,
         fileB64,
       });
       if (!result.ok) {
         setError(result.error);
         return;
       }
+      router.refresh();
+      // Avec des avertissements, on reste sur la page pour qu'ils soient lus ;
+      // une redirection immédiate les rendrait invisibles.
+      if (result.value.warnings.length === 0) {
+        router.push(`/promoteur/${result.value.programmeId}`);
+        return;
+      }
       setSuccess(
         `Programme importé : ${result.value.lotsCreated} lot(s) créé(s).`,
       );
       setWarnings(result.value.warnings);
-      router.refresh();
-      router.push(`/promoteur/${result.value.programmeId}`);
+      setCreatedProgrammeId(result.value.programmeId);
     });
   }
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
         <FormField label="Nom du programme" htmlFor="prog-name" required>
           <Input
             id="prog-name"
@@ -117,6 +130,18 @@ export function ProgrammeImportForm() {
             value={city}
             onChange={(e) => setCity(e.target.value)}
             placeholder="Saint-Denis"
+          />
+        </FormField>
+        <FormField label="TVA par défaut (%)" htmlFor="prog-vat">
+          <Input
+            id="prog-vat"
+            type="number"
+            step="0.1"
+            min="0"
+            max="100"
+            value={vatRate}
+            onChange={(e) => setVatRate(e.target.value)}
+            placeholder="8.5"
           />
         </FormField>
       </div>
@@ -206,6 +231,17 @@ export function ProgrammeImportForm() {
           </ul>
         </Alert>
       )}
+      {createdProgrammeId && (
+        <div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push(`/promoteur/${createdProgrammeId}`)}
+          >
+            Voir le programme
+          </Button>
+        </div>
+      )}
 
       <div>
         <Button type="submit" disabled={pending}>
@@ -213,11 +249,12 @@ export function ProgrammeImportForm() {
           {pending ? "Import en cours…" : "Importer le programme"}
         </Button>
         <p className="mt-2 text-xs text-slate-500">
-          Colonnes attendues dans le fichier : <code>Référence</code>,{" "}
-          <code>Surface</code>, <code>Étage</code>, <code>Type</code>,{" "}
-          <code>Prix HT</code>, <code>TVA</code>, <code>Statut</code>. La
-          première ligne sert d&apos;en-tête ; tous les lots sont listés
-          automatiquement.
+          Colonnes attendues dans le fichier : <code>Référence</code> (ou{" "}
+          <code>Appartements</code>), <code>Surface</code>, <code>Étage</code>,{" "}
+          <code>Type</code>, <code>Prix HT</code> ou <code>Prix TTC</code>{" "}
+          (FAI), <code>TVA</code>, <code>Statut</code>. Si seul le TTC est
+          fourni, le HT est déduit avec la TVA par défaut ci-dessus. La première
+          ligne sert d&apos;en-tête ; tous les lots sont listés automatiquement.
         </p>
       </div>
     </form>

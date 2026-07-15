@@ -6,6 +6,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
+import { encrypt } from "@/lib/crypto";
 import { getRequestContext } from "@/lib/request-context";
 import type { ActionResult } from "@/lib/auth/actions";
 
@@ -23,7 +24,7 @@ const updateSchema = z.object({
     z.object({
       numero: z.number(),
       montant: z.number(),
-      datePrevue: z.string().nullable(),
+      datePrevue: z.string().min(1),
     }),
   ),
 });
@@ -31,6 +32,14 @@ const updateSchema = z.object({
 function toDate(iso: string | null | undefined): Date | null {
   if (!iso) return null;
   const d = new Date(iso);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/** Convertit "YYYY-MM" (input type="month") ou une date ISO en Date au 1er du mois (UTC). */
+function monthToDate(value: string): Date | null {
+  const m = value.match(/^(\d{4})-(\d{2})/);
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
   return isNaN(d.getTime()) ? null : d;
 }
 
@@ -43,6 +52,18 @@ export async function updateLotFondsSuiviAction(
   if (!parsed.success) return { ok: false, error: "Données invalides." };
 
   const { lotId, appels, notes, ...fields } = parsed.data;
+
+  const appelsAvecDate = appels.map((a) => ({
+    ...a,
+    datePrevueDate: monthToDate(a.datePrevue),
+  }));
+  const sansDate = appelsAvecDate.find((a) => !a.datePrevueDate);
+  if (sansDate) {
+    return {
+      ok: false,
+      error: `Date prévue invalide pour l'appel n°${sansDate.numero}.`,
+    };
+  }
 
   const lot = await prisma.lot.findUnique({
     where: { id: lotId },
@@ -79,7 +100,7 @@ export async function updateLotFondsSuiviAction(
     }),
   ]);
 
-  for (const appel of appels) {
+  for (const appel of appelsAvecDate) {
     await prisma.appelFonds.upsert({
       where: {
         lotFondsId_numero: {
@@ -93,11 +114,11 @@ export async function updateLotFondsSuiviAction(
         label: "",
         pourcentage: new Prisma.Decimal(0),
         montant: new Prisma.Decimal(appel.montant),
-        datePrevue: appel.datePrevue,
+        datePrevue: appel.datePrevueDate!,
       },
       update: {
         montant: new Prisma.Decimal(appel.montant),
-        datePrevue: appel.datePrevue,
+        datePrevue: appel.datePrevueDate!,
       },
     });
   }
@@ -126,9 +147,14 @@ export async function upsertProgrammeAppelAction(input: {
   numero: number;
   label: string;
   pourcentage: number;
-  datePrevue: string | null;
+  datePrevue: string;
 }): Promise<ActionResult<void>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  const datePrevue = monthToDate(input.datePrevue);
+  if (!datePrevue) {
+    return { ok: false, error: "La date prévue de l'appel est obligatoire." };
+  }
 
   const lotsFonds = await prisma.lotFondsSuivi.findMany({
     where: { programmeId: input.programmeId },
@@ -145,12 +171,12 @@ export async function upsertProgrammeAppelAction(input: {
         label: input.label,
         pourcentage: new Prisma.Decimal(input.pourcentage),
         montant: new Prisma.Decimal(0),
-        datePrevue: input.datePrevue,
+        datePrevue,
       },
       update: {
         label: input.label,
         pourcentage: new Prisma.Decimal(input.pourcentage),
-        datePrevue: input.datePrevue,
+        datePrevue,
       },
     });
   }
@@ -168,6 +194,108 @@ export async function upsertProgrammeAppelAction(input: {
 
   revalidatePath("/collaborateur/fonds");
   revalidatePath("/admin/fonds");
+
+  return { ok: true, value: undefined };
+}
+
+const clientContactSchema = z.object({
+  lotId: z.string().min(1),
+  email: z.email("Email invalide").toLowerCase(),
+  additionalEmails: z.string().nullable(),
+  phone: z.string().nullable(),
+  address: z
+    .object({
+      line: z.string(),
+      postalCode: z.string(),
+      city: z.string(),
+      country: z.string(),
+    })
+    .nullable(),
+});
+
+export async function updateFondsClientContactAction(
+  input: unknown,
+): Promise<ActionResult<void>> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+
+  const parsed = clientContactSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: "Saisie invalide." };
+  const { lotId, email, additionalEmails, phone, address } = parsed.data;
+
+  const lot = await prisma.lot.findUnique({
+    where: { id: lotId },
+    select: {
+      reference: true,
+      dossier: { select: { id: true, clientId: true } },
+    },
+  });
+  if (!lot) return { ok: false, error: "Lot introuvable." };
+  if (!lot.dossier) {
+    return { ok: false, error: "Aucun dossier associé à ce lot." };
+  }
+  if (!lot.dossier.clientId) {
+    return { ok: false, error: "Aucun client associé au dossier de ce lot." };
+  }
+  const clientId = lot.dossier.clientId;
+
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+  if (existing && existing.id !== clientId) {
+    return {
+      ok: false,
+      error: "Cet email est déjà utilisé par un autre compte.",
+    };
+  }
+
+  const hasAddress =
+    address != null &&
+    [address.line, address.postalCode, address.city, address.country].some(
+      (v) => v.trim() !== "",
+    );
+
+  try {
+    await prisma.user.update({
+      where: { id: clientId },
+      data: {
+        email,
+        phoneEnc: phone?.trim() ? encrypt(phone.trim()) : null,
+        addressEnc: hasAddress ? encrypt(JSON.stringify(address)) : null,
+        additionalEmailsEnc: additionalEmails?.trim()
+          ? encrypt(additionalEmails.trim())
+          : null,
+      },
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return {
+        ok: false,
+        error: "Cet email est déjà utilisé par un autre compte.",
+      };
+    }
+    throw e;
+  }
+
+  const ctx = await getRequestContext();
+  await audit({
+    userId: me.id,
+    action: "USER_UPDATED",
+    resourceType: "User",
+    resourceId: clientId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Coordonnées client mises à jour depuis le suivi des fonds (lot ${lot.reference})`,
+  });
+
+  revalidatePath(`/collaborateur/fonds/${lotId}`);
+  revalidatePath(`/admin/fonds/${lotId}`);
+  revalidatePath(`/collaborateur/dossiers/${lot.dossier.id}`);
+  revalidatePath(`/collaborateur/dossiers/${lot.dossier.id}/fiche-client`);
+  revalidatePath("/profil");
 
   return { ok: true, value: undefined };
 }

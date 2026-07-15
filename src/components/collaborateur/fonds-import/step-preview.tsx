@@ -25,6 +25,16 @@ function fmt(n: number): string {
   });
 }
 
+function fmtMonth(monthValue: string): string {
+  const d = new Date(`${monthValue}-01T00:00:00Z`);
+  if (isNaN(d.getTime())) return monthValue;
+  return d.toLocaleDateString("fr-FR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
 export function StepPreview({
   rows,
   appelTypes,
@@ -69,7 +79,6 @@ export function StepPreview({
             {
               numero: at.numero,
               label: at.label,
-              datePrevue: `${at.mois} ${at.annee}`,
               pourcentage: at.pourcentage,
               montant: val,
             },
@@ -160,7 +169,7 @@ export function StepPreview({
                   key={at.numero}
                   className="min-w-28 px-3 py-2 text-right text-xs font-medium text-slate-500"
                 >
-                  ({at.numero}) {at.mois} {at.annee} — {at.pourcentage}%
+                  ({at.numero}) {fmtMonth(at.datePrevue)} — {at.pourcentage}%
                 </Th>
               ))}
               <Th className="px-3 py-2 text-right text-xs font-medium text-slate-500">

@@ -36,6 +36,20 @@ function computeTtc(priceHT: number, vatRate: number): Prisma.Decimal {
     .toDecimalPlaces(2);
 }
 
+/**
+ * TTC d'un lot importé : la valeur du fichier si elle a été fournie, sinon
+ * recalculée à partir du HT et de la TVA.
+ */
+function lotTtc(lot: {
+  priceHT: number;
+  priceTTC: number | null;
+  vatRate: number;
+}): Prisma.Decimal {
+  return lot.priceTTC != null
+    ? new Prisma.Decimal(lot.priceTTC).toDecimalPlaces(2)
+    : computeTtc(lot.priceHT, lot.vatRate);
+}
+
 export async function upsertTreasuryEntryAction(
   input: TreasuryEntryInput,
 ): Promise<ActionResult> {
@@ -124,13 +138,14 @@ export async function importProgrammeAction(
     return { ok: false, error: "Fichier illisible." };
   }
 
-  const { lots, errors } = await parseLotsWorkbook(buffer);
+  const { lots, errors } = await parseLotsWorkbook(buffer, parsed.data.vatRate);
   if (lots.length === 0) {
     return {
       ok: false,
       error:
-        errors[0] ??
-        "Aucun lot n'a pu être extrait du fichier. Vérifiez les colonnes.",
+        errors.length > 0
+          ? errors.join(" · ")
+          : "Aucun lot n'a pu être extrait du fichier. Vérifiez les colonnes.",
     };
   }
 
@@ -143,9 +158,9 @@ export async function importProgrammeAction(
     };
   }
 
-  // CA objectif prévisionnel = somme des prix TTC importés.
+  // CA objectif prévisionnel = somme des prix TTC (importés ou recalculés).
   const caObjective = lots.reduce(
-    (acc, l) => acc.plus(computeTtc(l.priceHT, l.vatRate)),
+    (acc, l) => acc.plus(lotTtc(l)),
     new Prisma.Decimal(0),
   );
 
@@ -168,7 +183,7 @@ export async function importProgrammeAction(
         type: l.type,
         priceHT: new Prisma.Decimal(l.priceHT),
         vatRate: new Prisma.Decimal(l.vatRate),
-        priceTTC: computeTtc(l.priceHT, l.vatRate),
+        priceTTC: lotTtc(l),
         status: l.status,
       })),
     });

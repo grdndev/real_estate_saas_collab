@@ -5,6 +5,8 @@ import type {
 } from "./tracking-import-types";
 export type { ParsedTrackingLot, TrackingParseResult };
 
+const DEFAULT_VAT_RATE = 8.5;
+
 function normalize(s: string): string {
   return s
     .toString()
@@ -44,7 +46,7 @@ type MappedField =
   | "floor"
   | "type"
   | "surface"
-  | "priceHT"
+  | "priceTTC"
   | "vatRate"
   | "buyerName"
   | "buyerPhone"
@@ -68,7 +70,6 @@ type NotesField =
   | "parking"
   | "acompte200"
   | "envoiparnotaire"
-  | "prixfai"
   | "nvavecplaceparking"
   | "suvtotal"
   | "suv"
@@ -88,7 +89,6 @@ const NOTES_LABELS: Record<NotesField, string> = {
   parking: "Parking supplémentaire",
   acompte200: "Réception des 200€",
   envoiparnotaire: "Envoi par le notaire",
-  prixfai: "Prix FAI",
   nvavecplaceparking: "NV avec place parking",
   suvtotal: "SUV total",
   suv: "SUV",
@@ -109,7 +109,7 @@ const COLUMN_ALIASES: Record<MappedField, string[]> = {
   floor: ["etage", "niveau", "floor"],
   type: ["type", "typologie"],
   surface: ["surfacehabitable", "surface", "shab", "m2"],
-  priceHT: ["prixnetvendeur", "prixnet", "prixhtvendeur"],
+  priceTTC: ["prixfai", "fai", "prixttc", "ttc"],
   vatRate: ["tva", "tauxtva"],
   buyerName: ["nom"],
   buyerPhone: ["tel", "telephone"],
@@ -144,7 +144,6 @@ const NOTES_ALIASES: Record<NotesField, string[]> = {
   parking: ["parkingsupplementaire", "parkingsupp", "parking"],
   acompte200: ["receptiondes200", "200€", "acompte200"],
   envoiparnotaire: ["envoiparlenotaire", "envoiparnotaire"],
-  prixfai: ["prixfai", "fai"],
   nvavecplaceparking: ["nvavecplaceparking"],
   suvtotal: ["suvtotal"],
   suv: ["suv"],
@@ -355,7 +354,6 @@ export async function parseTrackingWorkbook(
     if (!reference) continue;
 
     const surface = parseNumber(getText("surface"));
-    const priceHT = parseNumber(getText("priceHT"));
 
     if (surface == null || surface <= 0) {
       errors.push(
@@ -363,15 +361,22 @@ export async function parseTrackingWorkbook(
       );
       continue;
     }
-    if (priceHT == null || priceHT <= 0) {
+
+    // TVA résolue d'abord : elle sert à déduire le HT depuis le TTC.
+    const vatRaw = getText("vatRate");
+    const vatRate = vatRaw
+      ? (parseNumber(vatRaw) ?? DEFAULT_VAT_RATE)
+      : DEFAULT_VAT_RATE;
+
+    // Le prix vient uniquement de la colonne "Prix FAI" (TTC) ; le HT en est déduit.
+    const priceTTC = parseNumber(getText("priceTTC"));
+    if (priceTTC == null || priceTTC <= 0) {
       errors.push(
-        `Ligne ${i} (${reference}) : prix HT invalide — ligne ignorée.`,
+        `Ligne ${i} (${reference}) : prix FAI (TTC) invalide — ligne ignorée.`,
       );
       continue;
     }
-
-    const vatRaw = getText("vatRate");
-    const vatRate = vatRaw ? (parseNumber(vatRaw) ?? 5.5) : 5.5;
+    const priceHT = Number((priceTTC / (1 + vatRate / 100)).toFixed(2));
 
     const optionDate = parseDate(getCell("optionDate"));
     const reservationSignedAt = parseDate(getCell("reservationSignedAt"));
@@ -404,6 +409,7 @@ export async function parseTrackingWorkbook(
       type: getText("type") || "—",
       surface,
       priceHT,
+      priceTTC,
       vatRate,
       lotStatus,
       lotNotes,

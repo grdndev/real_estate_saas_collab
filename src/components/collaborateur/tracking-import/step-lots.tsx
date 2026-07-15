@@ -14,6 +14,7 @@ interface EditableLot {
   type: string;
   surface: number;
   priceHT: number;
+  priceTTC: number;
   vatRate: number;
   notes: string | null;
 }
@@ -36,6 +37,7 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
       type: r.type,
       surface: r.surface,
       priceHT: r.priceHT,
+      priceTTC: r.priceTTC,
       vatRate: r.vatRate,
       notes: r.lotNotes,
     })),
@@ -81,7 +83,7 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 "Étage",
                 "Type",
                 "Surface (m²)",
-                "Prix HT (€)",
+                "Prix TTC (€)",
                 "TVA (%)",
               ].map((h) => (
                 <Th key={h} className="px-2 py-2 font-medium">
@@ -139,10 +141,22 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                     type="number"
                     step="0.01"
                     className="w-28 rounded border border-slate-200 px-1.5 py-1 text-xs"
-                    value={lot.priceHT}
-                    onChange={(e) =>
-                      update(i, "priceHT", Number(e.target.value))
-                    }
+                    value={lot.priceTTC}
+                    onChange={(e) => {
+                      const ttc = Number(e.target.value);
+                      setLots((prev) => {
+                        const next = [...prev];
+                        const cur = next[i]!;
+                        next[i] = {
+                          ...cur,
+                          priceTTC: ttc,
+                          priceHT: Number(
+                            (ttc / (1 + cur.vatRate / 100)).toFixed(2),
+                          ),
+                        };
+                        return next;
+                      });
+                    }}
                   />
                 </Td>
                 <Td className="px-2 py-1">
@@ -151,9 +165,21 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                     step="0.1"
                     className="w-16 rounded border border-slate-200 px-1.5 py-1 text-xs"
                     value={lot.vatRate}
-                    onChange={(e) =>
-                      update(i, "vatRate", Number(e.target.value))
-                    }
+                    onChange={(e) => {
+                      const vat = Number(e.target.value);
+                      setLots((prev) => {
+                        const next = [...prev];
+                        const cur = next[i]!;
+                        next[i] = {
+                          ...cur,
+                          vatRate: vat,
+                          priceHT: Number(
+                            (cur.priceTTC / (1 + vat / 100)).toFixed(2),
+                          ),
+                        };
+                        return next;
+                      });
+                    }}
                   />
                 </Td>
               </Tr>

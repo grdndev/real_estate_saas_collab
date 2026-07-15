@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { decodeAddress, decodePhone, decodeText } from "@/lib/profile";
 import { LotFondsForm } from "@/components/collaborateur/fonds/lot-fonds-form";
+import { ClientContactCard } from "@/components/collaborateur/fonds/client-contact-card";
 
 interface PageProps {
   params: Promise<{ lotId: string }>;
@@ -20,7 +22,16 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
       programme: { select: { name: true, reference: true } },
       dossier: {
         include: {
-          client: { select: { firstName: true, lastName: true } },
+          client: {
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              phoneEnc: true,
+              addressEnc: true,
+              additionalEmailsEnc: true,
+            },
+          },
           timelineEvents: {
             where: { kind: "ACT_SIGNED" },
             orderBy: { occurredAt: "desc" },
@@ -44,10 +55,22 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
     select: { numero: true, label: true, pourcentage: true, datePrevue: true },
   });
 
+  const now = new Date();
+
   const actSignedDate =
     lot.dossier?.timelineEvents?.[0]?.occurredAt?.toISOString() ?? null;
-  const clientName = lot.dossier?.client
-    ? `${lot.dossier.client.firstName} ${lot.dossier.client.lastName}`.trim()
+  const client = lot.dossier?.client ?? null;
+  const clientName = client
+    ? `${client.firstName} ${client.lastName}`.trim()
+    : null;
+
+  const clientContact = client
+    ? {
+        email: client.email,
+        additionalEmails: decodeText(client.additionalEmailsEnc),
+        phone: decodePhone(client.phoneEnc),
+        address: decodeAddress(client.addressEnc),
+      }
     : null;
 
   const fondsSuivi = lot.fondsSuivi
@@ -75,7 +98,7 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
         appelsFonds: lot.fondsSuivi.appelsFonds.map((a) => ({
           numero: a.numero,
           label: a.label,
-          datePrevue: a.datePrevue,
+          datePrevue: a.datePrevue.toISOString(),
           pourcentage: Number(a.pourcentage),
           montant: Number(a.montant),
         })),
@@ -93,6 +116,13 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
         </p>
       </div>
 
+      <ClientContactCard
+        lotId={lot.id}
+        dossierId={lot.dossier?.id ?? null}
+        clientName={clientName}
+        contact={clientContact}
+      />
+
       <LotFondsForm
         lotId={lot.id}
         programmeName={lot.programme.name}
@@ -106,7 +136,8 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
           numero: a.numero,
           label: a.label,
           pourcentage: Number(a.pourcentage),
-          datePrevue: a.datePrevue ?? null,
+          datePrevue: a.datePrevue.toISOString(),
+          debloque: a.datePrevue <= now,
         }))}
       />
     </div>
