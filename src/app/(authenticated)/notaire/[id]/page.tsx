@@ -64,11 +64,14 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
           isShared: true,
           createdAt: true,
           documentRequestId: true,
+          reviewStatus: true,
         },
       },
       documentRequests: {
         orderBy: [{ required: "desc" }, { createdAt: "asc" }],
-        include: { documents: { select: { id: true } } },
+        include: {
+          documents: { where: { deletedAt: null }, select: { id: true } },
+        },
       },
       appointments: { orderBy: { scheduledAt: "desc" } },
       invoices: {
@@ -79,15 +82,9 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
   });
   if (!dossier) notFound();
 
-  const acceptedRequestIds = new Set(
-    dossier.documentRequests
-      .filter((r) => r.status === "ACCEPTED")
-      .map((r) => r.id),
-  );
+  // Le notaire ne voit que les documents validés (acceptés) ou hors demande.
   const visibleDocuments = dossier.documents.filter(
-    (doc) =>
-      doc.documentRequestId === null ||
-      acceptedRequestIds.has(doc.documentRequestId),
+    (doc) => doc.documentRequestId === null || doc.reviewStatus === "ACCEPTED",
   );
 
   const actorIds = dossier.timelineEvents

@@ -17,7 +17,13 @@ import {
 import { Select } from "@/components/ui/select";
 import { FAMILY_STATUS_LABEL } from "@/lib/client-profile/schemas";
 
-export function ProfileForm({ initial }: { initial: UpdateProfileInput }) {
+export function ProfileForm({
+  initial,
+  withClientSections = true,
+}: {
+  initial: UpdateProfileInput;
+  withClientSections?: boolean;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -135,94 +141,98 @@ export function ProfileForm({ initial }: { initial: UpdateProfileInput }) {
         <Input {...form.register("country")} />
       </FormField>
 
-      <div className="border-t border-slate-100 pt-4">
-        <p className="text-equatis-night-800 mb-3 text-sm font-semibold">
-          État civil
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField
-            label="Nom de naissance"
-            htmlFor="birthName"
-            error={form.formState.errors.birthName?.message}
-          >
-            <Input {...form.register("birthName")} />
-          </FormField>
-          <FormField
-            label="Date de naissance"
-            htmlFor="birthDate"
-            error={form.formState.errors.birthDate?.message}
-          >
-            <Input type="date" {...form.register("birthDate")} />
-          </FormField>
-          <FormField
-            label="Lieu de naissance"
-            htmlFor="birthPlace"
-            error={form.formState.errors.birthPlace?.message}
-          >
-            <Input {...form.register("birthPlace")} />
-          </FormField>
-          <FormField
-            label="Nationalité"
-            htmlFor="nationality"
-            error={form.formState.errors.nationality?.message}
-          >
-            <Input {...form.register("nationality")} />
-          </FormField>
-          <FormField
-            label="Profession"
-            htmlFor="profession"
-            error={form.formState.errors.profession?.message}
-          >
-            <Input {...form.register("profession")} />
-          </FormField>
-        </div>
-      </div>
+      {withClientSections && (
+        <>
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-equatis-night-800 mb-3 text-sm font-semibold">
+              État civil
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                label="Nom de naissance"
+                htmlFor="birthName"
+                error={form.formState.errors.birthName?.message}
+              >
+                <Input {...form.register("birthName")} />
+              </FormField>
+              <FormField
+                label="Date de naissance"
+                htmlFor="birthDate"
+                error={form.formState.errors.birthDate?.message}
+              >
+                <Input type="date" {...form.register("birthDate")} />
+              </FormField>
+              <FormField
+                label="Lieu de naissance"
+                htmlFor="birthPlace"
+                error={form.formState.errors.birthPlace?.message}
+              >
+                <Input {...form.register("birthPlace")} />
+              </FormField>
+              <FormField
+                label="Nationalité"
+                htmlFor="nationality"
+                error={form.formState.errors.nationality?.message}
+              >
+                <Input {...form.register("nationality")} />
+              </FormField>
+              <FormField
+                label="Profession"
+                htmlFor="profession"
+                error={form.formState.errors.profession?.message}
+              >
+                <Input {...form.register("profession")} />
+              </FormField>
+            </div>
+          </div>
 
-      <div className="border-t border-slate-100 pt-4">
-        <p className="text-equatis-night-800 mb-3 text-sm font-semibold">
-          Situation familiale
-        </p>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <FormField
-            label="Situation familiale"
-            htmlFor="familyStatus"
-            error={form.formState.errors.familyStatus?.message}
-          >
-            <Select {...form.register("familyStatus")}>
-              <option value="">— Non renseigné —</option>
-              {Object.entries(FAMILY_STATUS_LABEL).map(([k, label]) => (
-                <option key={k} value={k}>
-                  {label}
-                </option>
-              ))}
-            </Select>
-          </FormField>
-          <FormField
-            label="Date de mariage"
-            htmlFor="marriageDate"
-            error={form.formState.errors.marriageDate?.message}
-          >
-            <Input type="date" {...form.register("marriageDate")} />
-          </FormField>
-          <FormField
-            label="Lieu de mariage"
-            htmlFor="marriagePlace"
-            error={form.formState.errors.marriagePlace?.message}
-          >
-            <Input {...form.register("marriagePlace")} />
-          </FormField>
-          <FormField
-            label="Contrat / régime de mariage"
-            htmlFor="marriageContract"
-            error={form.formState.errors.marriageContract?.message}
-          >
-            <Input
-              placeholder="Communauté réduite aux acquêts, séparation de biens…"
-              {...form.register("marriageContract")}
-            />
-          </FormField>
-        </div>
-      </div>
+          <div className="border-t border-slate-100 pt-4">
+            <p className="text-equatis-night-800 mb-3 text-sm font-semibold">
+              Situation familiale
+            </p>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <FormField
+                label="Situation familiale"
+                htmlFor="familyStatus"
+                error={form.formState.errors.familyStatus?.message}
+              >
+                <Select {...form.register("familyStatus")}>
+                  <option value="">— Non renseigné —</option>
+                  {Object.entries(FAMILY_STATUS_LABEL).map(([k, label]) => (
+                    <option key={k} value={k}>
+                      {label}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+              <FormField
+                label="Date de mariage"
+                htmlFor="marriageDate"
+                error={form.formState.errors.marriageDate?.message}
+              >
+                <Input type="date" {...form.register("marriageDate")} />
+              </FormField>
+              <FormField
+                label="Lieu de mariage"
+                htmlFor="marriagePlace"
+                error={form.formState.errors.marriagePlace?.message}
+              >
+                <Input {...form.register("marriagePlace")} />
+              </FormField>
+              <FormField
+                label="Contrat / régime de mariage"
+                htmlFor="marriageContract"
+                error={form.formState.errors.marriageContract?.message}
+              >
+                <Input
+                  placeholder="Communauté réduite aux acquêts, séparation de biens…"
+                  {...form.register("marriageContract")}
+                />
+              </FormField>
+            </div>
+          </div>
+        </>
+      )}
 
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={pending}>

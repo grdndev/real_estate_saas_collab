@@ -38,7 +38,7 @@ async function main() {
     phone: string;
     programmeRef?: string;
     source: string;
-    status: "NEW" | "CONTACTED" | "QUALIFIED";
+    status: "NEW" | "QUALIFIED" | "OPTIONED";
   }> = [
     {
       firstName: "Camille",
@@ -58,7 +58,7 @@ async function main() {
       phone: "06 23 45 67 89",
       programmeRef: "DUPARC",
       source: "google_forms",
-      status: "CONTACTED",
+      status: "QUALIFIED",
     },
     {
       firstName: "Sophie",
@@ -88,7 +88,7 @@ async function main() {
       phone: "06 56 78 90 12",
       programmeRef: "SAINTE_MARIE",
       source: "google_forms",
-      status: "CONTACTED",
+      status: "QUALIFIED",
     },
     {
       firstName: "Julien",

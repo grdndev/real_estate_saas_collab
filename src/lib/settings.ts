@@ -22,6 +22,26 @@ export function invalidateSettingsCache(): void {
   cache = null;
 }
 
+// Logo société (data URL) : cache dédié, séparé de PlatformSettings pour ne
+// pas alourdir getSettings() (appelé à chaque requête via le callback jwt).
+const COMPANY_LOGO_KEY = "COMPANY_LOGO";
+let logoCache: { value: string | null; expiresAt: number } | null = null;
+
+export function invalidateCompanyLogoCache(): void {
+  logoCache = null;
+}
+
+/** Logo de la société en data URL (base64), ou null si aucun logo défini. */
+export async function getCompanyLogo(): Promise<string | null> {
+  if (logoCache && Date.now() < logoCache.expiresAt) return logoCache.value;
+  const row = await prisma.setting.findUnique({
+    where: { key: COMPANY_LOGO_KEY },
+  });
+  const value = row?.value || null;
+  logoCache = { value, expiresAt: Date.now() + CACHE_TTL_MS };
+  return value;
+}
+
 export async function getSettings(): Promise<PlatformSettings> {
   if (cache && Date.now() < cache.expiresAt) return cache.value;
   const rows = await prisma.setting.findMany({

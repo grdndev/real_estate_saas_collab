@@ -15,6 +15,7 @@ export const createTrackingProgrammeSchema = z
       .max(40)
       .regex(/^[A-Z0-9_-]+$/i)
       .optional(),
+    zipcode: z.string().max(10).optional(),
     city: z.string().max(80).optional(),
   })
   .superRefine((data, ctx) => {

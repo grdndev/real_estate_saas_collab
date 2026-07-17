@@ -60,6 +60,24 @@ export async function upsertClientProfileAction(
       ? (data.familyStatus as FamilyStatus)
       : null;
 
+  // Adresse structurée — unique source : User.addressEnc (même format que /profil).
+  // Si les 4 champs sont vides, on ne touche pas à l'adresse existante.
+  const hasAddress = Boolean(
+    data.addressLine || data.postalCode || data.city || data.country,
+  );
+
+  const profileData = {
+    birthName: data.birthName || null,
+    birthDate: parseDate(data.birthDate ?? ""),
+    birthPlace: data.birthPlace || null,
+    profession: data.profession || null,
+    nationality: data.nationality || null,
+    familyStatus,
+    marriageDate: parseDate(data.marriageDate ?? ""),
+    marriagePlace: data.marriagePlace || null,
+    marriageContract: data.marriageContract || null,
+  };
+
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: dossier.clientId! },
@@ -67,35 +85,24 @@ export async function upsertClientProfileAction(
         firstName: data.firstName,
         lastName: data.lastName,
         phoneEnc: data.phone ? encrypt(data.phone) : null,
+        ...(hasAddress
+          ? {
+              addressEnc: encrypt(
+                JSON.stringify({
+                  line: data.addressLine ?? "",
+                  postalCode: data.postalCode ?? "",
+                  city: data.city ?? "",
+                  country: data.country ?? "",
+                }),
+              ),
+            }
+          : {}),
       },
     });
     await tx.clientProfile.upsert({
       where: { userId: dossier.clientId! },
-      create: {
-        userId: dossier.clientId!,
-        birthName: data.birthName || null,
-        birthDate: parseDate(data.birthDate ?? ""),
-        birthPlace: data.birthPlace || null,
-        profession: data.profession || null,
-        nationality: data.nationality || null,
-        addressEnc: data.address ? encrypt(data.address) : null,
-        familyStatus,
-        marriageDate: parseDate(data.marriageDate ?? ""),
-        marriagePlace: data.marriagePlace || null,
-        marriageContract: data.marriageContract || null,
-      },
-      update: {
-        birthName: data.birthName || null,
-        birthDate: parseDate(data.birthDate ?? ""),
-        birthPlace: data.birthPlace || null,
-        profession: data.profession || null,
-        nationality: data.nationality || null,
-        addressEnc: data.address ? encrypt(data.address) : null,
-        familyStatus,
-        marriageDate: parseDate(data.marriageDate ?? ""),
-        marriagePlace: data.marriagePlace || null,
-        marriageContract: data.marriageContract || null,
-      },
+      create: { userId: dossier.clientId!, ...profileData },
+      update: profileData,
     });
   });
 

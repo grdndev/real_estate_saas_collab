@@ -94,9 +94,6 @@ export function StepPreview({
       const serialized = draftRows.map((r) => ({
         ...r,
         dateSignatureActe: r.dateSignatureActe?.toISOString() ?? null,
-        dateEnvoiLr: r.dateEnvoiLr?.toISOString() ?? null,
-        dateReceptionLr: r.dateReceptionLr?.toISOString() ?? null,
-        dateReceptionVirement: r.dateReceptionVirement?.toISOString() ?? null,
       }));
 
       const res = await importFondsSuiviAction({

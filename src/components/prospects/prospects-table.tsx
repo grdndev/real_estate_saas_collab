@@ -2,6 +2,7 @@
 
 import { Fragment, useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -14,11 +15,15 @@ import {
   Th,
   Tr,
 } from "@/components/ui/table";
-import { Select } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { SharedNotes, type NoteItem } from "@/components/notes/shared-notes";
 import {
+  ConvertProspectDialog,
+  type ProgrammeLotOption,
+} from "@/components/prospects/convert-prospect-dialog";
+import {
   deleteProspectAction,
+  revertProspectConversionAction,
   updateProspectStatusAction,
 } from "@/lib/prospect/actions";
 import type { ProspectStatusInput } from "@/lib/prospect/schemas";
@@ -30,12 +35,18 @@ export interface ProspectRow {
   email: string;
   city: string | null;
   phone: string | null;
+  programmeId: string | null;
   programmeName: string | null;
   source: string | null;
   status: ProspectStatusInput;
+  convertedDossierId: string | null;
+  dossierHasActivity: boolean;
   createdAt: Date;
   notes: NoteItem[];
 }
+
+// Chaîne ordonnée du cycle de vie (hors CONVERTED/DROPPED).
+const CHAIN = ["NEW", "QUALIFIED", "OPTIONED"] as const;
 
 const STATUS_BADGE: Record<
   ProspectStatusInput,
@@ -44,20 +55,21 @@ const STATUS_BADGE: Record<
     variant: "neutral" | "info" | "warning" | "success" | "danger";
   }
 > = {
-  NEW: { label: "Nouveau", variant: "neutral" },
-  CONTACTED: { label: "Contacté", variant: "info" },
-  QUALIFIED: { label: "Qualifié", variant: "warning" },
-  OPTIONED: { label: "Optionné", variant: "info" },
-  CONVERTED: { label: "Converti", variant: "success" },
+  NEW: { label: "Prospect", variant: "neutral" },
+  QUALIFIED: { label: "Prospect qualifié", variant: "warning" },
+  OPTIONED: { label: "Prospect réservataire", variant: "info" },
+  CONVERTED: { label: "Client", variant: "success" },
   DROPPED: { label: "Abandonné", variant: "danger" },
 };
 
 export function ProspectsTable({
   prospects,
+  programmes,
   canDelete,
   currentUserId,
 }: {
   prospects: ProspectRow[];
+  programmes: ProgrammeLotOption[];
   canDelete: boolean;
   currentUserId: string;
 }) {
@@ -65,6 +77,7 @@ export function ProspectsTable({
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notesOpen, setNotesOpen] = useState<string | null>(null);
+  const [convertFor, setConvertFor] = useState<ProspectRow | null>(null);
 
   if (prospects.length === 0) {
     return (
@@ -79,6 +92,17 @@ export function ProspectsTable({
     setError(null);
     startTransition(async () => {
       const r = await updateProspectStatusAction({ prospectId, status });
+      if (!r.ok) setError(r.error);
+      else router.refresh();
+    });
+  }
+
+  function onRevert(prospectId: string) {
+    if (!confirm("Annuler la conversion et supprimer le dossier vide ?"))
+      return;
+    setError(null);
+    startTransition(async () => {
+      const r = await revertProspectConversionAction({ prospectId });
       if (!r.ok) setError(r.error);
       else router.refresh();
     });
@@ -120,6 +144,11 @@ export function ProspectsTable({
             const sb = STATUS_BADGE[p.status];
             const open = notesOpen === p.id;
             const colSpan = canDelete ? 9 : 8;
+            const chainIdx = (CHAIN as readonly string[]).indexOf(p.status);
+            const inChain = chainIdx !== -1;
+            const canAdvance = inChain && chainIdx < CHAIN.length - 1;
+            const canRecede = inChain && chainIdx > 0;
+
             const mainRow = (
               <Tr>
                 <Td className="font-medium">
@@ -132,39 +161,105 @@ export function ProspectsTable({
                 </Td>
                 <Td className="text-xs text-slate-500">{p.source ?? "—"}</Td>
                 <Td>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1.5">
                     <Badge variant={sb.variant}>{sb.label}</Badge>
-                    <Select
-                      value={p.status}
-                      onChange={(e) =>
-                        onStatusChange(
-                          p.id,
-                          e.target.value as ProspectStatusInput,
-                        )
-                      }
-                      disabled={pending}
-                      className="h-7 text-xs"
-                      aria-label="Changer le statut"
-                    >
-                      {p.status === "NEW" && (
-                        <option value="NEW" disabled>
-                          Nouveau — à traiter
-                        </option>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {inChain && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={pending || !canRecede}
+                            onClick={() =>
+                              canRecede &&
+                              onStatusChange(
+                                p.id,
+                                CHAIN[chainIdx - 1] as ProspectStatusInput,
+                              )
+                            }
+                            aria-label="Reculer d'un stade"
+                          >
+                            ◀
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 px-2 text-xs"
+                            disabled={pending || !canAdvance}
+                            onClick={() =>
+                              canAdvance &&
+                              onStatusChange(
+                                p.id,
+                                CHAIN[chainIdx + 1] as ProspectStatusInput,
+                              )
+                            }
+                            aria-label="Avancer d'un stade"
+                          >
+                            ▶
+                          </Button>
+                          {p.status === "OPTIONED" && (
+                            <Button
+                              size="sm"
+                              variant="accent"
+                              className="h-7 px-2 text-xs"
+                              disabled={pending}
+                              onClick={() => setConvertFor(p)}
+                            >
+                              Convertir en client
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            disabled={pending}
+                            onClick={() => onStatusChange(p.id, "DROPPED")}
+                          >
+                            Abandonner
+                          </Button>
+                        </>
                       )}
-                      {p.status === "OPTIONED" && (
-                        <option value="OPTIONED" disabled>
-                          Optionné
-                        </option>
+
+                      {p.status === "DROPPED" && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs"
+                          disabled={pending}
+                          onClick={() => onStatusChange(p.id, "NEW")}
+                        >
+                          Réactiver
+                        </Button>
                       )}
+
                       {p.status === "CONVERTED" && (
-                        <option value="CONVERTED" disabled>
-                          Converti
-                        </option>
+                        <>
+                          {p.convertedDossierId && (
+                            <Link
+                              href={`/collaborateur/dossiers/${p.convertedDossierId}`}
+                              className="text-equatis-turquoise-700 text-xs hover:underline"
+                            >
+                              Voir le dossier
+                            </Link>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 px-2 text-xs"
+                            disabled={pending || p.dossierHasActivity}
+                            title={
+                              p.dossierHasActivity
+                                ? "Le dossier a de l'activité : annulation impossible."
+                                : undefined
+                            }
+                            onClick={() => onRevert(p.id)}
+                          >
+                            Annuler la conversion
+                          </Button>
+                        </>
                       )}
-                      <option value="CONTACTED">Contacté</option>
-                      <option value="QUALIFIED">Qualifié</option>
-                      <option value="DROPPED">Abandonné</option>
-                    </Select>
+                    </div>
                   </div>
                 </Td>
                 <Td className="text-xs text-slate-500">
@@ -221,6 +316,16 @@ export function ProspectsTable({
           })}
         </TBody>
       </Table>
+
+      {convertFor && (
+        <ConvertProspectDialog
+          open
+          prospect={convertFor}
+          programmes={programmes}
+          defaultProgrammeId={convertFor.programmeId}
+          onClose={() => setConvertFor(null)}
+        />
+      )}
     </div>
   );
 }

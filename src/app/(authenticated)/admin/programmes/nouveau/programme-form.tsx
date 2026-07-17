@@ -10,32 +10,56 @@ import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/input";
-import { createProgrammeAction } from "@/lib/admin/actions";
+import {
+  createProgrammeAction,
+  updateProgrammeAction,
+} from "@/lib/admin/actions";
 import {
   createProgrammeSchema,
   type CreateProgrammeInput,
 } from "@/lib/admin/schemas";
 
-export function ProgrammeForm() {
+/** Valeurs initiales lorsqu'on édite un programme existant. */
+export interface ProgrammeFormInitial {
+  id: string;
+  reference: string;
+  name: string;
+  description: string | null;
+  zipcode: string | null;
+  city: string | null;
+  address: string | null;
+  caObjective: number | null;
+}
+
+export function ProgrammeForm({
+  programme,
+}: {
+  programme?: ProgrammeFormInitial;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [globalError, setGlobalError] = useState<string | null>(null);
+  const isEdit = Boolean(programme);
 
   const form = useForm<CreateProgrammeInput>({
     resolver: zodResolver(createProgrammeSchema),
     defaultValues: {
-      reference: "",
-      name: "",
-      description: "",
-      city: "",
-      caObjective: undefined,
+      reference: programme?.reference ?? "",
+      name: programme?.name ?? "",
+      description: programme?.description ?? "",
+      zipcode: programme?.zipcode ?? "",
+      city: programme?.city ?? "",
+      address: programme?.address ?? "",
+      caObjective: programme?.caObjective ?? undefined,
     },
   });
 
   function onSubmit(values: CreateProgrammeInput) {
     setGlobalError(null);
     startTransition(async () => {
-      const result = await createProgrammeAction(values);
+      const result = programme
+        ? await updateProgrammeAction({ ...values, id: programme.id })
+        : await createProgrammeAction(values);
       if (!result.ok) {
         if (result.fieldErrors) {
           for (const [field, messages] of Object.entries(result.fieldErrors)) {
@@ -50,7 +74,10 @@ export function ProgrammeForm() {
         setGlobalError(result.error);
         return;
       }
-      router.replace(`/admin/programmes/${result.value.id}`);
+      const targetId = programme
+        ? programme.id
+        : (result.value as { id: string }).id;
+      router.replace(`/admin/programmes/${targetId}`);
       router.refresh();
     });
   }
@@ -66,7 +93,7 @@ export function ProgrammeForm() {
           {globalError}
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px_1fr]">
         <FormField
           label="Référence"
           htmlFor="reference"
@@ -75,10 +102,17 @@ export function ProgrammeForm() {
           error={form.formState.errors.reference?.message}
         >
           <Input
-            autoFocus
+            autoFocus={!isEdit}
             className="font-mono uppercase"
             {...form.register("reference")}
           />
+        </FormField>
+        <FormField
+          label="Code postal"
+          htmlFor="zipcode"
+          error={form.formState.errors.zipcode?.message}
+        >
+          <Input inputMode="numeric" {...form.register("zipcode")} />
         </FormField>
         <FormField
           label="Ville"
@@ -95,6 +129,14 @@ export function ProgrammeForm() {
         error={form.formState.errors.name?.message}
       >
         <Input {...form.register("name")} />
+      </FormField>
+      <FormField
+        label="Adresse"
+        htmlFor="address"
+        hint="Adresse postale du programme (utilisée dans les documents PDF)"
+        error={form.formState.errors.address?.message}
+      >
+        <Input {...form.register("address")} />
       </FormField>
       <FormField
         label="Description"
@@ -129,7 +171,11 @@ export function ProgrammeForm() {
           Annuler
         </Button>
         <Button type="submit" disabled={pending}>
-          {pending ? "Création…" : "Créer le programme"}
+          {pending
+            ? "Enregistrement…"
+            : isEdit
+              ? "Enregistrer les modifications"
+              : "Créer le programme"}
         </Button>
       </div>
     </form>

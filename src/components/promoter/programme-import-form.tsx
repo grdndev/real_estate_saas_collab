@@ -40,6 +40,7 @@ export function ProgrammeImportForm() {
   );
   const [name, setName] = useState("");
   const [reference, setReference] = useState("");
+  const [zipcode, setZipcode] = useState("");
   const [city, setCity] = useState("");
   const [vatRate, setVatRate] = useState("8.5");
   const [file, setFile] = useState<File | null>(null);
@@ -79,6 +80,7 @@ export function ProgrammeImportForm() {
       const result = await importProgrammeAction({
         name,
         reference,
+        zipcode,
         city,
         vatRate: Number.isFinite(parsedVat) ? parsedVat : 8.5,
         fileB64,
@@ -104,7 +106,7 @@ export function ProgrammeImportForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_100px_1fr_110px]">
         <FormField label="Nom du programme" htmlFor="prog-name" required>
           <Input
             id="prog-name"
@@ -122,6 +124,15 @@ export function ProgrammeImportForm() {
             onChange={(e) => setReference(e.target.value.toUpperCase())}
             placeholder="LESJARDINS-2026"
             required
+          />
+        </FormField>
+        <FormField label="Code postal" htmlFor="prog-zipcode">
+          <Input
+            id="prog-zipcode"
+            inputMode="numeric"
+            value={zipcode}
+            onChange={(e) => setZipcode(e.target.value)}
+            placeholder="97400"
           />
         </FormField>
         <FormField label="Ville" htmlFor="prog-city">

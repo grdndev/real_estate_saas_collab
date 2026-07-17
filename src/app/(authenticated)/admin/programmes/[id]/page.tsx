@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Banknote, FolderOpen } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   EmptyState,
@@ -16,6 +18,7 @@ import {
 import { ArchiveProgrammeButton } from "@/components/admin/archive-programme";
 import { CreateLotForm } from "@/components/admin/lot-form";
 import { DeleteLotButton } from "@/components/admin/lot-row-actions";
+import { UnassignClientButton } from "@/components/collab/unassign-client";
 import { PromoterAssignment } from "@/components/admin/promoter-assignment";
 import { prisma } from "@/lib/prisma";
 
@@ -51,7 +54,24 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
   const programme = await prisma.programme.findUnique({
     where: { id },
     include: {
-      lots: { orderBy: [{ reference: "asc" }] },
+      lots: {
+        orderBy: [{ reference: "asc" }],
+        include: {
+          dossier: {
+            select: {
+              id: true,
+              clientId: true,
+              client: { select: { firstName: true, lastName: true } },
+              prospect: { select: { id: true } },
+              signatures: {
+                where: { status: { in: ["CREATED", "SENT", "OPENED"] } },
+                take: 1,
+                select: { id: true },
+              },
+            },
+          },
+        },
+      },
       promoters: {
         include: {
           promoter: {
@@ -97,7 +117,26 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
               {programme.city && <span>{programme.city}</span>}
             </p>
           </div>
-          {!isArchived && <ArchiveProgrammeButton programmeId={programme.id} />}
+          <div className="flex items-center gap-2">
+            <Link
+              href={`/admin/fonds?programme=${programme.id}`}
+              className={buttonVariants({ variant: "outline", size: "sm" })}
+            >
+              <Banknote className="size-4" aria-hidden />
+              Suivi des fonds
+            </Link>
+            {!isArchived && (
+              <>
+                <Link
+                  href={`/admin/programmes/${programme.id}/modifier`}
+                  className="text-equatis-night-800 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium hover:bg-slate-50"
+                >
+                  Modifier
+                </Link>
+                <ArchiveProgrammeButton programmeId={programme.id} />
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -173,7 +212,36 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
                         <Badge variant={lb.variant}>{lb.label}</Badge>
                       </Td>
                       <Td className="text-right">
-                        {!isArchived && <DeleteLotButton lotId={lot.id} />}
+                        <div className="flex items-center justify-end gap-1">
+                          {lot.dossier && (
+                            <Link
+                              href={`/collaborateur/dossiers/${lot.dossier.id}`}
+                              aria-label={`Ouvrir le dossier du lot ${lot.reference}`}
+                              className="text-equatis-turquoise-700 inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-sm font-medium hover:underline"
+                            >
+                              <FolderOpen className="size-4" aria-hidden />
+                              Ouvrir le dossier
+                            </Link>
+                          )}
+                          {!isArchived && (
+                            <>
+                              {lot.dossier?.clientId && lot.dossier.client && (
+                                <UnassignClientButton
+                                  dossierId={lot.dossier.id}
+                                  clientName={`${lot.dossier.client.firstName} ${lot.dossier.client.lastName}`}
+                                  convertedProspect={Boolean(
+                                    lot.dossier.prospect,
+                                  )}
+                                  pendingSignature={
+                                    lot.dossier.signatures.length > 0
+                                  }
+                                  variant="ghost"
+                                />
+                              )}
+                              <DeleteLotButton lotId={lot.id} />
+                            </>
+                          )}
+                        </div>
                       </Td>
                     </Tr>
                   );

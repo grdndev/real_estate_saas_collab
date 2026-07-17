@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FormField } from "@/components/ui/form-field";
 import { Input } from "@/components/ui/input";
+import { UnassignClientButton } from "@/components/collab/unassign-client";
 import { updateFondsClientContactAction } from "@/lib/collaborateur/fonds-actions";
 
 export interface ClientContactData {
@@ -27,6 +28,8 @@ interface Props {
   dossierId: string | null;
   clientName: string | null;
   contact: ClientContactData | null;
+  convertedProspect?: boolean;
+  pendingSignature?: boolean;
 }
 
 export function ClientContactCard({
@@ -34,6 +37,8 @@ export function ClientContactCard({
   dossierId,
   clientName,
   contact,
+  convertedProspect = false,
+  pendingSignature = false,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -160,7 +165,7 @@ export function ClientContactCard({
             {saved && (
               <Alert variant="success">Coordonnées enregistrées.</Alert>
             )}
-            <div>
+            <div className="flex flex-wrap gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -171,6 +176,14 @@ export function ClientContactCard({
               >
                 Modifier les coordonnées
               </Button>
+              {dossierId && (
+                <UnassignClientButton
+                  dossierId={dossierId}
+                  clientName={clientName ?? "ce client"}
+                  convertedProspect={convertedProspect}
+                  pendingSignature={pendingSignature}
+                />
+              )}
             </div>
           </div>
         ) : (

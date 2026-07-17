@@ -35,7 +35,7 @@ function toDate(iso: string | null): Date | null {
 export async function parseTrackingFileAction(
   fileB64: string,
 ): Promise<ActionResult<{ rows: ParsedTrackingLot[]; errors: string[] }>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
 
   const parsed = parseTrackingFileSchema.safeParse({ fileB64 });
   if (!parsed.success) {
@@ -58,7 +58,7 @@ export async function parseTrackingFileAction(
 export async function createTrackingProgrammeAction(
   input: unknown,
 ): Promise<ActionResult<{ programmeId: string }>> {
-  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
   const parsed = createTrackingProgrammeSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -91,13 +91,23 @@ export async function createTrackingProgrammeAction(
 
   // mode = "new"
   try {
-    const prog = await prisma.programme.create({
-      data: {
-        name: data.name!,
-        reference: data.reference!.toUpperCase(),
-        city: data.city ?? null,
-        status: "ACTIVE",
-      },
+    const prog = await prisma.$transaction(async (tx) => {
+      const created = await tx.programme.create({
+        data: {
+          name: data.name!,
+          reference: data.reference!.toUpperCase(),
+          zipcode: data.zipcode ?? null,
+          city: data.city ?? null,
+          status: "ACTIVE",
+        },
+      });
+      // Un programme créé par un promoteur lui est rattaché.
+      if (me.role === "PROMOTER") {
+        await tx.programmePromoter.create({
+          data: { programmeId: created.id, promoterId: me.id },
+        });
+      }
+      return created;
     });
     await audit({
       userId: me.id,
@@ -131,7 +141,7 @@ export async function createTrackingProgrammeAction(
 export async function importTrackingLotsAction(
   input: unknown,
 ): Promise<ActionResult<{ upserted: number; lotIds: Record<string, string> }>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
 
   const parsed = importTrackingLotsSchema.safeParse(input);
   if (!parsed.success) {
@@ -205,7 +215,7 @@ export async function importTrackingLotsAction(
 export async function upsertTrackingDossierAction(
   input: unknown,
 ): Promise<ActionResult<{ dossierId: string }>> {
-  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
 
   const parsed = createTrackingDossierSchema.safeParse(input);
   if (!parsed.success) {
@@ -494,7 +504,7 @@ export async function upsertTrackingDossierAction(
 export async function lookupClientByEmailAction(
   email: string,
 ): Promise<ActionResult<{ userId: string | null; hasDossier: boolean }>> {
-  await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
 
   if (!email) return { ok: true, value: { userId: null, hasDossier: false } };
 

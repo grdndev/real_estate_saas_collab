@@ -294,9 +294,6 @@ function parseSheet1(sheet: ExcelJS.Worksheet): {
       fraisMainLevee: parseNumber(fraisRaw),
       rbstEdd: parseNumber(rbstRaw),
       soldeVendeur: parseNumber(soldeRaw),
-      dateEnvoiLr: null,
-      dateReceptionLr: null,
-      dateReceptionVirement: null,
       notes: null,
       appelsFonds,
     });
@@ -319,9 +316,6 @@ function parseSheet4(
   const headerRow = sheet.getRow(headerRowIdx);
 
   let colLot: number | null = null;
-  let colEnvoiLr: number | null = null;
-  let colReceptionLr: number | null = null;
-  let colReceptionVirement: number | null = null;
   let colCommentaire: number | null = null;
 
   headerRow.eachCell((cell, colNumber) => {
@@ -330,18 +324,6 @@ function parseSheet4(
 
     if (norm === "lot") {
       colLot = colLot ?? colNumber;
-      return;
-    }
-    if (norm === "dateenvoilr" || norm === "envoilr") {
-      colEnvoiLr = colEnvoiLr ?? colNumber;
-      return;
-    }
-    if (norm === "datereceptionlr" || norm === "receptionlr") {
-      colReceptionLr = colReceptionLr ?? colNumber;
-      return;
-    }
-    if (norm === "datereceptionduvirement" || norm === "receptionvirement") {
-      colReceptionVirement = colReceptionVirement ?? colNumber;
       return;
     }
     if (norm.startsWith("commentaire")) {
@@ -358,14 +340,6 @@ function parseSheet4(
     const entry = map.get(lotRef);
     if (!entry) continue;
 
-    if (colEnvoiLr)
-      entry.dateEnvoiLr = parseDate(row.getCell(colEnvoiLr).value);
-    if (colReceptionLr)
-      entry.dateReceptionLr = parseDate(row.getCell(colReceptionLr).value);
-    if (colReceptionVirement)
-      entry.dateReceptionVirement = parseDate(
-        row.getCell(colReceptionVirement).value,
-      );
     if (colCommentaire) {
       const c = cellText(row.getCell(colCommentaire).value).trim();
       if (c) entry.notes = c;

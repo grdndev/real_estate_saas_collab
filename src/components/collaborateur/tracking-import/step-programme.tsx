@@ -23,6 +23,7 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
   );
   const [name, setName] = useState("");
   const [reference, setReference] = useState("");
+  const [zipcode, setZipcode] = useState("");
   const [city, setCity] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
@@ -34,7 +35,13 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
     setFieldErrors({});
     startTransition(async () => {
       const input = isNew
-        ? { mode: "new" as const, name, reference, city: city || undefined }
+        ? {
+            mode: "new" as const,
+            name,
+            reference,
+            zipcode: zipcode || undefined,
+            city: city || undefined,
+          }
         : { mode: "existing" as const, programmeId: selected };
 
       const result = await createTrackingProgrammeAction(input);
@@ -65,7 +72,7 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
       </FormField>
 
       {isNew && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_100px_1fr]">
           <FormField
             label="Nom"
             htmlFor="tp-name"
@@ -93,6 +100,15 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
               onChange={(e) => setReference(e.target.value.toUpperCase())}
               placeholder="LESJARDINS-2026"
               required
+            />
+          </FormField>
+          <FormField label="Code postal" htmlFor="tp-zipcode">
+            <Input
+              id="tp-zipcode"
+              inputMode="numeric"
+              value={zipcode}
+              onChange={(e) => setZipcode(e.target.value)}
+              placeholder="97400"
             />
           </FormField>
           <FormField label="Ville" htmlFor="tp-city">

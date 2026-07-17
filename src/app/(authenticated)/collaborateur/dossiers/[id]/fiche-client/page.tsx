@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
+import { decodeAddress } from "@/lib/profile";
 
 export const metadata: Metadata = { title: "Fiche client" };
 
@@ -47,12 +48,15 @@ export default async function FicheClientPage({ params }: PageProps) {
           lastName: true,
           email: true,
           phoneEnc: true,
+          addressEnc: true,
           clientProfile: true,
         },
       },
     },
   });
   if (!dossier) notFound();
+
+  const address = decodeAddress(dossier.client?.addressEnc ?? null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -91,9 +95,10 @@ export default async function FicheClientPage({ params }: PageProps) {
                 birthPlace: dossier.client.clientProfile?.birthPlace ?? "",
                 profession: dossier.client.clientProfile?.profession ?? "",
                 nationality: dossier.client.clientProfile?.nationality ?? "",
-                address: safeDecrypt(
-                  dossier.client.clientProfile?.addressEnc ?? null,
-                ),
+                addressLine: address?.line ?? "",
+                postalCode: address?.postalCode ?? "",
+                city: address?.city ?? "",
+                country: address?.country ?? "",
                 familyStatus: dossier.client.clientProfile?.familyStatus ?? "",
                 marriageDate: toDateInput(
                   dossier.client.clientProfile?.marriageDate ?? null,

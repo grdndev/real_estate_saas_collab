@@ -2,7 +2,6 @@ import { z } from "zod";
 
 export const prospectStatusEnum = z.enum([
   "NEW",
-  "CONTACTED",
   "QUALIFIED",
   "OPTIONED",
   "CONVERTED",
@@ -48,3 +47,10 @@ export const convertProspectSchema = z.object({
   lotId: z.string().optional().nullable(),
 });
 export type ConvertProspectInput = z.infer<typeof convertProspectSchema>;
+
+export const revertProspectConversionSchema = z.object({
+  prospectId: z.string().min(1),
+});
+export type RevertProspectConversionInput = z.infer<
+  typeof revertProspectConversionSchema
+>;

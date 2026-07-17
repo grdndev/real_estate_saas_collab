@@ -52,6 +52,7 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
     orderBy: { createdAt: "desc" },
     include: {
       lots: { select: { reference: true, type: true, surface: true } },
+      client: { select: { firstName: true, lastName: true } },
     },
   });
 
@@ -93,8 +94,7 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
           Suivi des ventes
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          {programme.name} — vue lecture seule, données personnelles masquées
-          (CDC §5.7).
+          {programme.name} — vue lecture seule.
         </p>
       </div>
 
@@ -145,6 +145,7 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
               <Tr>
                 <Th>Référence</Th>
                 <Th>Lot</Th>
+                <Th>Acquéreur</Th>
                 <Th>Statut</Th>
                 <Th>Créé le</Th>
                 <Th>Dernière activité</Th>
@@ -162,6 +163,13 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
                             .map((l) => `${l.reference} · ${l.type}`)
                             .join(", ")
                         : "—"}
+                    </Td>
+                    <Td>
+                      {d.client ? (
+                        `${d.client.firstName} ${d.client.lastName}`
+                      ) : (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
                     </Td>
                     <Td>
                       <Badge variant={sb.variant}>{sb.label}</Badge>

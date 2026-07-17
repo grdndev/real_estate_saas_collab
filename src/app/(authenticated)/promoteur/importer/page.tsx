@@ -1,13 +1,23 @@
 import type { Metadata } from "next";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProgrammeImportForm } from "@/components/promoter/programme-import-form";
+import { PromoterImportWizard } from "@/components/promoter/promoter-import-wizard";
 import { requireRole } from "@/lib/auth/guards";
+import { prisma } from "@/lib/prisma";
+import { programmesForPromoter } from "@/lib/promoter/access";
 
 export const metadata: Metadata = { title: "Importer un programme" };
 
 export default async function ImportProgrammePage() {
-  await requireRole(["PROMOTER", "SUPER_ADMIN"]);
+  const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
+
+  const programmes = await prisma.programme.findMany({
+    where:
+      me.role === "PROMOTER"
+        ? { id: { in: await programmesForPromoter(me.id) }, status: "ACTIVE" }
+        : { status: "ACTIVE" },
+    select: { id: true, name: true, reference: true },
+    orderBy: { reference: "asc" },
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -16,19 +26,12 @@ export default async function ImportProgrammePage() {
           Importer un programme
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Déposez un fichier Excel : tous les lots sont créés automatiquement et
-          le programme devient accessible à toute l&apos;équipe.
+          Déposez votre tableau de suivi Excel puis laissez-vous guider :
+          programme, lots et dossiers sont créés étape par étape.
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Nouveau programme depuis un fichier Excel</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProgrammeImportForm />
-        </CardContent>
-      </Card>
+      <PromoterImportWizard programmes={programmes} />
     </div>
   );
 }

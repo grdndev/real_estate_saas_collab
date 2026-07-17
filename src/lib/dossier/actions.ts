@@ -11,6 +11,7 @@ import { notify } from "@/lib/notifications";
 import { getMailer } from "@/lib/mail";
 import { dossierAssociatedMail } from "@/lib/mail/auto-templates";
 import { generateDossierReference } from "@/lib/dossier/reference";
+import { createClientDossierCore } from "@/lib/dossier/client-dossier-core";
 import { getRequestContext } from "@/lib/request-context";
 import { hashPassword } from "@/lib/auth/password";
 import { encrypt } from "@/lib/crypto";
@@ -25,9 +26,11 @@ import {
   createDossierSchema,
   relaunchClientSchema,
   setDossierOptionSchema,
+  unassignClientSchema,
   updateContractStatusSchema,
   updateDossierStatusSchema,
   type AssignClientInput,
+  type UnassignClientInput,
   type CreateClientAndDossierInput,
   type RelaunchClientInput,
   type SetDossierOptionInput,
@@ -38,7 +41,16 @@ import {
 } from "@/lib/dossier/schemas";
 import { notifyDossierParticipants } from "@/lib/notifications";
 import { CONTRACT_STATUS_LABEL } from "@/lib/dossier/labels";
+import type { ContractStatus, TimelineKind } from "@/generated/prisma/enums";
 import type { ActionResult } from "@/lib/auth/actions";
+
+// Statuts contractuels donnant lieu à un événement de timeline dédié (jalon).
+const CONTRACT_STATUS_TIMELINE_KIND: Partial<
+  Record<ContractStatus, TimelineKind>
+> = {
+  RESERVATION_SIGNED: "RESERVATION_SIGNED",
+  NOTARY_ACT_PENDING: "NOTARY_ACT_PENDING",
+};
 
 function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
@@ -336,6 +348,88 @@ export async function assignClientAction(
 }
 
 // =====================================================
+// UNASSIGN CLIENT (dissocier le client d'un dossier — inverse de l'association)
+// =====================================================
+
+export async function unassignClientAction(
+  input: UnassignClientInput,
+): Promise<ActionResult> {
+  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
+  const parsed = unassignClientSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Saisie invalide" };
+  }
+  const ctx = await getRequestContext();
+
+  const dossier = await findDossierForUser(
+    parsed.data.dossierId,
+    me.id,
+    me.role,
+  );
+  if (!dossier) return { ok: false, error: "Dossier introuvable" };
+  if (!dossier.clientId) {
+    return { ok: false, error: "Ce dossier n'a pas de client associé." };
+  }
+
+  const clientId = dossier.clientId;
+  const client = await prisma.user.findUnique({
+    where: { id: clientId },
+    select: { firstName: true, lastName: true },
+  });
+  const clientName = client
+    ? `${client.firstName} ${client.lastName}`
+    : "Client inconnu";
+
+  await prisma.$transaction(async (tx) => {
+    await tx.dossier.update({
+      where: { id: dossier.id },
+      data: { clientId: null, lastActivityAt: new Date() },
+    });
+    // Le compte redevient associable via le formulaire d'association
+    // (qui ne liste que les clients PENDING_ASSOCIATION sans dossier).
+    if (client) {
+      await tx.user.update({
+        where: { id: clientId },
+        data: { status: "PENDING_ASSOCIATION" },
+      });
+    }
+    await tx.timelineEvent.create({
+      data: {
+        dossierId: dossier.id,
+        kind: "STATUS_CHANGE",
+        title: "Client dissocié",
+        description: clientName,
+        actorId: me.id,
+      },
+    });
+  });
+
+  await audit({
+    userId: me.id,
+    action: "DOSSIER_UPDATED",
+    resourceType: "Dossier",
+    resourceId: dossier.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Client ${clientId} (${clientName}) dissocié du dossier`,
+  });
+
+  const lots = await prisma.lot.findMany({
+    where: { dossierId: dossier.id },
+    select: { id: true },
+  });
+  revalidatePath("/collaborateur/dossiers");
+  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidatePath("/collaborateur/fonds");
+  for (const lot of lots) {
+    revalidatePath(`/collaborateur/fonds/${lot.id}`);
+  }
+  revalidatePath("/admin/fonds");
+  revalidatePath(`/admin/programmes/${dossier.programmeId}`);
+  return { ok: true, value: undefined };
+}
+
+// =====================================================
 // ASSIGN COLLABORATOR
 // =====================================================
 
@@ -378,43 +472,6 @@ export async function assignCollaboratorAction(
   });
   revalidatePath(`/collaborateur/dossiers/${data.dossierId}`);
   return { ok: true, value: undefined };
-}
-
-// =====================================================
-// REVEAL CLIENT NAME (audit + retour du nom)
-// =====================================================
-
-export async function revealClientNameAction(
-  dossierId: string,
-): Promise<ActionResult<{ firstName: string; lastName: string }>> {
-  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
-  if (!dossierId) return { ok: false, error: "Identifiant manquant" };
-  const ctx = await getRequestContext();
-
-  const dossier = await findDossierForUser(dossierId, me.id, me.role);
-  if (!dossier || !dossier.clientId) {
-    return { ok: false, error: "Dossier introuvable ou sans client." };
-  }
-  const client = await prisma.user.findUnique({
-    where: { id: dossier.clientId },
-    select: { firstName: true, lastName: true },
-  });
-  if (!client) return { ok: false, error: "Client introuvable" };
-
-  await audit({
-    userId: me.id,
-    action: "CLIENT_NAME_REVEALED",
-    resourceType: "Dossier",
-    resourceId: dossier.id,
-    ip: ctx.ip,
-    userAgent: ctx.userAgent,
-    metadata: "Identité du client révélée sur le dossier",
-  });
-
-  return {
-    ok: true,
-    value: { firstName: client.firstName, lastName: client.lastName },
-  };
 }
 
 // =====================================================
@@ -498,36 +555,55 @@ export async function createClientAndDossierAction(
     data.birthPlace ||
     data.profession ||
     data.nationality ||
-    data.address ||
     familyStatus ||
     data.marriageDate ||
     data.marriagePlace ||
     data.marriageContract,
   );
+  // Adresse structurée — unique source : User.addressEnc (même format que /profil).
+  const hasAddress = Boolean(
+    data.addressLine || data.postalCode || data.city || data.country,
+  );
 
   const { dossier, user, token } = await prisma.$transaction(async (tx) => {
-    const createdUser = await tx.user.create({
-      data: {
-        email: data.email,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        role: "CLIENT",
-        passwordHash: placeholderHash,
-        emailVerifiedAt: new Date(),
-        status: "ACTIVE",
-        phoneEnc: data.phone ? encrypt(data.phone) : null,
-      },
+    const core = await createClientDossierCore(tx, {
+      email: data.email,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      phone: data.phone || null,
+      programmeId: data.programmeId,
+      lotId: data.lotId ?? null,
+      reference,
+      passwordHash: placeholderHash,
+      collaboratorId: me.id,
+      actorId: me.id,
+      timelineTitle: `Dossier créé par ${me.name ?? "le collaborateur"}`,
+      initialNote: data.initialNote ?? null,
     });
+    if (hasAddress) {
+      await tx.user.update({
+        where: { id: core.user.id },
+        data: {
+          addressEnc: encrypt(
+            JSON.stringify({
+              line: data.addressLine ?? "",
+              postalCode: data.postalCode ?? "",
+              city: data.city ?? "",
+              country: data.country ?? "",
+            }),
+          ),
+        },
+      });
+    }
     if (hasProfileData) {
       await tx.clientProfile.create({
         data: {
-          userId: createdUser.id,
+          userId: core.user.id,
           birthName: data.birthName || null,
           birthDate: parseProfileDate(data.birthDate),
           birthPlace: data.birthPlace || null,
           profession: data.profession || null,
           nationality: data.nationality || null,
-          addressEnc: data.address ? encrypt(data.address) : null,
           familyStatus,
           marriageDate: parseProfileDate(data.marriageDate),
           marriagePlace: data.marriagePlace || null,
@@ -535,68 +611,7 @@ export async function createClientAndDossierAction(
         },
       });
     }
-    const createdDossier = await tx.dossier.create({
-      data: {
-        reference,
-        programmeId: data.programmeId,
-        clientId: createdUser.id,
-        status: "NEW_LEAD",
-      },
-    });
-    await tx.dossierParticipant.create({
-      data: {
-        dossierId: createdDossier.id,
-        userId: me.id,
-        role: "COLLABORATOR_PRIMARY",
-      },
-    });
-    if (data.lotId) {
-      await tx.lot.update({
-        where: { id: data.lotId },
-        data: { dossierId: createdDossier.id, status: "RESERVED" },
-      });
-    }
-    await tx.timelineEvent.create({
-      data: {
-        dossierId: createdDossier.id,
-        kind: "LEAD_CREATED",
-        title: `Dossier créé par ${me.name ?? "le collaborateur"}`,
-        description: data.initialNote ?? null,
-        actorId: me.id,
-      },
-    });
-
-    // Pièces justificatives standard demandées à l'acquéreur (CDC évolution §4).
-    await tx.documentRequest.createMany({
-      data: [
-        {
-          dossierId: createdDossier.id,
-          label: "CNI du client",
-          required: true,
-        },
-        {
-          dossierId: createdDossier.id,
-          label: "CNI du conjoint",
-          required: false,
-        },
-        {
-          dossierId: createdDossier.id,
-          label: "Justificatif de domicile",
-          required: true,
-        },
-      ],
-    });
-
-    // Création du lien d'accès (réutilise le flow PasswordReset)
-    const { token: rawToken, hash } = generateOpaqueToken();
-    await tx.passwordReset.create({
-      data: {
-        userId: createdUser.id,
-        tokenHash: hash,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
-      },
-    });
-    return { dossier: createdDossier, user: createdUser, token: rawToken };
+    return core;
   });
 
   // Envoi de l'email d'invitation au client (réutilise le template d'invitation)
@@ -1096,11 +1111,12 @@ export async function updateContractStatusAction(
       where: { id: dossier.id },
       data: { contractStatus: data.contractStatus, lastActivityAt: new Date() },
     });
+    const dedicatedKind = CONTRACT_STATUS_TIMELINE_KIND[data.contractStatus];
     await tx.timelineEvent.create({
       data: {
         dossierId: dossier.id,
-        kind: "CONTRACT_STATUS_CHANGE",
-        title: `Contrat → ${label}`,
+        kind: dedicatedKind ?? "CONTRACT_STATUS_CHANGE",
+        title: dedicatedKind ? label : `Contrat → ${label}`,
         description: data.comment ?? null,
         actorId: me.id,
       },

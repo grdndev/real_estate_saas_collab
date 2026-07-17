@@ -169,6 +169,7 @@ export async function importProgrammeAction(
       data: {
         reference,
         name: parsed.data.name,
+        zipcode: parsed.data.zipcode || null,
         city: parsed.data.city || null,
         caObjective,
         totalLots: lots.length,

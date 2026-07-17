@@ -9,6 +9,7 @@ import {
 } from "@/components/prospects/prospects-table";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { dossierHasActivity } from "@/lib/prospect/dossier-activity";
 
 export const metadata: Metadata = { title: "Prospects" };
 
@@ -21,6 +22,20 @@ export default async function CollabProspectsPage() {
       take: 200,
       include: {
         programme: { select: { name: true } },
+        convertedDossier: {
+          select: {
+            id: true,
+            timelineEvents: { select: { kind: true } },
+            _count: {
+              select: {
+                documents: true,
+                signatures: true,
+                messages: true,
+                invoices: true,
+              },
+            },
+          },
+        },
         sharedNotes: {
           orderBy: { createdAt: "desc" },
           include: {
@@ -32,7 +47,16 @@ export default async function CollabProspectsPage() {
     prisma.programme.findMany({
       where: { status: "ACTIVE" },
       orderBy: { name: "asc" },
-      select: { id: true, name: true, reference: true },
+      select: {
+        id: true,
+        name: true,
+        reference: true,
+        lots: {
+          where: { status: "AVAILABLE" },
+          orderBy: { reference: "asc" },
+          select: { id: true, reference: true, type: true },
+        },
+      },
     }),
   ]);
 
@@ -43,9 +67,12 @@ export default async function CollabProspectsPage() {
     email: p.email,
     city: p.city,
     phone: p.phone,
+    programmeId: p.programmeId,
     programmeName: p.programme?.name ?? null,
     source: p.source,
     status: p.status,
+    convertedDossierId: p.convertedDossier?.id ?? null,
+    dossierHasActivity: dossierHasActivity(p.convertedDossier),
     createdAt: p.createdAt,
     notes: p.sharedNotes.map((n) => ({
       id: n.id,
@@ -100,6 +127,7 @@ export default async function CollabProspectsPage() {
           </p>
           <ProspectsTable
             prospects={qualified}
+            programmes={programmes}
             canDelete
             currentUserId={me.id}
           />
@@ -111,7 +139,12 @@ export default async function CollabProspectsPage() {
           <CardTitle>Liste des prospects ({others.length})</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProspectsTable prospects={others} canDelete currentUserId={me.id} />
+          <ProspectsTable
+            prospects={others}
+            programmes={programmes}
+            canDelete
+            currentUserId={me.id}
+          />
         </CardContent>
       </Card>
     </div>

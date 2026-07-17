@@ -50,7 +50,10 @@ export function ClientCreateForm({
       birthPlace: "",
       profession: "",
       nationality: "",
-      address: "",
+      addressLine: "",
+      postalCode: "",
+      city: "",
+      country: "",
       familyStatus: "",
       marriageDate: "",
       marriagePlace: "",
@@ -240,13 +243,22 @@ export function ClientCreateForm({
           </FormField>
         </div>
 
-        <div className="mt-4">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <FormField
-            label="Adresse complète"
-            htmlFor="address"
-            hint="N°, rue, code postal, ville, pays — chiffrée en base"
+            label="Adresse"
+            htmlFor="addressLine"
+            hint="Chiffrée en base"
           >
-            <Input {...form.register("address")} />
+            <Input {...form.register("addressLine")} />
+          </FormField>
+          <FormField label="Code postal" htmlFor="postalCode">
+            <Input {...form.register("postalCode")} />
+          </FormField>
+          <FormField label="Ville" htmlFor="city">
+            <Input {...form.register("city")} />
+          </FormField>
+          <FormField label="Pays" htmlFor="country">
+            <Input {...form.register("country")} />
           </FormField>
         </div>
 

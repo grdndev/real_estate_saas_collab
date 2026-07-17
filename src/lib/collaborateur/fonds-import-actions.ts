@@ -38,9 +38,6 @@ const importSchema = z.object({
       fraisMainLevee: z.number().nullable(),
       rbstEdd: z.number().nullable(),
       soldeVendeur: z.number().nullable(),
-      dateEnvoiLr: z.string().nullable(),
-      dateReceptionLr: z.string().nullable(),
-      dateReceptionVirement: z.string().nullable(),
       notes: z.string().nullable(),
       appelsFonds: z.array(
         z.object({
@@ -168,9 +165,6 @@ export async function importFondsSuiviAction(input: {
       rbstEdd: row.rbstEdd != null ? new Prisma.Decimal(row.rbstEdd) : null,
       soldeVendeur:
         row.soldeVendeur != null ? new Prisma.Decimal(row.soldeVendeur) : null,
-      dateEnvoiLr: toDate(row.dateEnvoiLr),
-      dateReceptionLr: toDate(row.dateReceptionLr),
-      dateReceptionVirement: toDate(row.dateReceptionVirement),
     };
     const fondsSuivi = await prisma.lotFondsSuivi.upsert({
       where: { lotId: lot.id },

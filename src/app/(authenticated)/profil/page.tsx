@@ -133,19 +133,30 @@ export default async function ProfilePage() {
             }
           />
           {!isClient && phone && <Field label="Téléphone" value={phone} />}
+          {!isClient && address && (
+            <Field
+              label="Adresse"
+              value={[
+                address.line,
+                [address.postalCode, address.city].filter(Boolean).join(" "),
+                address.country,
+              ]
+                .filter(Boolean)
+                .join(", ")}
+              full
+            />
+          )}
         </CardContent>
       </Card>
 
-      {isClient && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Coordonnées</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ProfileForm initial={initial} />
-          </CardContent>
-        </Card>
-      )}
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Coordonnées</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ProfileForm initial={initial} withClientSections={isClient} />
+        </CardContent>
+      </Card>
 
       <Card className="mt-6">
         <CardHeader>

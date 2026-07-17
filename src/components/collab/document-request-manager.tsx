@@ -10,15 +10,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ConfirmDialog, PreviewDialog } from "@/components/ui/dialog";
 import {
-  acceptDocumentRequestAction,
+  acceptDocumentAction,
   cancelDocumentRequestAction,
-  refuseDocumentRequestAction,
+  refuseDocumentAction,
   requestDocumentAction,
 } from "@/lib/client-space/actions";
 import {
   getDownloadUrlAction,
   getPreviewUrlAction,
 } from "@/lib/storage/actions";
+
+type ReviewStatus = "PENDING" | "ACCEPTED" | "REFUSED";
+
+interface RequestDocument {
+  id: string;
+  fileName: string;
+  reviewStatus: ReviewStatus;
+  reviewReason: string | null;
+}
 
 interface RequestItem {
   id: string;
@@ -27,7 +36,7 @@ interface RequestItem {
   fulfilled: boolean;
   hasDocument: boolean;
   status: "PENDING" | "ACCEPTED" | "REFUSED";
-  documentId: string | null;
+  documents: RequestDocument[];
 }
 
 interface Props {
@@ -48,7 +57,9 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
-  const [refuseTarget, setRefuseTarget] = useState<RequestItem | null>(null);
+  const [refuseTarget, setRefuseTarget] = useState<RequestDocument | null>(
+    null,
+  );
   const [refuseReason, setRefuseReason] = useState("");
 
   function add() {
@@ -81,10 +92,10 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
     });
   }
 
-  function accept(requestId: string) {
+  function accept(documentId: string) {
     setError(null);
     startTransition(async () => {
-      const result = await acceptDocumentRequestAction({ requestId });
+      const result = await acceptDocumentAction({ documentId });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -93,10 +104,10 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
     });
   }
 
-  function refuse(requestId: string, reason: string) {
+  function refuse(documentId: string, reason: string) {
     setError(null);
     startTransition(async () => {
-      const result = await refuseDocumentRequestAction({ requestId, reason });
+      const result = await refuseDocumentAction({ documentId, reason });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -147,40 +158,25 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
       ) : (
         <ul className="divide-y divide-slate-100 text-sm">
           {initial.map((item) => (
-            <li
-              key={item.id}
-              className={`flex items-center justify-between gap-3 py-2 ${item.status === "REFUSED" ? "opacity-50" : ""}`}
-            >
-              <div className="flex items-center gap-2">
-                <span className="text-equatis-night-800 font-medium">
-                  {item.label}
-                </span>
-                {item.required && (
-                  <Badge variant="warning" className="text-[10px]">
-                    obligatoire
-                  </Badge>
-                )}
-                {item.status === "ACCEPTED" ? (
-                  <Badge variant="success" className="text-[10px]">
-                    acceptée
-                  </Badge>
-                ) : item.status === "REFUSED" ? (
-                  <Badge variant="danger" className="text-[10px]">
-                    refusée
-                  </Badge>
-                ) : item.fulfilled || item.hasDocument ? (
-                  <Badge variant="success" className="text-[10px]">
-                    déposée
-                  </Badge>
-                ) : (
-                  <Badge variant="neutral" className="text-[10px]">
-                    en attente
-                  </Badge>
-                )}
-              </div>
+            <li key={item.id} className="py-2">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-equatis-night-800 font-medium">
+                    {item.label}
+                  </span>
+                  {item.required && (
+                    <Badge variant="warning" className="text-[10px]">
+                      obligatoire
+                    </Badge>
+                  )}
+                  {item.documents.length === 0 && (
+                    <Badge variant="neutral" className="text-[10px]">
+                      en attente
+                    </Badge>
+                  )}
+                </div>
 
-              <div className="flex items-center gap-1">
-                {item.status === "PENDING" && !item.documentId && (
+                {item.documents.length === 0 && (
                   <Button
                     variant="ghost"
                     size="sm"
@@ -192,75 +188,87 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
                     <Trash2 className="size-4" aria-hidden />
                   </Button>
                 )}
-
-                {item.status === "PENDING" && item.documentId && (
-                  <>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openPreview(item.documentId!, item.label)}
-                      aria-label={`Prévisualiser ${item.label}`}
-                    >
-                      <Eye className="size-4" aria-hidden />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => download(item.documentId!)}
-                      aria-label={`Télécharger ${item.label}`}
-                    >
-                      <Download className="size-4" aria-hidden />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-green-700 hover:bg-green-50"
-                      onClick={() => accept(item.id)}
-                      disabled={pending}
-                      aria-label={`Accepter ${item.label}`}
-                    >
-                      <Check className="size-4" aria-hidden />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-700 hover:bg-red-50"
-                      onClick={() => {
-                        setRefuseTarget(item);
-                        setRefuseReason("");
-                      }}
-                      disabled={pending}
-                      aria-label={`Refuser ${item.label}`}
-                    >
-                      <X className="size-4" aria-hidden />
-                    </Button>
-                  </>
-                )}
-
-                {(item.status === "ACCEPTED" || item.status === "REFUSED") &&
-                  item.documentId && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          openPreview(item.documentId!, item.label)
-                        }
-                        aria-label={`Prévisualiser ${item.label}`}
-                      >
-                        <Eye className="size-4" aria-hidden />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => download(item.documentId!)}
-                        aria-label={`Télécharger ${item.label}`}
-                      >
-                        <Download className="size-4" aria-hidden />
-                      </Button>
-                    </>
-                  )}
               </div>
+
+              {item.documents.length > 0 && (
+                <ul className="mt-2 space-y-1.5 pl-1">
+                  {item.documents.map((doc) => (
+                    <li
+                      key={doc.id}
+                      className={`flex flex-wrap items-center justify-between gap-2 ${doc.reviewStatus === "REFUSED" ? "opacity-60" : ""}`}
+                    >
+                      <div className="flex min-w-0 flex-1 items-center gap-2">
+                        <span className="min-w-0 truncate font-mono text-xs text-slate-600">
+                          {doc.fileName}
+                        </span>
+                        {doc.reviewStatus === "ACCEPTED" ? (
+                          <Badge variant="success" className="text-[10px]">
+                            acceptée
+                          </Badge>
+                        ) : doc.reviewStatus === "REFUSED" ? (
+                          <Badge
+                            variant="danger"
+                            className="text-[10px]"
+                            title={doc.reviewReason ?? undefined}
+                          >
+                            refusée
+                          </Badge>
+                        ) : (
+                          <Badge variant="neutral" className="text-[10px]">
+                            à revoir
+                          </Badge>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openPreview(doc.id, doc.fileName)}
+                          aria-label={`Prévisualiser ${doc.fileName}`}
+                        >
+                          <Eye className="size-4" aria-hidden />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => download(doc.id)}
+                          aria-label={`Télécharger ${doc.fileName}`}
+                        >
+                          <Download className="size-4" aria-hidden />
+                        </Button>
+                        {doc.reviewStatus !== "ACCEPTED" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-green-700 hover:bg-green-50"
+                            onClick={() => accept(doc.id)}
+                            disabled={pending}
+                            aria-label={`Accepter ${doc.fileName}`}
+                          >
+                            <Check className="size-4" aria-hidden />
+                          </Button>
+                        )}
+                        {doc.reviewStatus !== "REFUSED" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-700 hover:bg-red-50"
+                            onClick={() => {
+                              setRefuseTarget(doc);
+                              setRefuseReason("");
+                            }}
+                            disabled={pending}
+                            aria-label={`Refuser ${doc.fileName}`}
+                          >
+                            <X className="size-4" aria-hidden />
+                          </Button>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </li>
           ))}
         </ul>
@@ -315,7 +323,7 @@ export function DocumentRequestManager({ dossierId, initial }: Props) {
       />
       <ConfirmDialog
         open={refuseTarget !== null}
-        title={`Refuser « ${refuseTarget?.label} »`}
+        title={`Refuser « ${refuseTarget?.fileName} »`}
         destructive
         pending={pending}
         confirmLabel="Refuser"

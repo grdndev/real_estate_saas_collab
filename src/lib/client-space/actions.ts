@@ -99,80 +99,100 @@ export async function requestDocumentAction(
   return { ok: true, value: { id: created.id } };
 }
 
-export async function acceptDocumentRequestAction({
-  requestId,
+export async function acceptDocumentAction({
+  documentId,
 }: {
-  requestId: string;
+  documentId: string;
 }): Promise<ActionResult> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
-  const request = await prisma.documentRequest.findUnique({
-    where: { id: requestId },
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
   });
-  if (!request) return { ok: false, error: "Demande introuvable" };
-  await prisma.documentRequest.update({
-    where: { id: requestId },
-    data: { status: "ACCEPTED", fulfilled: true },
+  if (!document || document.deletedAt) {
+    return { ok: false, error: "Document introuvable" };
+  }
+  if (!document.dossierId) return { ok: false, error: "Accès refusé." };
+  const dossier = await findDossierForUser(document.dossierId, me.id, me.role);
+  if (!dossier) return { ok: false, error: "Accès refusé." };
+
+  await prisma.document.update({
+    where: { id: document.id },
+    data: { reviewStatus: "ACCEPTED", reviewReason: null },
   });
   const ctx = await getRequestContext();
   await audit({
     userId: me.id,
     action: "DOCUMENT_REQUEST_UPDATED",
-    resourceType: "DocumentRequest",
-    resourceId: request.id,
+    resourceType: "Document",
+    resourceId: document.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Pièce « ${request.label} » acceptée (dossier ${request.dossierId})`,
+    metadata: `Document « ${document.fileName} » accepté (dossier ${document.dossierId})`,
   });
-  revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
+  revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
   revalidatePath("/client/documents");
   return { ok: true, value: undefined };
 }
 
-export async function refuseDocumentRequestAction({
-  requestId,
+export async function refuseDocumentAction({
+  documentId,
   reason,
 }: {
-  requestId: string;
+  documentId: string;
   reason: string;
 }): Promise<ActionResult> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
-  const request = await prisma.documentRequest.findUnique({
-    where: { id: requestId },
+  const trimmed = reason.trim();
+  if (trimmed.length < 3) {
+    return { ok: false, error: "Motif de refus requis (3 caractères min)." };
+  }
+  const document = await prisma.document.findUnique({
+    where: { id: documentId },
     include: {
       dossier: { select: { client: { select: { id: true, email: true } } } },
     },
   });
-  if (!request) return { ok: false, error: "Demande introuvable" };
-  await prisma.documentRequest.update({
-    where: { id: requestId },
-    data: { status: "REFUSED" },
+  if (!document || document.deletedAt) {
+    return { ok: false, error: "Document introuvable" };
+  }
+  if (!document.dossierId) return { ok: false, error: "Accès refusé." };
+  const dossier = await findDossierForUser(document.dossierId, me.id, me.role);
+  if (!dossier) return { ok: false, error: "Accès refusé." };
+
+  await prisma.document.update({
+    where: { id: document.id },
+    data: { reviewStatus: "REFUSED", reviewReason: trimmed },
   });
   const ctx = await getRequestContext();
   await audit({
     userId: me.id,
     action: "DOCUMENT_REQUEST_UPDATED",
-    resourceType: "DocumentRequest",
-    resourceId: request.id,
+    resourceType: "Document",
+    resourceId: document.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Pièce « ${request.label} » refusée (dossier ${request.dossierId} - Raison : ${reason})`,
+    metadata: `Document « ${document.fileName} » refusé (dossier ${document.dossierId} - Raison : ${trimmed})`,
   });
 
-  if (request.dossier.client) {
+  if (document.dossier?.client) {
     await notify({
-      userId: request.dossier.client.id,
+      userId: document.dossier.client.id,
       kind: "DOCUMENT_REQUESTED",
-      title: "Pièce refusée",
-      body: `${request.label}`,
+      title: "Document refusé",
+      body: document.fileName,
       link: "/client/documents",
     });
 
     getMailer().send(
-      documentDeclinedMail(request.dossier.client.email, request.label, reason),
+      documentDeclinedMail(
+        document.dossier.client.email,
+        document.fileName,
+        trimmed,
+      ),
     );
   }
 
-  revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
+  revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
   revalidatePath("/client/documents");
   return { ok: true, value: undefined };
 }
@@ -555,9 +575,6 @@ export async function updateClientProfileAction(
   input: UpdateProfileInput,
 ): Promise<ActionResult> {
   const me = await requireUser();
-  if (me.role !== "CLIENT") {
-    return { ok: false, error: "Réservé aux clients." };
-  }
   const parsed = updateProfileSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -586,7 +603,7 @@ export async function updateClientProfileAction(
   };
 
   await prisma.$transaction(async (tx) => {
-    await prisma.user.update({
+    await tx.user.update({
       where: { id: me.id },
       data: {
         firstName: data.firstName,
@@ -602,11 +619,14 @@ export async function updateClientProfileAction(
         ),
       },
     });
-    await tx.clientProfile.upsert({
-      where: { userId: me.id },
-      create: { userId: me.id, ...profileData },
-      update: profileData,
-    });
+    // Les champs ClientProfile (état civil…) ne concernent que les clients.
+    if (me.role === "CLIENT") {
+      await tx.clientProfile.upsert({
+        where: { userId: me.id },
+        create: { userId: me.id, ...profileData },
+        update: profileData,
+      });
+    }
   });
 
   await audit({

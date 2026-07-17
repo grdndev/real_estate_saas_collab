@@ -91,16 +91,14 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
           lot.fondsSuivi.soldeVendeur != null
             ? Number(lot.fondsSuivi.soldeVendeur)
             : null,
-        dateEnvoiLr: lot.fondsSuivi.dateEnvoiLr?.toISOString() ?? null,
-        dateReceptionLr: lot.fondsSuivi.dateReceptionLr?.toISOString() ?? null,
-        dateReceptionVirement:
-          lot.fondsSuivi.dateReceptionVirement?.toISOString() ?? null,
         appelsFonds: lot.fondsSuivi.appelsFonds.map((a) => ({
           numero: a.numero,
           label: a.label,
           datePrevue: a.datePrevue.toISOString(),
           pourcentage: Number(a.pourcentage),
           montant: Number(a.montant),
+          dateEnvoiLr: a.dateEnvoiLr?.toISOString() ?? null,
+          dateReceptionVirement: a.dateReceptionVirement?.toISOString() ?? null,
         })),
       }
     : null;
@@ -131,6 +129,8 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
         priceTTC={Number(lot.priceTTC)}
         actSignedDate={actSignedDate}
         notes={lot.notes ?? null}
+        hasClient={Boolean(client)}
+        hasClientAddress={Boolean(clientContact?.address)}
         fondsSuivi={fondsSuivi}
         programmeAppelTypes={programmeAppelTypes.map((a) => ({
           numero: a.numero,

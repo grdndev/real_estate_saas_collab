@@ -30,8 +30,10 @@ export type UpdateDossierStatusInput = z.infer<
 
 export const contractStatusEnum = z.enum([
   "AWAITING_SIGNATURE",
+  "RESERVATION_SIGNED",
   "CONTRACT_SIGNED",
   "SENT_TO_NOTARY",
+  "NOTARY_ACT_PENDING",
   "LOAN_OFFER_PENDING",
   "LOAN_OFFER_RECEIVED",
   "LOAN_OFFER_SENT_TO_NOTARY",
@@ -60,6 +62,11 @@ export const assignClientSchema = z.object({
   clientId: z.string().min(1),
 });
 export type AssignClientInput = z.infer<typeof assignClientSchema>;
+
+export const unassignClientSchema = z.object({
+  dossierId: z.string().min(1),
+});
+export type UnassignClientInput = z.infer<typeof unassignClientSchema>;
 
 export const assignCollaboratorSchema = z.object({
   dossierId: z.string().min(1),
@@ -90,7 +97,10 @@ export const createClientAndDossierSchema = z.object({
   birthPlace: optionalText(120),
   profession: optionalText(120),
   nationality: optionalText(80),
-  address: optionalText(300),
+  addressLine: optionalText(200),
+  postalCode: optionalText(10),
+  city: optionalText(80),
+  country: optionalText(60),
   familyStatus: z.string().optional(),
   marriageDate: optionalText(10),
   marriagePlace: optionalText(120),

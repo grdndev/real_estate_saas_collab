@@ -18,7 +18,6 @@ import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
 import { getSettings } from "@/lib/settings";
-import { maskName } from "@/lib/utils";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
 
 export const metadata: Metadata = { title: "Mon tableau de bord" };
@@ -207,9 +206,9 @@ export default async function CollaborateurDashboardPage() {
                 return (
                   <Tr key={d.id}>
                     <Td className="font-mono text-xs">{d.reference}</Td>
-                    <Td className="font-mono text-xs text-slate-600">
+                    <Td className="text-xs text-slate-600">
                       {d.client
-                        ? maskName(`${d.client.firstName} ${d.client.lastName}`)
+                        ? `${d.client.firstName} ${d.client.lastName}`
                         : "—"}
                     </Td>
                     <Td>{d.programme.name}</Td>

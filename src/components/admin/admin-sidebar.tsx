@@ -6,7 +6,7 @@ import {
   LayoutDashboard,
   Users,
   Building2,
-  File,
+  Activity,
   Settings,
   Banknote,
 } from "lucide-react";
@@ -18,7 +18,7 @@ const NAV = [
   { href: "/admin/programmes", label: "Programmes", icon: Building2 },
   { href: "/admin/fonds", label: "Suivi de fonds", icon: Banknote },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
-  { href: "/admin/logs", label: "Activité", icon: File },
+  { href: "/admin/logs", label: "Activité", icon: Activity },
 ] as const;
 
 export function AdminSidebar() {

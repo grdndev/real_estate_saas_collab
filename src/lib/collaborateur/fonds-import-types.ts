@@ -13,9 +13,6 @@ export interface ParsedFondsLot {
   fraisMainLevee: number | null;
   rbstEdd: number | null;
   soldeVendeur: number | null;
-  dateEnvoiLr: Date | null;
-  dateReceptionLr: Date | null;
-  dateReceptionVirement: Date | null;
   notes: string | null;
   appelsFonds: ParsedFondsAppel[];
 }

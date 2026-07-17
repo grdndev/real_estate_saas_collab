@@ -28,7 +28,10 @@ export const prepareUploadSchema = z.object({
 });
 export type PrepareUploadInput = z.infer<typeof prepareUploadSchema>;
 
-export const documentIdSchema = z.object({
+export const confirmUploadSchema = z.object({
   documentId: z.string().min(1),
+  // Supprime la notification/email aux participants (utilisé quand un flux
+  // appelant gère lui-même la notification, ex. transmission au notaire).
+  skipNotifications: z.boolean().optional(),
 });
-export type DocumentIdInput = z.infer<typeof documentIdSchema>;
+export type ConfirmUploadInput = z.infer<typeof confirmUploadSchema>;

@@ -19,9 +19,9 @@ import {
   presignUploadUrl,
 } from "@/lib/storage/s3";
 import {
-  documentIdSchema,
+  confirmUploadSchema,
   prepareUploadSchema,
-  type DocumentIdInput,
+  type ConfirmUploadInput,
   type PrepareUploadInput,
 } from "@/lib/storage/schemas";
 import { getRequestContext } from "@/lib/request-context";
@@ -137,10 +137,10 @@ export async function prepareUploadAction(
 // =====================================================
 
 export async function confirmUploadAction(
-  input: DocumentIdInput,
+  input: ConfirmUploadInput,
 ): Promise<ActionResult> {
   const me = await requireUser();
-  const parsed = documentIdSchema.safeParse(input);
+  const parsed = confirmUploadSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Saisie invalide" };
 
   const document = await prisma.document.findUnique({
@@ -166,7 +166,7 @@ export async function confirmUploadAction(
   await enqueueScan(document.id);
 
   // Notifie les autres participants du dossier
-  if (document.dossierId) {
+  if (document.dossierId && !parsed.data.skipNotifications) {
     await notifyDossierParticipants(
       document.dossierId,
       me.id,
@@ -384,7 +384,7 @@ export async function deleteDocumentAction(
     if (remaining === 0) {
       await prisma.documentRequest.update({
         where: { id: document.documentRequestId },
-        data: { fulfilled: false },
+        data: { fulfilled: false, status: "PENDING" },
       });
     }
   }

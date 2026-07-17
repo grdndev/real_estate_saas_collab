@@ -153,18 +153,66 @@ export function transmittedToNotaryMail(
   firstName: string,
   reference: string,
   programmeName: string,
+  attachmentCount = 0,
 ): MailMessage {
   const link = `${baseUrl}/notaire`;
+  const attachmentNote =
+    attachmentCount > 0
+      ? `\nVous trouverez ${attachmentCount} document(s) en pièce(s) jointe(s) de cet email.`
+      : "";
+  const attachmentHtml =
+    attachmentCount > 0
+      ? `<p style="color:#475569; font-size:14px;">Vous trouverez <strong>${attachmentCount} document(s)</strong> en pièce(s) jointe(s) de cet email.</p>`
+      : "";
   return {
     to,
     subject: `[Équatis] Nouveau dossier transmis : ${reference}`,
-    text: `Bonjour ${firstName},\n\nLe dossier ${reference} (${programmeName}) vous a été transmis pour traitement.\nLien : ${link}`,
+    text: `Bonjour ${firstName},\n\nLe dossier ${reference} (${programmeName}) vous a été transmis pour traitement.${attachmentNote}\nLien : ${link}`,
     html: wrapHtml(
       "Nouveau dossier transmis",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
        <p style="color:#475569; font-size:14px;">Le dossier <strong>${reference}</strong> (programme ${programmeName}) vous a été transmis. Tous les documents sont accessibles sur votre espace.</p>
+       ${attachmentHtml}
        ${button("Ouvrir mes dossiers", link)}`,
     ),
+  };
+}
+
+// Retransmission de documents à un notaire déjà assigné (email avec PJ).
+export function documentsTransmittedToNotaryMail(
+  to: string,
+  firstName: string,
+  reference: string,
+  programmeName: string,
+  attachmentCount: number,
+  comment?: string,
+): MailMessage {
+  const link = `${baseUrl}/notaire`;
+  const text =
+    `Bonjour Maître ${firstName},\n\n` +
+    `${attachmentCount} document(s) du dossier ${reference} (programme ${programmeName}) ` +
+    `vous sont transmis en pièce(s) jointe(s) de cet email.\n\n` +
+    (comment ? `Message du collaborateur :\n${comment}\n\n` : "") +
+    `Lien direct : ${link}`;
+  const html = wrapHtml(
+    `Documents transmis — dossier ${reference}`,
+    `<p style="color:#1B2A4A;">Bonjour Maître ${firstName},</p>
+     <p style="color:#475569; font-size:14px;"><strong>${attachmentCount} document(s)</strong> du dossier <strong>${reference}</strong> (programme ${programmeName}) vous sont transmis en pièce(s) jointe(s) de cet email.</p>
+     ${
+       comment
+         ? `<div style="margin:16px 0; padding:12px 16px; background:#f8fafc; border-left:3px solid #0FB8A9; border-radius:4px;">
+              <p style="color:#1B2A4A; font-size:13px; margin:0 0 4px;"><strong>Message du collaborateur :</strong></p>
+              <p style="color:#475569; font-size:14px; margin:0; white-space:pre-line;">${comment.replace(/</g, "&lt;")}</p>
+            </div>`
+         : ""
+     }
+     ${button("Ouvrir mes dossiers", link)}`,
+  );
+  return {
+    to,
+    subject: `[Équatis] Documents transmis : dossier ${reference}`,
+    html,
+    text,
   };
 }
 

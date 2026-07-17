@@ -38,6 +38,12 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
             take: 1,
             select: { occurredAt: true },
           },
+          prospect: { select: { id: true } },
+          signatures: {
+            where: { status: { in: ["CREATED", "SENT", "OPENED"] } },
+            take: 1,
+            select: { id: true },
+          },
         },
       },
       fondsSuivi: {
@@ -91,16 +97,14 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
           lot.fondsSuivi.soldeVendeur != null
             ? Number(lot.fondsSuivi.soldeVendeur)
             : null,
-        dateEnvoiLr: lot.fondsSuivi.dateEnvoiLr?.toISOString() ?? null,
-        dateReceptionLr: lot.fondsSuivi.dateReceptionLr?.toISOString() ?? null,
-        dateReceptionVirement:
-          lot.fondsSuivi.dateReceptionVirement?.toISOString() ?? null,
         appelsFonds: lot.fondsSuivi.appelsFonds.map((a) => ({
           numero: a.numero,
           label: a.label,
           datePrevue: a.datePrevue.toISOString(),
           pourcentage: Number(a.pourcentage),
           montant: Number(a.montant),
+          dateEnvoiLr: a.dateEnvoiLr?.toISOString() ?? null,
+          dateReceptionVirement: a.dateReceptionVirement?.toISOString() ?? null,
         })),
       }
     : null;
@@ -121,6 +125,8 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
         dossierId={lot.dossier?.id ?? null}
         clientName={clientName}
         contact={clientContact}
+        convertedProspect={Boolean(lot.dossier?.prospect)}
+        pendingSignature={(lot.dossier?.signatures.length ?? 0) > 0}
       />
 
       <LotFondsForm
@@ -131,6 +137,8 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
         priceTTC={Number(lot.priceTTC)}
         actSignedDate={actSignedDate}
         notes={lot.notes ?? null}
+        hasClient={Boolean(client)}
+        hasClientAddress={Boolean(clientContact?.address)}
         fondsSuivi={fondsSuivi}
         programmeAppelTypes={programmeAppelTypes.map((a) => ({
           numero: a.numero,

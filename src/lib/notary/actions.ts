@@ -10,13 +10,16 @@ import { notify } from "@/lib/notifications";
 import { getMailer } from "@/lib/mail";
 import {
   actReadyMail,
+  documentsTransmittedToNotaryMail,
   notaryRelaunchMail,
   transmittedToNotaryMail,
 } from "@/lib/mail/auto-templates";
+import { readObject } from "@/lib/storage/s3";
 import { getRequestContext } from "@/lib/request-context";
 import {
   flagMissingPieceSchema,
   transmitToNotarySchema,
+  MAX_NOTARY_ATTACHMENT_TOTAL_BYTES,
   type FlagMissingPieceInput,
   type TransmitToNotaryInput,
 } from "@/lib/notary/schemas";
@@ -52,7 +55,11 @@ export async function transmitToNotaryAction(
   if (!dossier)
     return { ok: false, error: "Dossier introuvable ou accès refusé." };
 
-  if (dossier.notaryId === parsed.data.notaryId) {
+  const documentIds = parsed.data.documentIds;
+  // Retransmission : notaire déjà assigné, uniquement l'envoi des documents
+  // par email (pas de réassignation ni de changement de statut).
+  const isRetransmission = dossier.notaryId === parsed.data.notaryId;
+  if (isRetransmission && documentIds.length === 0) {
     return { ok: false, error: "Ce notaire est déjà assigné au dossier." };
   }
 
@@ -63,43 +70,123 @@ export async function transmitToNotaryAction(
     return { ok: false, error: "Notaire invalide." };
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.dossier.update({
-      where: { id: dossier.id },
-      data: {
-        notaryId: parsed.data.notaryId,
-        notaryTransmittedAt: new Date(),
-        status: "SIGNED_AT_NOTARY",
-        lastActivityAt: new Date(),
-      },
+  // Validation des pièces jointes : appartenance au dossier, non supprimées,
+  // non infectées, taille cumulée compatible email.
+  const documents =
+    documentIds.length > 0
+      ? await prisma.document.findMany({
+          where: {
+            id: { in: documentIds },
+            dossierId: dossier.id,
+            deletedAt: null,
+          },
+          select: {
+            id: true,
+            fileName: true,
+            sizeBytes: true,
+            storageKey: true,
+            scanStatus: true,
+          },
+        })
+      : [];
+  if (documents.length !== documentIds.length) {
+    return {
+      ok: false,
+      error: "Certains documents sont introuvables ou hors du dossier.",
+    };
+  }
+  if (documents.some((d) => d.scanStatus === "INFECTED")) {
+    return {
+      ok: false,
+      error: "Un document a été refusé par l'antivirus, envoi impossible.",
+    };
+  }
+  const totalBytes = documents.reduce((sum, d) => sum + d.sizeBytes, 0);
+  if (totalBytes > MAX_NOTARY_ATTACHMENT_TOTAL_BYTES) {
+    return {
+      ok: false,
+      error: "Pièces jointes trop volumineuses (max ~9 Mo cumulés par email).",
+    };
+  }
+
+  // Lecture S3 + encodage base64 côté serveur (avant toute écriture en base :
+  // un fichier illisible annule l'opération).
+  let attachments: Array<{ name: string; content: string }> = [];
+  if (documents.length > 0) {
+    try {
+      attachments = await Promise.all(
+        documents.map(async (d) => ({
+          name: d.fileName,
+          content: (await readObject(d.storageKey)).toString("base64"),
+        })),
+      );
+    } catch (err) {
+      console.error("[notary] lecture S3 pièces jointes", err);
+      return {
+        ok: false,
+        error: "Impossible de lire les documents depuis le stockage.",
+      };
+    }
+  }
+
+  const attachmentSuffix =
+    documents.length > 0 ? ` (${documents.length} pièce(s) jointe(s))` : "";
+
+  if (isRetransmission) {
+    await prisma.$transaction(async (tx) => {
+      await tx.dossier.update({
+        where: { id: dossier.id },
+        data: { lastActivityAt: new Date() },
+      });
+      await tx.timelineEvent.create({
+        data: {
+          dossierId: dossier.id,
+          kind: "TRANSMITTED_TO_NOTARY",
+          title: `Documents envoyés au notaire${attachmentSuffix}`,
+          description: parsed.data.comment ?? null,
+          actorId: me.id,
+        },
+      });
     });
-    // Si le notaire était déjà participant pour un autre rôle, upsert ;
-    // sinon, ajout participant de rôle NOTARY.
-    await tx.dossierParticipant.upsert({
-      where: {
-        dossierId_userId_role: {
+  } else {
+    await prisma.$transaction(async (tx) => {
+      await tx.dossier.update({
+        where: { id: dossier.id },
+        data: {
+          notaryId: parsed.data.notaryId,
+          notaryTransmittedAt: new Date(),
+          status: "SIGNED_AT_NOTARY",
+          lastActivityAt: new Date(),
+        },
+      });
+      // Si le notaire était déjà participant pour un autre rôle, upsert ;
+      // sinon, ajout participant de rôle NOTARY.
+      await tx.dossierParticipant.upsert({
+        where: {
+          dossierId_userId_role: {
+            dossierId: dossier.id,
+            userId: parsed.data.notaryId,
+            role: "NOTARY",
+          },
+        },
+        create: {
           dossierId: dossier.id,
           userId: parsed.data.notaryId,
           role: "NOTARY",
         },
-      },
-      create: {
-        dossierId: dossier.id,
-        userId: parsed.data.notaryId,
-        role: "NOTARY",
-      },
-      update: {},
+        update: {},
+      });
+      await tx.timelineEvent.create({
+        data: {
+          dossierId: dossier.id,
+          kind: "TRANSMITTED_TO_NOTARY",
+          title: `Transmission au notaire${attachmentSuffix}`,
+          description: parsed.data.comment ?? null,
+          actorId: me.id,
+        },
+      });
     });
-    await tx.timelineEvent.create({
-      data: {
-        dossierId: dossier.id,
-        kind: "TRANSMITTED_TO_NOTARY",
-        title: "Transmission au notaire",
-        description: parsed.data.comment ?? null,
-        actorId: me.id,
-      },
-    });
-  });
+  }
 
   await audit({
     userId: me.id,
@@ -108,34 +195,66 @@ export async function transmitToNotaryAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Dossier transmis au notaire ${parsed.data.notaryId}`,
+    metadata: isRetransmission
+      ? `Documents envoyés au notaire ${parsed.data.notaryId} : ${documents.map((d) => d.fileName).join(", ")}`
+      : `Dossier transmis au notaire ${parsed.data.notaryId}${documents.length > 0 ? ` avec pièces jointes : ${documents.map((d) => d.fileName).join(", ")}` : ""}`,
   });
 
   // Notifier le notaire
   await notify({
     userId: parsed.data.notaryId,
     kind: "TRANSMITTED_TO_NOTARY",
-    title: "Nouveau dossier reçu",
-    body: `Dossier ${dossier.reference} transmis pour traitement.`,
+    title: isRetransmission ? "Documents reçus" : "Nouveau dossier reçu",
+    body: isRetransmission
+      ? `Dossier ${dossier.reference} : ${documents.length} document(s) transmis par email.`
+      : `Dossier ${dossier.reference} transmis pour traitement.`,
     link: `/notaire/${dossier.id}`,
   });
-  // Email auto (CDC §8.5)
-  void (async () => {
-    const programme = await prisma.programme.findUnique({
-      where: { id: dossier.programmeId },
-      select: { name: true },
-    });
-    await getMailer().send(
-      transmittedToNotaryMail(
+
+  const programme = await prisma.programme.findUnique({
+    where: { id: dossier.programmeId },
+    select: { name: true },
+  });
+  const mail = isRetransmission
+    ? documentsTransmittedToNotaryMail(
         notary.email,
         notary.firstName,
         dossier.reference,
         programme?.name ?? "—",
-      ),
-    );
-  })().catch((err) => {
-    console.error("[mail] transmittedToNotary", err);
-  });
+        documents.length,
+        parsed.data.comment,
+      )
+    : transmittedToNotaryMail(
+        notary.email,
+        notary.firstName,
+        dossier.reference,
+        programme?.name ?? "—",
+        documents.length,
+      );
+  if (attachments.length > 0) {
+    mail.attachments = attachments;
+    // Avec pièces jointes : envoi awaité, l'échec est remonté à l'utilisateur.
+    try {
+      await getMailer().send(mail);
+    } catch (err) {
+      console.error("[mail] transmittedToNotary (PJ)", err);
+      revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+      revalidatePath("/notaire");
+      return {
+        ok: false,
+        error: isRetransmission
+          ? "Échec de l'envoi de l'email au notaire. Les documents restent enregistrés dans le dossier."
+          : "Dossier transmis, mais échec de l'envoi de l'email avec les documents. Les documents restent enregistrés dans le dossier.",
+      };
+    }
+  } else {
+    // Email auto (CDC §8.5) — fire-and-forget comme avant.
+    void getMailer()
+      .send(mail)
+      .catch((err) => {
+        console.error("[mail] transmittedToNotary", err);
+      });
+  }
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
   revalidatePath("/notaire");

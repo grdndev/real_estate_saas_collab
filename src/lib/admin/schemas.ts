@@ -22,7 +22,9 @@ export const createProgrammeSchema = z.object({
     .regex(/^[A-Z0-9_-]+$/i, "Caractères alphanumériques, tiret ou underscore"),
   name: z.string().min(2, "Nom trop court").max(120),
   description: z.string().max(2000).optional().nullable(),
+  zipcode: z.string().max(10).optional().nullable(),
   city: z.string().max(80).optional().nullable(),
+  address: z.string().max(200).optional().nullable(),
   caObjective: z.number().min(0).max(999_999_999).optional().nullable(),
 });
 export type CreateProgrammeInput = z.infer<typeof createProgrammeSchema>;
@@ -62,5 +64,16 @@ export const settingsSchema = z.object({
   RELAUNCH_DELAY_DAYS: z.number().int().min(1).max(90),
   SESSION_INACTIVITY_MINUTES: z.number().int().min(5).max(240),
   AUTO_EMAILS_ENABLED: z.boolean(),
+  // Logo société en data URL (≈ 500 Ko de fichier → ~700 Ko de chaîne).
+  // Vide/null = suppression du logo (retour à l'en-tête texte).
+  COMPANY_LOGO: z
+    .string()
+    .regex(
+      /^data:image\/(png|jpeg);base64,/,
+      "Format d'image invalide (PNG ou JPEG)",
+    )
+    .max(700_000, "Image trop lourde (500 Ko max)")
+    .optional()
+    .nullable(),
 });
 export type SettingsInput = z.infer<typeof settingsSchema>;

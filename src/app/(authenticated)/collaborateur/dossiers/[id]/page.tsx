@@ -6,8 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AssignClientForm } from "@/components/collab/assign-client";
+import { HonorairesPdfDialog } from "@/components/collab/honoraires-pdf-dialog";
 import { DocumentRequestManager } from "@/components/collab/document-request-manager";
-import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { StatusTransition } from "@/components/collab/status-transition";
 import { ContractStatusCard } from "@/components/collab/contract-status-card";
 import { DossierOptionCard } from "@/components/collab/dossier-option-card";
@@ -16,6 +16,7 @@ import { SharedNotes } from "@/components/notes/shared-notes";
 import { Timeline } from "@/components/collab/timeline";
 import { RequestSignatureBlock } from "@/components/collab/request-signature";
 import { RelaunchClientButton } from "@/components/collab/relaunch-client-button";
+import { UnassignClientButton } from "@/components/collab/unassign-client";
 import { RelaunchNotaryButton } from "@/components/collab/relaunch-notary-button";
 import { TransmitNotaryForm } from "@/components/collab/transmit-notary-form";
 import { DocumentDropZone } from "@/components/storage/document-drop-zone";
@@ -74,7 +75,18 @@ export default async function DossierDetailPage({ params }: PageProps) {
           timelineEvents: { orderBy: { occurredAt: "desc" } },
           documentRequests: {
             orderBy: [{ required: "desc" }, { createdAt: "asc" }],
-            include: { documents: { select: { id: true } } },
+            include: {
+              documents: {
+                where: { deletedAt: null },
+                orderBy: { createdAt: "desc" },
+                select: {
+                  id: true,
+                  fileName: true,
+                  reviewStatus: true,
+                  reviewReason: true,
+                },
+              },
+            },
           },
           documents: {
             where: { deletedAt: null },
@@ -90,6 +102,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
               createdAt: true,
               uploadedById: true,
               documentRequestId: true,
+              reviewStatus: true,
             },
           },
           signatures: {
@@ -103,6 +116,7 @@ export default async function DossierDetailPage({ params }: PageProps) {
             },
           },
           client: { select: { firstName: true, lastName: true, email: true } },
+          prospect: { select: { id: true } },
           notes: {
             orderBy: { createdAt: "desc" },
             include: {
@@ -151,16 +165,17 @@ export default async function DossierDetailPage({ params }: PageProps) {
   );
   if (!dossier) notFound();
 
-  const acceptedRequestIds = new Set(
-    dossier.documentRequests
-      .filter((r) => r.status === "ACCEPTED")
-      .map((r) => r.id),
+  const hasPendingSignature = dossier.signatures.some((s) =>
+    ["CREATED", "SENT", "OPENED"].includes(s.status),
   );
+
+  // « Documents du dossier » : documents hors demande, ou documents de demande
+  // acceptés (revue par document). Les documents en attente/refusés restent
+  // visibles dans le gestionnaire de demandes ci-dessous.
   const visibleDocuments = dossier.documents
     .filter(
       (doc) =>
-        doc.documentRequestId === null ||
-        acceptedRequestIds.has(doc.documentRequestId),
+        doc.documentRequestId === null || doc.reviewStatus === "ACCEPTED",
     )
     .sort((a, b) => Number(a.isShared) - Number(b.isShared));
 
@@ -184,6 +199,16 @@ export default async function DossierDetailPage({ params }: PageProps) {
   }));
 
   const sb = STATUS_BADGE[dossier.status];
+
+  // Vendeur pré-rempli pour le PDF honoraires : 1er promoteur du programme.
+  const firstPromoter = await prisma.programmePromoter.findFirst({
+    where: { programmeId: dossier.programmeId },
+    orderBy: { createdAt: "asc" },
+    include: { promoter: { select: { firstName: true, lastName: true } } },
+  });
+  const defaultVendeurNom = firstPromoter
+    ? `${firstPromoter.promoter.firstName} ${firstPromoter.promoter.lastName}`
+    : "";
 
   // Pré-calcul (hors rendu) : nom du notaire assigné + jours depuis transmission.
   const notaryParticipant = dossier.participants.find(
@@ -257,7 +282,12 @@ export default async function DossierDetailPage({ params }: PageProps) {
                   fulfilled: r.fulfilled,
                   hasDocument: r.documents.length > 0,
                   status: r.status,
-                  documentId: r.documents[0]?.id ?? null,
+                  documents: r.documents.map((d) => ({
+                    id: d.id,
+                    fileName: d.fileName,
+                    reviewStatus: d.reviewStatus,
+                    reviewReason: d.reviewReason,
+                  })),
                 }))}
               />
             </CardContent>
@@ -402,13 +432,10 @@ export default async function DossierDetailPage({ params }: PageProps) {
               {dossier.clientId ? (
                 <>
                   <div className="space-y-2 text-sm">
-                    <RevealNameButton
-                      dossierId={dossier.id}
-                      fallbackMasked="●●●●● ●●●●●●"
-                    />
-                    <p className="text-xs text-slate-500">
-                      L&apos;affichage du nom est tracé dans le journal
-                      d&apos;audit.
+                    <p className="font-medium">
+                      {dossier.client
+                        ? `${dossier.client.firstName} ${dossier.client.lastName}`
+                        : "—"}
                     </p>
                   </div>
                   {dossier.client && (
@@ -427,6 +454,16 @@ export default async function DossierDetailPage({ params }: PageProps) {
                       → Fiche client complète
                     </Link>
                   </div>
+                  {dossier.client && (
+                    <div className="border-t border-slate-100 pt-4">
+                      <UnassignClientButton
+                        dossierId={dossier.id}
+                        clientName={`${dossier.client.firstName} ${dossier.client.lastName}`}
+                        convertedProspect={Boolean(dossier.prospect)}
+                        pendingSignature={hasPendingSignature}
+                      />
+                    </div>
+                  )}
                 </>
               ) : (
                 <AssignClientForm
@@ -470,6 +507,14 @@ export default async function DossierDetailPage({ params }: PageProps) {
                       )}
                     </strong>
                   </p>
+                  {dossier.client && (
+                    <div className="border-t border-slate-100 pt-3">
+                      <HonorairesPdfDialog
+                        dossierId={dossier.id}
+                        defaultVendeurNom={defaultVendeurNom}
+                      />
+                    </div>
+                  )}
                 </>
               ) : (
                 <p className="text-slate-500">Aucun lot rattaché.</p>

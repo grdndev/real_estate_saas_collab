@@ -41,6 +41,22 @@ function fmtMonth(iso: string): string {
   });
 }
 
+function lrPastille(
+  dateEnvoiLr: Date | null,
+  dateReceptionVirement: Date | null,
+): { className: string; title: string } {
+  if (dateEnvoiLr == null) {
+    return { className: "bg-red-400", title: "LR non envoyée" };
+  }
+  if (dateReceptionVirement == null) {
+    return {
+      className: "bg-yellow-300",
+      title: "LR envoyée, virement en attente",
+    };
+  }
+  return { className: "bg-emerald-500", title: "Payé" };
+}
+
 export default async function CollaborateurFondsPage({
   searchParams,
 }: PageProps) {
@@ -248,13 +264,28 @@ export default async function CollaborateurFondsPage({
                       const appel = fs?.appelsFonds.find(
                         (a) => a.numero === h.numero,
                       );
+                      const pastille = appel
+                        ? lrPastille(
+                            appel.dateEnvoiLr,
+                            appel.dateReceptionVirement,
+                          )
+                        : null;
                       return (
                         <Td
                           key={h.numero}
                           className="px-3 py-2 text-right whitespace-nowrap tabular-nums"
                         >
                           {appel != null ? (
-                            fmtMoney(Number(appel.montant))
+                            <span className="inline-flex items-center justify-end gap-1.5">
+                              {fmtMoney(Number(appel.montant))}
+                              <span
+                                className={cn(
+                                  "size-2 shrink-0 rounded-full",
+                                  pastille!.className,
+                                )}
+                                title={pastille!.title}
+                              />
+                            </span>
                           ) : (
                             <span className="text-slate-300">—</span>
                           )}
@@ -296,28 +327,6 @@ export default async function CollaborateurFondsPage({
                     <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
                       {fs?.soldeVendeur != null ? (
                         fmtMoney(Number(fs.soldeVendeur))
-                      ) : (
-                        <span className="text-slate-300">—</span>
-                      )}
-                    </Td>
-
-                    {/* Suivi LR */}
-                    <Td className="px-3 py-2 whitespace-nowrap">
-                      {fs ? (
-                        <div className="flex flex-col gap-0.5 text-slate-600">
-                          <span>
-                            <span className="text-slate-400">Env: </span>
-                            {fmtDate(fs.dateEnvoiLr)}
-                          </span>
-                          <span>
-                            <span className="text-slate-400">Réc: </span>
-                            {fmtDate(fs.dateReceptionLr)}
-                          </span>
-                          <span>
-                            <span className="text-slate-400">Vir: </span>
-                            {fmtDate(fs.dateReceptionVirement)}
-                          </span>
-                        </div>
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}

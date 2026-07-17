@@ -15,15 +15,29 @@ interface Props {
   open: boolean;
   onClose: () => void;
   programmes: Array<{ id: string; name: string; reference: string }>;
+  /** Étape d'ouverture initiale (défaut 0 = dépôt du fichier). */
+  initialStep?: 0 | 1 | 2 | 3;
+  /** Lignes déjà parsées (cas d'une ouverture directe à l'étape Programme). */
+  initialRows?: ParsedTrackingLot[];
+  /** Avertissements de lecture déjà collectés. */
+  initialErrors?: string[];
 }
 
 const STEP_LABELS = ["Fichier", "Programme", "Lots", "Dossiers"];
 
-export function TrackingImportModal({ open, onClose, programmes }: Props) {
+export function TrackingImportModal({
+  open,
+  onClose,
+  programmes,
+  initialStep = 0,
+  initialRows = [],
+  initialErrors = [],
+}: Props) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const [step, setStep] = React.useState<0 | 1 | 2 | 3>(0);
-  const [parsedRows, setParsedRows] = React.useState<ParsedTrackingLot[]>([]);
-  const [parseErrors, setParseErrors] = React.useState<string[]>([]);
+  const [step, setStep] = React.useState<0 | 1 | 2 | 3>(initialStep);
+  const [parsedRows, setParsedRows] =
+    React.useState<ParsedTrackingLot[]>(initialRows);
+  const [parseErrors, setParseErrors] = React.useState<string[]>(initialErrors);
   const [programmeId, setProgrammeId] = React.useState<string | null>(null);
   const [lotIds, setLotIds] = React.useState<Record<string, string>>({});
 
@@ -127,11 +141,17 @@ export function TrackingImportModal({ open, onClose, programmes }: Props) {
               setProgrammeId(id);
               setStep(2);
             }}
-            onBack={() => {
-              setParsedRows([]);
-              setParseErrors([]);
-              setStep(0);
-            }}
+            onBack={
+              // Ouverture directe à l'étape Programme (cas promoteur) : le retour
+              // ferme la modale pour revenir au dépôt du fichier sur la page.
+              initialStep >= 1
+                ? () => handleClose()
+                : () => {
+                    setParsedRows([]);
+                    setParseErrors([]);
+                    setStep(0);
+                  }
+            }
           />
         )}
         {step === 2 && programmeId && (

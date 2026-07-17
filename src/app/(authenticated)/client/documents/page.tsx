@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   EmptyState,
@@ -39,6 +40,8 @@ export default async function ClientDocumentsPage() {
               scanStatus: true,
               createdAt: true,
               uploadedById: true,
+              reviewStatus: true,
+              reviewReason: true,
             },
           },
         },
@@ -127,21 +130,45 @@ export default async function ClientDocumentsPage() {
                   {req.documents.length > 0 && (
                     <ul className="mt-3 divide-y divide-slate-100 text-sm">
                       {req.documents.map((doc) => (
-                        <li
-                          key={doc.id}
-                          className="flex items-center justify-between gap-3 py-2"
-                        >
-                          <span className="font-mono text-xs">
-                            {doc.fileName}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <ScanStatusBadge status={doc.scanStatus} />
-                            <DocumentRowActions
-                              documentId={doc.id}
-                              scanStatus={doc.scanStatus}
-                              canDelete={doc.uploadedById === me.id}
-                            />
+                        <li key={doc.id} className="flex flex-col gap-1 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                              {doc.fileName}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {doc.reviewStatus === "ACCEPTED" ? (
+                                <Badge
+                                  variant="success"
+                                  className="text-[10px]"
+                                >
+                                  acceptée
+                                </Badge>
+                              ) : doc.reviewStatus === "REFUSED" ? (
+                                <Badge variant="danger" className="text-[10px]">
+                                  refusée
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="neutral"
+                                  className="text-[10px]"
+                                >
+                                  en cours de vérification
+                                </Badge>
+                              )}
+                              <ScanStatusBadge status={doc.scanStatus} />
+                              <DocumentRowActions
+                                documentId={doc.id}
+                                scanStatus={doc.scanStatus}
+                                canDelete={doc.uploadedById === me.id}
+                              />
+                            </div>
                           </div>
+                          {doc.reviewStatus === "REFUSED" &&
+                            doc.reviewReason && (
+                              <p className="text-xs text-red-600">
+                                Motif du refus : {doc.reviewReason}
+                              </p>
+                            )}
                         </li>
                       ))}
                     </ul>

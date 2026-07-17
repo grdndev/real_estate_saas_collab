@@ -16,15 +16,14 @@ const updateSchema = z.object({
   fraisMainLevee: z.number().nullable(),
   rbstEdd: z.number().nullable(),
   soldeVendeur: z.number().nullable(),
-  dateEnvoiLr: z.string().nullable(),
-  dateReceptionLr: z.string().nullable(),
-  dateReceptionVirement: z.string().nullable(),
   notes: z.string().nullable(),
   appels: z.array(
     z.object({
       numero: z.number(),
       montant: z.number(),
       datePrevue: z.string().min(1),
+      dateEnvoiLr: z.string().nullable(),
+      dateReceptionVirement: z.string().nullable(),
     }),
   ),
 });
@@ -83,9 +82,6 @@ export async function updateLotFondsSuiviAction(
       fields.soldeVendeur != null
         ? new Prisma.Decimal(fields.soldeVendeur)
         : null,
-    dateEnvoiLr: toDate(fields.dateEnvoiLr),
-    dateReceptionLr: toDate(fields.dateReceptionLr),
-    dateReceptionVirement: toDate(fields.dateReceptionVirement),
   };
 
   const [fondsUpserted] = await Promise.all([
@@ -100,6 +96,17 @@ export async function updateLotFondsSuiviAction(
     }),
   ]);
 
+  const modeles = await prisma.appelFonds.findMany({
+    where: {
+      numero: { in: appelsAvecDate.map((a) => a.numero) },
+      lotFonds: { programmeId: lot.programmeId },
+      NOT: { label: "" },
+    },
+    distinct: ["numero"],
+    select: { numero: true, label: true, pourcentage: true },
+  });
+  const modeleByNumero = new Map(modeles.map((m) => [m.numero, m]));
+
   for (const appel of appelsAvecDate) {
     await prisma.appelFonds.upsert({
       where: {
@@ -111,14 +118,20 @@ export async function updateLotFondsSuiviAction(
       create: {
         lotFondsId: fondsUpserted.id,
         numero: appel.numero,
-        label: "",
-        pourcentage: new Prisma.Decimal(0),
+        label: modeleByNumero.get(appel.numero)?.label ?? "",
+        pourcentage:
+          modeleByNumero.get(appel.numero)?.pourcentage ??
+          new Prisma.Decimal(0),
         montant: new Prisma.Decimal(appel.montant),
         datePrevue: appel.datePrevueDate!,
+        dateEnvoiLr: toDate(appel.dateEnvoiLr),
+        dateReceptionVirement: toDate(appel.dateReceptionVirement),
       },
       update: {
         montant: new Prisma.Decimal(appel.montant),
         datePrevue: appel.datePrevueDate!,
+        dateEnvoiLr: toDate(appel.dateEnvoiLr),
+        dateReceptionVirement: toDate(appel.dateReceptionVirement),
       },
     });
   }

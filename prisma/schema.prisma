@@ -64,8 +64,10 @@ enum DossierRole {
 // Axe contractuel — parallèle au cycle commercial DossierStatus (CDC évolution §4).
 enum ContractStatus {
   AWAITING_SIGNATURE // En attente de signature
+  RESERVATION_SIGNED // Réservation signée
   CONTRACT_SIGNED // Contrat signé
   SENT_TO_NOTARY // Envoyé chez le notaire
+  NOTARY_ACT_PENDING // Signature d'acte en cours
   LOAN_OFFER_PENDING // Offre de prêt en attente
   LOAN_OFFER_RECEIVED // Offre de prêt reçue
   LOAN_OFFER_SENT_TO_NOTARY // Offre de prêt envoyée au notaire — en attente de RDV
@@ -112,6 +114,14 @@ enum DocumentRequestStatus {
   REFUSED
 }
 
+// Revue d'un document déposé, au niveau du document (le collaborateur accepte
+// ou refuse chaque fichier individuellement).
+enum DocumentReviewStatus {
+  PENDING
+  ACCEPTED
+  REFUSED
+}
+
 enum DocumentSource {
   COLLABORATOR_UPLOAD
   CLIENT_UPLOAD
@@ -132,6 +142,7 @@ enum TimelineKind {
   COMMERCIAL_MEETING
   RESERVATION_SENT
   RESERVATION_SIGNED
+  NOTARY_ACT_PENDING
   TRANSMITTED_TO_NOTARY
   GUARANTEE_DEPOSIT_RECEIVED
   LOAN_OFFER_RECEIVED
@@ -291,7 +302,9 @@ model Programme {
   reference   String          @unique
   name        String
   description String?
+  zipcode     String?
   city        String?
+  address     String?
   status      ProgrammeStatus @default(ACTIVE)
   totalLots   Int             @default(0)
   caObjective Decimal?        @db.Decimal(14, 2)
@@ -440,10 +453,12 @@ model Document {
   sizeBytes         Int
   storageKey        String             @unique
   source            DocumentSource
-  scanStatus        DocumentScanStatus @default(PENDING)
+  scanStatus        DocumentScanStatus   @default(PENDING)
   scanCheckedAt     DateTime?
-  isShared          Boolean            @default(false)
+  isShared          Boolean              @default(false)
   documentRequestId String?
+  reviewStatus      DocumentReviewStatus @default(PENDING)
+  reviewReason      String?
 
   createdAt DateTime  @default(now())
   deletedAt DateTime?
@@ -642,9 +657,8 @@ model Setting {
 
 enum ProspectStatus {
   NEW
-  CONTACTED
   QUALIFIED
-  OPTIONED
+  OPTIONED // « réservataire » : prospect ayant réservé, prêt à être converti en client
   CONVERTED
   DROPPED
 }
@@ -693,9 +707,6 @@ model ClientProfile {
   birthPlace  String?
   profession  String?
   nationality String?
-
-  // Champs sensibles chiffrés AES-256-GCM côté application (`iv:tag:ciphertext`).
-  addressEnc String?
 
   familyStatus     FamilyStatus?
   marriageDate     DateTime?
@@ -793,9 +804,6 @@ model LotFondsSuivi {
   fraisMainLevee        Decimal?  @db.Decimal(12, 2)
   rbstEdd               Decimal?  @db.Decimal(12, 2)
   soldeVendeur          Decimal?  @db.Decimal(12, 2)
-  dateEnvoiLr           DateTime?
-  dateReceptionLr       DateTime?
-  dateReceptionVirement DateTime?
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
@@ -813,6 +821,9 @@ model AppelFonds {
   datePrevue  DateTime
   pourcentage Decimal  @db.Decimal(5, 2)
   montant     Decimal  @db.Decimal(12, 2)
+  // Suivi LR au niveau de l'appel de fonds.
+  dateEnvoiLr           DateTime?
+  dateReceptionVirement DateTime?
   createdAt   DateTime @default(now())
 
   lotFonds LotFondsSuivi @relation(fields: [lotFondsId], references: [id], onDelete: Cascade)

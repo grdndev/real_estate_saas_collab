@@ -18,6 +18,7 @@ export const importProgrammeSchema = z.object({
     .min(2, "Référence trop courte")
     .max(40, "Référence trop longue")
     .regex(/^[A-Z0-9_-]+$/i, "Caractères alphanumériques, tiret ou underscore"),
+  zipcode: z.string().max(10).optional().or(z.literal("")),
   city: z.string().max(80).optional().or(z.literal("")),
   // TVA par défaut (%) appliquée aux lignes sans colonne TVA et pour la
   // conversion TTC → HT.

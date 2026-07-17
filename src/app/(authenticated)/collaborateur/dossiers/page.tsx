@@ -14,7 +14,6 @@ import {
   Tr,
 } from "@/components/ui/table";
 import { DossierFiltersForm } from "@/components/collab/dossier-filters-form";
-import { RevealNameButton } from "@/components/collab/reveal-name-button";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
@@ -159,10 +158,9 @@ export default async function DossierListPage({ searchParams }: PageProps) {
                     <Td className="font-mono text-xs">{d.reference}</Td>
                     <Td>
                       {d.client ? (
-                        <RevealNameButton
-                          dossierId={d.id}
-                          fallbackMasked={`●●●●● ●●●●●●`}
-                        />
+                        <span className="text-sm">
+                          {`${d.client.firstName} ${d.client.lastName}`}
+                        </span>
                       ) : (
                         <span className="text-xs text-slate-400">—</span>
                       )}

@@ -14,6 +14,8 @@ export interface AppelFondsData {
   datePrevue: string;
   pourcentage: number;
   montant: number;
+  dateEnvoiLr: string | null;
+  dateReceptionVirement: string | null;
 }
 
 export interface FondsSuiviData {
@@ -21,9 +23,6 @@ export interface FondsSuiviData {
   fraisMainLevee: number | null;
   rbstEdd: number | null;
   soldeVendeur: number | null;
-  dateEnvoiLr: string | null;
-  dateReceptionLr: string | null;
-  dateReceptionVirement: string | null;
   appelsFonds: AppelFondsData[];
 }
 
@@ -35,6 +34,10 @@ interface Props {
   priceTTC: number;
   actSignedDate: string | null;
   notes: string | null;
+  /** Le lot a un dossier avec client (requis pour le courrier PDF). */
+  hasClient: boolean;
+  /** Le client a une adresse postale renseignée (requis pour le courrier PDF). */
+  hasClientAddress: boolean;
   fondsSuivi: FondsSuiviData | null;
   programmeAppelTypes: Array<{
     numero: number;
@@ -68,16 +71,7 @@ const FINANCIAL_FIELDS = [
   { key: "soldeVendeur", label: "Solde vendeur" },
 ] as const;
 
-const DATE_FIELDS = [
-  { key: "dateEnvoiLr", label: "Date envoi LR" },
-  { key: "dateReceptionLr", label: "Date réception LR" },
-  { key: "dateReceptionVirement", label: "Date réception virement" },
-] as const;
-
-type FieldKey =
-  | (typeof FINANCIAL_FIELDS)[number]["key"]
-  | (typeof DATE_FIELDS)[number]["key"]
-  | "notes";
+type FieldKey = (typeof FINANCIAL_FIELDS)[number]["key"] | "notes";
 
 export function LotFondsForm({
   lotId,
@@ -87,6 +81,8 @@ export function LotFondsForm({
   priceTTC,
   actSignedDate,
   notes: initialNotes,
+  hasClient,
+  hasClientAddress,
   fondsSuivi,
   programmeAppelTypes,
 }: Props) {
@@ -100,9 +96,6 @@ export function LotFondsForm({
     fraisMainLevee: fondsSuivi?.fraisMainLevee?.toString() ?? "",
     rbstEdd: fondsSuivi?.rbstEdd?.toString() ?? "",
     soldeVendeur: fondsSuivi?.soldeVendeur?.toString() ?? "",
-    dateEnvoiLr: toDateInput(fondsSuivi?.dateEnvoiLr),
-    dateReceptionLr: toDateInput(fondsSuivi?.dateReceptionLr),
-    dateReceptionVirement: toDateInput(fondsSuivi?.dateReceptionVirement),
     notes: initialNotes ?? "",
   });
 
@@ -118,6 +111,8 @@ export function LotFondsForm({
         pourcentage: type.pourcentage,
         datePrevue: existing?.datePrevue ?? type.datePrevue,
         montant: existing?.montant ?? 0,
+        dateEnvoiLr: existing?.dateEnvoiLr ?? null,
+        dateReceptionVirement: existing?.dateReceptionVirement ?? null,
       };
     });
   });
@@ -125,6 +120,22 @@ export function LotFondsForm({
   const debloqueByNumero = new Map(
     programmeAppelTypes.map((t) => [t.numero, t.debloque]),
   );
+
+  // Courrier PDF : nécessite un client avec adresse postale.
+  const courrierBloque = !hasClient
+    ? "Aucun client rattaché à ce lot."
+    : !hasClientAddress
+      ? "Le client n'a pas d'adresse postale renseignée."
+      : null;
+
+  /** Ouvre le courrier d'appel de fonds dans un nouvel onglet. */
+  function ouvrirCourrierPdf(numero: number) {
+    window.open(
+      `/collaborateur/fonds/${lotId}/appel-pdf?numero=${numero}`,
+      "_blank",
+      "noopener",
+    );
+  }
   const nbDebloques = programmeAppelTypes.filter((t) => t.debloque).length;
 
   function setField(key: FieldKey, val: string) {
@@ -141,6 +152,17 @@ export function LotFondsForm({
     setSaved(false);
   }
 
+  function setAppelDate(
+    numero: number,
+    key: "dateEnvoiLr" | "dateReceptionVirement",
+    val: string,
+  ) {
+    setAppels((prev) =>
+      prev.map((a) => (a.numero === numero ? { ...a, [key]: val || null } : a)),
+    );
+    setSaved(false);
+  }
+
   function handleSubmit() {
     setError(null);
     setSaved(false);
@@ -151,14 +173,13 @@ export function LotFondsForm({
         fraisMainLevee: parseNum(fields.fraisMainLevee),
         rbstEdd: parseNum(fields.rbstEdd),
         soldeVendeur: parseNum(fields.soldeVendeur),
-        dateEnvoiLr: fields.dateEnvoiLr || null,
-        dateReceptionLr: fields.dateReceptionLr || null,
-        dateReceptionVirement: fields.dateReceptionVirement || null,
         notes: fields.notes || null,
         appels: appels.map((a) => ({
           numero: a.numero,
           montant: a.montant,
           datePrevue: a.datePrevue,
+          dateEnvoiLr: toDateInput(a.dateEnvoiLr) || null,
+          dateReceptionVirement: toDateInput(a.dateReceptionVirement) || null,
         })),
       });
 
@@ -224,6 +245,11 @@ export function LotFondsForm({
                   <Th className="px-3 py-2 text-right font-medium">
                     Montant (€)
                   </Th>
+                  <Th className="px-3 py-2 font-medium">Date envoi LR</Th>
+                  <Th className="px-3 py-2 font-medium">
+                    Date réception virement
+                  </Th>
+                  <Th className="px-3 py-2" />
                 </Tr>
               </THead>
               <TBody>
@@ -263,6 +289,54 @@ export function LotFondsForm({
                           className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
                         />
                       </Td>
+                      <Td className="px-3 py-2">
+                        <input
+                          type="date"
+                          value={toDateInput(a.dateEnvoiLr)}
+                          onChange={(e) =>
+                            setAppelDate(
+                              a.numero,
+                              "dateEnvoiLr",
+                              e.target.value,
+                            )
+                          }
+                          className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
+                        />
+                      </Td>
+                      <Td className="px-3 py-2">
+                        <input
+                          type="date"
+                          value={toDateInput(a.dateReceptionVirement)}
+                          onChange={(e) =>
+                            setAppelDate(
+                              a.numero,
+                              "dateReceptionVirement",
+                              e.target.value,
+                            )
+                          }
+                          className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
+                        />
+                      </Td>
+                      <Td className="px-3 py-2 text-right">
+                        {/* Courrier PDF uniquement pour les appels débloqués. */}
+                        {debloque && (
+                          <span
+                            title={
+                              courrierBloque ??
+                              "Générer le courrier d'appel de fonds"
+                            }
+                          >
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled={Boolean(courrierBloque)}
+                              onClick={() => ouvrirCourrierPdf(a.numero)}
+                            >
+                              Courrier PDF
+                            </Button>
+                          </span>
+                        )}
+                      </Td>
                     </Tr>
                   );
                 })}
@@ -289,26 +363,6 @@ export function LotFondsForm({
                 value={fields[key]}
                 onChange={(e) => setField(key, e.target.value)}
                 className="focus:border-equatis-turquoise-400 w-full rounded border border-slate-200 px-2 py-1.5 text-sm tabular-nums focus:outline-none"
-              />
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Suivi LR */}
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">Suivi LR</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          {DATE_FIELDS.map(({ key, label }) => (
-            <div key={key}>
-              <label className="mb-1 block text-xs text-slate-500">
-                {label}
-              </label>
-              <input
-                type="date"
-                value={fields[key]}
-                onChange={(e) => setField(key, e.target.value)}
-                className="focus:border-equatis-turquoise-400 w-full rounded border border-slate-200 px-2 py-1.5 text-sm focus:outline-none"
               />
             </div>
           ))}

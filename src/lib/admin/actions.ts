@@ -11,7 +11,10 @@ import { generateOpaqueToken } from "@/lib/auth/tokens";
 import { getMailer } from "@/lib/mail";
 import { invitationMail } from "@/lib/mail/admin-templates";
 import { getRequestContext } from "@/lib/request-context";
-import { invalidateSettingsCache } from "@/lib/settings";
+import {
+  invalidateCompanyLogoCache,
+  invalidateSettingsCache,
+} from "@/lib/settings";
 import {
   inviteUserSchema,
   createProgrammeSchema,
@@ -247,7 +250,9 @@ export async function createProgrammeAction(
         reference: parsed.data.reference.toUpperCase(),
         name: parsed.data.name,
         description: parsed.data.description ?? null,
+        zipcode: parsed.data.zipcode ?? null,
         city: parsed.data.city ?? null,
+        address: parsed.data.address ?? null,
         caObjective:
           parsed.data.caObjective != null
             ? new Prisma.Decimal(parsed.data.caObjective)
@@ -299,7 +304,9 @@ export async function updateProgrammeAction(
       reference: parsed.data.reference.toUpperCase(),
       name: parsed.data.name,
       description: parsed.data.description ?? null,
+      zipcode: parsed.data.zipcode ?? null,
       city: parsed.data.city ?? null,
+      address: parsed.data.address ?? null,
       caObjective:
         parsed.data.caObjective != null
           ? new Prisma.Decimal(parsed.data.caObjective)
@@ -637,18 +644,32 @@ export async function updateSettingsAction(
     };
   }
   const ctx = await getRequestContext();
-  const entries = Object.entries(parsed.data);
+  // COMPANY_LOGO est traité à part : valeur vide/null = suppression de la clé.
+  const { COMPANY_LOGO, ...plateforme } = parsed.data;
+  const entries = Object.entries(plateforme);
 
-  await prisma.$transaction(
-    entries.map(([key, value]) =>
+  await prisma.$transaction([
+    ...entries.map(([key, value]) =>
       prisma.setting.upsert({
         where: { key },
         create: { key, value: String(value), updatedBy: me.id },
         update: { value: String(value), updatedBy: me.id },
       }),
     ),
-  );
+    COMPANY_LOGO
+      ? prisma.setting.upsert({
+          where: { key: "COMPANY_LOGO" },
+          create: {
+            key: "COMPANY_LOGO",
+            value: COMPANY_LOGO,
+            updatedBy: me.id,
+          },
+          update: { value: COMPANY_LOGO, updatedBy: me.id },
+        })
+      : prisma.setting.deleteMany({ where: { key: "COMPANY_LOGO" } }),
+  ]);
   invalidateSettingsCache();
+  invalidateCompanyLogoCache();
 
   await audit({
     userId: me.id,
@@ -656,7 +677,10 @@ export async function updateSettingsAction(
     resourceType: "Setting",
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Paramètres de la plateforme mis à jour : ${entries.map(([k]) => k).join(", ")}`,
+    metadata: `Paramètres de la plateforme mis à jour : ${[
+      ...entries.map(([k]) => k),
+      COMPANY_LOGO ? "COMPANY_LOGO" : "COMPANY_LOGO (supprimé)",
+    ].join(", ")}`,
   });
   revalidatePath("/admin/parametres");
   return { ok: true, value: undefined };

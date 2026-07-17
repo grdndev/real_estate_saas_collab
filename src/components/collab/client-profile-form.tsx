@@ -20,7 +20,10 @@ export interface ClientProfileValues {
   birthPlace: string;
   profession: string;
   nationality: string;
-  address: string;
+  addressLine: string;
+  postalCode: string;
+  city: string;
+  country: string;
   familyStatus: string;
   marriageDate: string;
   marriagePlace: string;
@@ -136,13 +139,33 @@ export function ClientProfileForm({ dossierId, email, initial }: Props) {
             onChange={(e) => set("phone", e.target.value)}
           />
         </FormField>
-        <div className="sm:col-span-2">
-          <FormField label="Adresse complète" htmlFor="cp-address">
+        <div className="grid grid-cols-1 gap-3 sm:col-span-2 sm:grid-cols-2 lg:grid-cols-4">
+          <FormField label="Adresse" htmlFor="cp-addressLine">
             <Input
-              id="cp-address"
-              value={values.address}
-              onChange={(e) => set("address", e.target.value)}
-              placeholder="N°, rue, code postal, ville, pays"
+              id="cp-addressLine"
+              value={values.addressLine}
+              onChange={(e) => set("addressLine", e.target.value)}
+            />
+          </FormField>
+          <FormField label="Code postal" htmlFor="cp-postalCode">
+            <Input
+              id="cp-postalCode"
+              value={values.postalCode}
+              onChange={(e) => set("postalCode", e.target.value)}
+            />
+          </FormField>
+          <FormField label="Ville" htmlFor="cp-city">
+            <Input
+              id="cp-city"
+              value={values.city}
+              onChange={(e) => set("city", e.target.value)}
+            />
+          </FormField>
+          <FormField label="Pays" htmlFor="cp-country">
+            <Input
+              id="cp-country"
+              value={values.country}
+              onChange={(e) => set("country", e.target.value)}
             />
           </FormField>
         </div>
