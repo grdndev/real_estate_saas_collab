@@ -13,11 +13,6 @@ export type TreasuryEntryInput = z.infer<typeof treasuryEntrySchema>;
 // Import d'un programme + lots via fichier Excel (glisser-déposer).
 export const importProgrammeSchema = z.object({
   name: z.string().min(2, "Nom du programme trop court").max(120).trim(),
-  reference: z
-    .string()
-    .min(2, "Référence trop courte")
-    .max(40, "Référence trop longue")
-    .regex(/^[A-Z0-9_-]+$/i, "Caractères alphanumériques, tiret ou underscore"),
   zipcode: z.string().max(10).optional().or(z.literal("")),
   city: z.string().max(80).optional().or(z.literal("")),
   // TVA par défaut (%) appliquée aux lignes sans colonne TVA et pour la

@@ -122,7 +122,6 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
   const importProgrammes = programmes.map((p) => ({
     id: p.id,
     name: p.name,
-    reference: p.reference,
   }));
 
   return (
@@ -133,9 +132,7 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
             Suivi des fonds
           </h1>
           {programme && (
-            <p className="mt-1 text-sm text-slate-500">
-              {programme.name} — {programme.reference}
-            </p>
+            <p className="mt-1 text-sm text-slate-500">{programme.name}</p>
           )}
           {programme && appelHeaders.length > 0 && (
             <p className="mt-1 text-sm text-slate-500">
@@ -199,16 +196,16 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                     href={`/admin/fonds/${lot.id}`}
                     className={rowClass}
                   >
-                    <Td className="sticky left-0 z-10 bg-inherit px-3 py-2 font-mono font-medium whitespace-nowrap">
+                    <Td className="sticky left-0 z-10 bg-inherit px-4 py-3 font-mono font-medium whitespace-nowrap">
                       {lot.reference}
                     </Td>
-                    <Td className="px-3 py-2 whitespace-nowrap text-slate-700">
+                    <Td className="px-4 py-3 whitespace-nowrap text-slate-700">
                       {clientName ?? <span className="text-slate-400">—</span>}
                     </Td>
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fmtMoney(Number(lot.priceTTC))}
                     </Td>
-                    <Td className="px-3 py-2 whitespace-nowrap text-slate-600">
+                    <Td className="px-4 py-3 whitespace-nowrap text-slate-600">
                       {actSignedDate ? (
                         fmtDate(actSignedDate)
                       ) : (
@@ -216,7 +213,7 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                       )}
                     </Td>
                     {/* Progression */}
-                    <Td className="px-3 py-2 whitespace-nowrap">
+                    <Td className="px-4 py-3 whitespace-nowrap">
                       {fs && appelHeaders.length > 0 ? (
                         (() => {
                           const montantAppele = fs.appelsFonds
@@ -256,7 +253,7 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                       return (
                         <Td
                           key={h.numero}
-                          className="px-3 py-2 text-right whitespace-nowrap tabular-nums"
+                          className="px-4 py-3 text-right whitespace-nowrap tabular-nums"
                         >
                           {appel != null ? (
                             <span className="inline-flex items-center justify-end gap-1.5">
@@ -277,35 +274,35 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                     })}
                     {/* Align with "Gérer" column */}
                     <Td className="p-0" />
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (
                         fmtMoney(Number(fs.commission))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.fraisMainLevee != null ? (
                         fmtMoney(Number(fs.fraisMainLevee))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.rbstEdd != null ? (
                         fmtMoney(Number(fs.rbstEdd))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.soldeVendeur != null ? (
                         fmtMoney(Number(fs.soldeVendeur))
                       ) : (
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-                    <Td className="max-w-50 px-3 py-2 text-slate-600">
+                    <Td className="max-w-50 px-4 py-3 text-slate-600">
                       {lot.notes ? (
                         <span className="line-clamp-2">{lot.notes}</span>
                       ) : (

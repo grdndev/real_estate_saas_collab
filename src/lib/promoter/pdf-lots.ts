@@ -32,7 +32,6 @@ export interface LotPdfRow {
 
 export function generateLotsPdf(
   programmeName: string,
-  programmeRef: string,
   lots: LotPdfRow[],
 ): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "landscape" });
@@ -49,7 +48,7 @@ export function generateLotsPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(71, 85, 105);
-  doc.text(`${programmeRef} — ${programmeName}`, ML, 30);
+  doc.text(programmeName, ML, 30);
   doc.text(
     `${lots.length} lot${lots.length > 1 ? "s" : ""} · Exporté le ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}`,
     ML,

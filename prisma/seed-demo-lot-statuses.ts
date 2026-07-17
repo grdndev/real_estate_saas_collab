@@ -21,21 +21,21 @@ async function main() {
     reference: string;
     status: "SOLD" | "RESERVED" | "AVAILABLE";
   }> = [
-    { programmeRef: "DUPARC", reference: "D101", status: "SOLD" },
-    { programmeRef: "DUPARC", reference: "D102", status: "RESERVED" },
+    { programmeRef: "Le Duparc", reference: "D101", status: "SOLD" },
+    { programmeRef: "Le Duparc", reference: "D102", status: "RESERVED" },
     // D201, D301 restent AVAILABLE
-    { programmeRef: "ANTERES", reference: "AN101", status: "SOLD" },
-    { programmeRef: "ANTERES", reference: "AN102", status: "SOLD" },
-    { programmeRef: "ANTERES", reference: "AN201", status: "RESERVED" },
+    { programmeRef: "Antérès", reference: "AN101", status: "SOLD" },
+    { programmeRef: "Antérès", reference: "AN102", status: "SOLD" },
+    { programmeRef: "Antérès", reference: "AN201", status: "RESERVED" },
     // AN202 reste AVAILABLE
-    { programmeRef: "SAINTE_MARIE", reference: "SM101", status: "RESERVED" },
+    { programmeRef: "Sainte Marie", reference: "SM101", status: "RESERVED" },
     // SM102, SM201 restent AVAILABLE
   ];
 
   let touched = 0;
   for (const u of updates) {
     const prog = await prisma.programme.findUnique({
-      where: { reference: u.programmeRef },
+      where: { name: u.programmeRef },
       select: { id: true },
     });
     if (!prog) continue;

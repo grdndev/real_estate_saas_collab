@@ -1,3 +1,6 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'COLLABORATOR', 'PROMOTER', 'NOTARY', 'CLIENT');
 
@@ -134,7 +137,6 @@ CREATE TABLE "LoginAttempt" (
 -- CreateTable
 CREATE TABLE "Programme" (
     "id" TEXT NOT NULL,
-    "reference" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
     "zipcode" TEXT,
@@ -529,7 +531,7 @@ CREATE INDEX "LoginAttempt_email_createdAt_idx" ON "LoginAttempt"("email", "crea
 CREATE INDEX "LoginAttempt_ip_createdAt_idx" ON "LoginAttempt"("ip", "createdAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Programme_reference_key" ON "Programme"("reference");
+CREATE UNIQUE INDEX "Programme_name_key" ON "Programme"("name");
 
 -- CreateIndex
 CREATE INDEX "Programme_status_idx" ON "Programme"("status");

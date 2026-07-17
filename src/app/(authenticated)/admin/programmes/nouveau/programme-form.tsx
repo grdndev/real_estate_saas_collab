@@ -22,7 +22,6 @@ import {
 /** Valeurs initiales lorsqu'on édite un programme existant. */
 export interface ProgrammeFormInitial {
   id: string;
-  reference: string;
   name: string;
   description: string | null;
   zipcode: string | null;
@@ -44,7 +43,6 @@ export function ProgrammeForm({
   const form = useForm<CreateProgrammeInput>({
     resolver: zodResolver(createProgrammeSchema),
     defaultValues: {
-      reference: programme?.reference ?? "",
       name: programme?.name ?? "",
       description: programme?.description ?? "",
       zipcode: programme?.zipcode ?? "",
@@ -93,20 +91,15 @@ export function ProgrammeForm({
           {globalError}
         </Alert>
       )}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[1fr_120px_1fr]">
-        <FormField
-          label="Référence"
-          htmlFor="reference"
-          required
-          hint="Identifiant interne (ex: ANTARES, DUPARC)"
-          error={form.formState.errors.reference?.message}
-        >
-          <Input
-            autoFocus={!isEdit}
-            className="font-mono uppercase"
-            {...form.register("reference")}
-          />
-        </FormField>
+      <FormField
+        label="Nom du programme"
+        htmlFor="name"
+        required
+        error={form.formState.errors.name?.message}
+      >
+        <Input autoFocus={!isEdit} {...form.register("name")} />
+      </FormField>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[120px_1fr]">
         <FormField
           label="Code postal"
           htmlFor="zipcode"
@@ -122,14 +115,6 @@ export function ProgrammeForm({
           <Input {...form.register("city")} />
         </FormField>
       </div>
-      <FormField
-        label="Nom du programme"
-        htmlFor="name"
-        required
-        error={form.formState.errors.name?.message}
-      >
-        <Input {...form.register("name")} />
-      </FormField>
       <FormField
         label="Adresse"
         htmlFor="address"

@@ -15,11 +15,6 @@ export const userIdSchema = z.object({
 });
 
 export const createProgrammeSchema = z.object({
-  reference: z
-    .string()
-    .min(2, "Référence trop courte")
-    .max(40, "Référence trop longue")
-    .regex(/^[A-Z0-9_-]+$/i, "Caractères alphanumériques, tiret ou underscore"),
   name: z.string().min(2, "Nom trop court").max(120),
   description: z.string().max(2000).optional().nullable(),
   zipcode: z.string().max(10).optional().nullable(),

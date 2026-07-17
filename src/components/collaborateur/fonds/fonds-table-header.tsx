@@ -70,28 +70,18 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
   return (
     <>
       <THead>
-        <Tr className="border-b border-slate-200 bg-slate-50">
-          <Th className="sticky left-0 z-10 bg-slate-50 px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
-            Lot
-          </Th>
-          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
-            Acquéreur
-          </Th>
-          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
-            Prix FAI
-          </Th>
-          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
-            Date signature
-          </Th>
-          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
-            Progression
-          </Th>
+        <Tr>
+          <Th className="sticky left-0 z-10 bg-slate-50 px-4 py-3">Lot</Th>
+          <Th className="px-4 py-3">Acquéreur</Th>
+          <Th className="px-4 py-3 text-right">Prix FAI</Th>
+          <Th className="px-4 py-3">Date signature</Th>
+          <Th className="px-4 py-3">Progression</Th>
 
           {debloques.map((h) => (
             <Th
               key={h.numero}
               onClick={() => openEdit(h)}
-              className="cursor-pointer px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500 select-none hover:bg-slate-100 hover:text-slate-800"
+              className="cursor-pointer px-4 py-3 text-right select-none hover:bg-slate-100 hover:text-slate-800"
               title={`${h.label} — ${fmtMonth(h.datePrevue)} (cliquer pour modifier)`}
             >
               ({h.numero}) {fmtPct(h.pourcentage)}%
@@ -100,27 +90,17 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
 
           <Th
             onClick={() => setModalState({ type: "list" })}
-            className="cursor-pointer px-3 py-2 text-center font-medium whitespace-nowrap text-slate-400 select-none hover:bg-slate-100 hover:text-slate-600"
+            className="cursor-pointer px-4 py-3 text-center text-slate-400 select-none hover:bg-slate-100 hover:text-slate-600"
             title="Gérer les appels de fonds (y compris à venir)"
           >
             Gérer
           </Th>
 
-          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
-            COM
-          </Th>
-          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
-            Frais
-          </Th>
-          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
-            RBST EDD
-          </Th>
-          <Th className="px-3 py-2 text-right font-medium whitespace-nowrap text-slate-500">
-            Solde vendeur
-          </Th>
-          <Th className="px-3 py-2 text-left font-medium whitespace-nowrap text-slate-500">
-            Commentaire
-          </Th>
+          <Th className="px-4 py-3 text-right">COM</Th>
+          <Th className="px-4 py-3 text-right">Frais</Th>
+          <Th className="px-4 py-3 text-right">RBST EDD</Th>
+          <Th className="px-4 py-3 text-right">Solde vendeur</Th>
+          <Th className="px-4 py-3">Commentaire</Th>
         </Tr>
       </THead>
 

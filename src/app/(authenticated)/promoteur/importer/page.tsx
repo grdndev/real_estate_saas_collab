@@ -15,8 +15,8 @@ export default async function ImportProgrammePage() {
       me.role === "PROMOTER"
         ? { id: { in: await programmesForPromoter(me.id) }, status: "ACTIVE" }
         : { status: "ACTIVE" },
-    select: { id: true, name: true, reference: true },
-    orderBy: { reference: "asc" },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
   });
 
   return (

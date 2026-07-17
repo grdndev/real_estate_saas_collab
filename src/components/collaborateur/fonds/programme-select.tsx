@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 interface ProgrammeOption {
   id: string;
   name: string;
-  reference: string;
 }
 
 interface Props {
@@ -35,7 +34,7 @@ export function ProgrammeSelect({
       {!selectedId && <option value="">— Sélectionner un programme —</option>}
       {programmes.map((p) => (
         <option key={p.id} value={p.id}>
-          {p.name} ({p.reference})
+          {p.name}
         </option>
       ))}
     </select>

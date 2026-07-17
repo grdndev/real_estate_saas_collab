@@ -9,7 +9,7 @@ import { Select } from "@/components/ui/select";
 import { createTrackingProgrammeAction } from "@/lib/collaborateur/tracking-import-actions";
 
 interface Props {
-  programmes: Array<{ id: string; name: string; reference: string }>;
+  programmes: Array<{ id: string; name: string }>;
   onNext: (programmeId: string) => void;
   onBack?: () => void;
 }
@@ -22,7 +22,6 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
     programmes.length > 0 ? programmes[0]!.id : NEW_VALUE,
   );
   const [name, setName] = useState("");
-  const [reference, setReference] = useState("");
   const [zipcode, setZipcode] = useState("");
   const [city, setCity] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +37,6 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
         ? {
             mode: "new" as const,
             name,
-            reference,
             zipcode: zipcode || undefined,
             city: city || undefined,
           }
@@ -65,14 +63,14 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
           <option value={NEW_VALUE}>— Nouveau programme —</option>
           {programmes.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} — {p.reference}
+              {p.name}
             </option>
           ))}
         </Select>
       </FormField>
 
       {isNew && (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_100px_1fr]">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_100px_1fr]">
           <FormField
             label="Nom"
             htmlFor="tp-name"
@@ -84,21 +82,6 @@ export function StepProgramme({ programmes, onNext, onBack }: Props) {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Résidence Les Jardins"
-              required
-            />
-          </FormField>
-          <FormField
-            label="Référence"
-            htmlFor="tp-ref"
-            required
-            error={fieldErrors.reference?.[0]}
-          >
-            <Input
-              id="tp-ref"
-              className="font-mono uppercase"
-              value={reference}
-              onChange={(e) => setReference(e.target.value.toUpperCase())}
-              placeholder="LESJARDINS-2026"
               required
             />
           </FormField>

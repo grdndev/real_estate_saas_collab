@@ -19,7 +19,7 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
   const lot = await prisma.lot.findUnique({
     where: { id: lotId },
     include: {
-      programme: { select: { name: true, reference: true } },
+      programme: { select: { name: true } },
       dossier: {
         include: {
           client: {
@@ -109,9 +109,7 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
         <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
           Lot {lot.reference}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
-          {lot.programme.name} — {lot.programme.reference}
-        </p>
+        <p className="mt-1 text-sm text-slate-500">{lot.programme.name}</p>
       </div>
 
       <ClientContactCard
@@ -124,7 +122,6 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
       <LotFondsForm
         lotId={lot.id}
         programmeName={lot.programme.name}
-        programmeReference={lot.programme.reference}
         clientName={clientName}
         priceTTC={Number(lot.priceTTC)}
         actSignedDate={actSignedDate}

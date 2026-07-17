@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
 import { csvResponse, rowsToCsv } from "@/lib/csv";
+import { slugify } from "@/lib/utils";
 
 const STATUS_LABEL = {
   AVAILABLE: "Disponible",
@@ -51,7 +52,7 @@ export async function GET(_request: Request, ctx: RouteContext) {
   );
 
   return csvResponse(
-    `equatis_lots_${programme.reference}_${new Date().toISOString().slice(0, 10)}.csv`,
+    `equatis_lots_${slugify(programme.name)}_${new Date().toISOString().slice(0, 10)}.csv`,
     csv,
   );
 }

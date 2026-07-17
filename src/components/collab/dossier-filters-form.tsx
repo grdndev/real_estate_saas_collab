@@ -8,7 +8,6 @@ import { Select } from "@/components/ui/select";
 
 interface Programme {
   id: string;
-  reference: string;
   name: string;
 }
 

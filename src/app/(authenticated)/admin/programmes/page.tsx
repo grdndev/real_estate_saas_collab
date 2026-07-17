@@ -50,7 +50,6 @@ export default async function AdminProgrammesPage() {
             programmes={programmes.map((p) => ({
               id: p.id,
               name: p.name,
-              reference: p.reference,
             }))}
           />
           <Link href="/admin/programmes/nouveau">
@@ -74,7 +73,6 @@ export default async function AdminProgrammesPage() {
           <Table>
             <THead>
               <Tr>
-                <Th>Référence</Th>
                 <Th>Nom</Th>
                 <Th>Ville</Th>
                 <Th>Statut</Th>
@@ -89,7 +87,6 @@ export default async function AdminProgrammesPage() {
                 const badge = STATUS_BADGE[p.status];
                 return (
                   <Tr key={p.id}>
-                    <Td className="font-mono text-xs">{p.reference}</Td>
                     <Td className="font-medium">{p.name}</Td>
                     <Td className="text-slate-600">{p.city ?? "—"}</Td>
                     <Td>

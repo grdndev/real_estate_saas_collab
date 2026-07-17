@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
 import { csvResponse, rowsToCsv } from "@/lib/csv";
+import { slugify } from "@/lib/utils";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -30,7 +31,7 @@ export async function GET(_request: Request, ctx: RouteContext) {
   );
 
   return csvResponse(
-    `equatis_tresorerie_${programme.reference}_${new Date().toISOString().slice(0, 10)}.csv`,
+    `equatis_tresorerie_${slugify(programme.name)}_${new Date().toISOString().slice(0, 10)}.csv`,
     csv,
   );
 }

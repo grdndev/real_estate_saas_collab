@@ -149,12 +149,13 @@ export async function importProgrammeAction(
     };
   }
 
-  const reference = parsed.data.reference.toUpperCase();
-  const existing = await prisma.programme.findUnique({ where: { reference } });
+  const existing = await prisma.programme.findUnique({
+    where: { name: parsed.data.name },
+  });
   if (existing) {
     return {
       ok: false,
-      error: "Cette référence de programme est déjà utilisée.",
+      error: "Un programme porte déjà ce nom.",
     };
   }
 
@@ -167,7 +168,6 @@ export async function importProgrammeAction(
   const programme = await prisma.$transaction(async (tx) => {
     const prog = await tx.programme.create({
       data: {
-        reference,
         name: parsed.data.name,
         zipcode: parsed.data.zipcode || null,
         city: parsed.data.city || null,
@@ -205,7 +205,7 @@ export async function importProgrammeAction(
     resourceId: programme.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Programme ${reference} créé par import Excel (${lots.length} lots)`,
+    metadata: `Programme ${programme.name} créé par import Excel (${lots.length} lots)`,
   });
 
   revalidatePath("/promoteur");

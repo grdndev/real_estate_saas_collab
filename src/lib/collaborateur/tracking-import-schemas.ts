@@ -9,12 +9,6 @@ export const createTrackingProgrammeSchema = z
     mode: z.enum(["new", "existing"]),
     programmeId: z.string().optional(),
     name: z.string().min(2).max(120).optional(),
-    reference: z
-      .string()
-      .min(2)
-      .max(40)
-      .regex(/^[A-Z0-9_-]+$/i)
-      .optional(),
     zipcode: z.string().max(10).optional(),
     city: z.string().max(80).optional(),
   })
@@ -26,21 +20,12 @@ export const createTrackingProgrammeSchema = z
         path: ["programmeId"],
       });
     }
-    if (data.mode === "new") {
-      if (!data.name) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "Le nom est requis",
-          path: ["name"],
-        });
-      }
-      if (!data.reference) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: "La référence est requise",
-          path: ["reference"],
-        });
-      }
+    if (data.mode === "new" && !data.name) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Le nom est requis",
+        path: ["name"],
+      });
     }
   });
 

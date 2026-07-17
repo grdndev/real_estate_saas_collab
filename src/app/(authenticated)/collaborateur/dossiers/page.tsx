@@ -83,7 +83,7 @@ export default async function DossierListPage({ searchParams }: PageProps) {
       take: PAGE_SIZE,
       skip,
       include: {
-        programme: { select: { name: true, reference: true } },
+        programme: { select: { name: true } },
         lots: { select: { reference: true } },
         client: { select: { firstName: true, lastName: true } },
         participants: {
@@ -94,7 +94,7 @@ export default async function DossierListPage({ searchParams }: PageProps) {
     }),
     prisma.programme.findMany({
       where: { status: "ACTIVE" },
-      select: { id: true, reference: true, name: true },
+      select: { id: true, name: true },
       orderBy: { name: "asc" },
     }),
   ]);

@@ -5,10 +5,12 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
+  Users2,
   Building2,
   Activity,
   Settings,
   Banknote,
+  MessagesSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +19,12 @@ const NAV = [
   { href: "/admin/utilisateurs", label: "Utilisateurs", icon: Users },
   { href: "/admin/programmes", label: "Programmes", icon: Building2 },
   { href: "/admin/fonds", label: "Suivi de fonds", icon: Banknote },
+  { href: "/collaborateur/prospects", label: "Prospects", icon: Users2 },
+  {
+    href: "/messagerie-interne",
+    label: "Messagerie interne",
+    icon: MessagesSquare,
+  },
   { href: "/admin/parametres", label: "Paramètres", icon: Settings },
   { href: "/admin/logs", label: "Activité", icon: Activity },
 ] as const;

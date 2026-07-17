@@ -64,9 +64,6 @@ export default async function PromoteurHomePage() {
             >
               <Card className="h-full border-0 shadow-none ring-0">
                 <CardHeader>
-                  <p className="text-equatis-night-700 font-mono text-xs">
-                    {p.reference}
-                  </p>
                   <CardTitle>{p.name}</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-slate-600">

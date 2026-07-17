@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { TrackingImportModal } from "./tracking-import-modal";
 
 interface Props {
-  programmes: Array<{ id: string; name: string; reference: string }>;
+  programmes: Array<{ id: string; name: string }>;
 }
 
 export function TrackingImportButton({ programmes }: Props) {

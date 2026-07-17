@@ -19,7 +19,7 @@ export interface ActivityFilterValues {
 interface ActivityFiltersProps {
   values: ActivityFilterValues;
   users: { id: string; firstName: string; lastName: string; role: string }[];
-  programmes: { id: string; reference: string; name: string }[];
+  programmes: { id: string; name: string }[];
   dossiers: {
     id: string;
     reference: string;
@@ -114,7 +114,7 @@ export function ActivityFilters({
             <option value="">— Choisir un programme —</option>
             {programmes.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} ({p.reference})
+                {p.name}
               </option>
             ))}
           </Select>

@@ -39,7 +39,6 @@ export function ProgrammeImportForm() {
     null,
   );
   const [name, setName] = useState("");
-  const [reference, setReference] = useState("");
   const [zipcode, setZipcode] = useState("");
   const [city, setCity] = useState("");
   const [vatRate, setVatRate] = useState("8.5");
@@ -79,7 +78,6 @@ export function ProgrammeImportForm() {
       const parsedVat = Number(vatRate.replace(",", "."));
       const result = await importProgrammeAction({
         name,
-        reference,
         zipcode,
         city,
         vatRate: Number.isFinite(parsedVat) ? parsedVat : 8.5,
@@ -106,23 +104,13 @@ export function ProgrammeImportForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-5">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[1fr_1fr_100px_1fr_110px]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[2fr_100px_1fr_110px]">
         <FormField label="Nom du programme" htmlFor="prog-name" required>
           <Input
             id="prog-name"
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Résidence Les Jardins"
-            required
-          />
-        </FormField>
-        <FormField label="Référence" htmlFor="prog-ref" required>
-          <Input
-            id="prog-ref"
-            className="font-mono uppercase"
-            value={reference}
-            onChange={(e) => setReference(e.target.value.toUpperCase())}
-            placeholder="LESJARDINS-2026"
             required
           />
         </FormField>

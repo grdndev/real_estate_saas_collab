@@ -88,7 +88,7 @@ export default async function CollaborateurDashboardPage() {
       take: 5,
       orderBy: { lastActivityAt: "desc" },
       include: {
-        programme: { select: { name: true, reference: true } },
+        programme: { select: { name: true } },
         lots: { select: { reference: true } },
         client: { select: { firstName: true, lastName: true } },
       },
@@ -97,7 +97,7 @@ export default async function CollaborateurDashboardPage() {
 
   const activeProgrammes = await prisma.programme.findMany({
     where: { status: "ACTIVE" },
-    select: { id: true, name: true, reference: true },
+    select: { id: true, name: true },
     orderBy: { name: "asc" },
   });
 

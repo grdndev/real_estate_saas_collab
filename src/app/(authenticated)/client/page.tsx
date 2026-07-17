@@ -45,7 +45,7 @@ export default async function ClientDashboardPage() {
   const dossier = await prisma.dossier.findUnique({
     where: { clientId: me.id },
     include: {
-      programme: { select: { name: true, reference: true, city: true } },
+      programme: { select: { name: true, city: true } },
       lots: true,
       participants: {
         where: { role: "COLLABORATOR_PRIMARY" },

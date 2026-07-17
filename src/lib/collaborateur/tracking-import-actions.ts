@@ -84,7 +84,7 @@ export async function createTrackingProgrammeAction(
       resourceId: prog.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: `Programme ${prog.reference} sélectionné pour l'import d'un fichier de suivi`,
+      metadata: `Programme ${prog.name} sélectionné pour l'import d'un fichier de suivi`,
     });
     return { ok: true, value: { programmeId: prog.id } };
   }
@@ -95,7 +95,6 @@ export async function createTrackingProgrammeAction(
       const created = await tx.programme.create({
         data: {
           name: data.name!,
-          reference: data.reference!.toUpperCase(),
           zipcode: data.zipcode ?? null,
           city: data.city ?? null,
           status: "ACTIVE",
@@ -116,7 +115,7 @@ export async function createTrackingProgrammeAction(
       resourceId: prog.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: `Programme ${prog.reference} créé via l'import d'un fichier de suivi`,
+      metadata: `Programme ${prog.name} créé via l'import d'un fichier de suivi`,
     });
     return { ok: true, value: { programmeId: prog.id } };
   } catch (err) {
@@ -126,8 +125,8 @@ export async function createTrackingProgrammeAction(
     ) {
       return {
         ok: false,
-        error: "Cette référence de programme est déjà utilisée.",
-        fieldErrors: { reference: ["Référence déjà prise."] },
+        error: "Un programme porte déjà ce nom.",
+        fieldErrors: { name: ["Nom déjà pris."] },
       };
     }
     throw err;

@@ -17,7 +17,6 @@ export default async function NewClientPage() {
     select: {
       id: true,
       name: true,
-      reference: true,
       lots: {
         where: { status: "AVAILABLE" },
         orderBy: { reference: "asc" },

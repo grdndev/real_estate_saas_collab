@@ -8,7 +8,7 @@ import { TrackingImportModal } from "@/components/collaborateur/tracking-import/
 import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
 
 interface Props {
-  programmes: Array<{ id: string; name: string; reference: string }>;
+  programmes: Array<{ id: string; name: string }>;
 }
 
 export function PromoterImportWizard({ programmes }: Props) {

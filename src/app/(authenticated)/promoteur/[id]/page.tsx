@@ -84,9 +84,6 @@ export default async function ProgrammeDashboardPage({ params }: PageProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <p className="text-equatis-night-700 font-mono text-xs uppercase">
-          {programme.reference}
-        </p>
         <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
           {programme.name}
         </h1>

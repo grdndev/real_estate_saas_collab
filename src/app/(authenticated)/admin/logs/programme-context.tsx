@@ -60,9 +60,7 @@ export function ProgrammeContextPanel({
   return (
     <Card>
       <CardHeader className="flex-row flex-wrap items-center justify-between">
-        <CardTitle>
-          Programme {programme.name} ({programme.reference})
-        </CardTitle>
+        <CardTitle>Programme {programme.name}</CardTitle>
         <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
       </CardHeader>
       <CardContent>

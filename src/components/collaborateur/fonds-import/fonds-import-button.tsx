@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { FondsImportModal } from "./fonds-import-modal";
 
 interface Props {
-  programmes: Array<{ id: string; name: string; reference: string }>;
+  programmes: Array<{ id: string; name: string }>;
 }
 
 export function FondsImportButton({ programmes }: Props) {

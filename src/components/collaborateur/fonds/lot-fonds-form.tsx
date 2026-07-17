@@ -29,7 +29,6 @@ export interface FondsSuiviData {
 interface Props {
   lotId: string;
   programmeName: string;
-  programmeReference: string;
   clientName: string | null;
   priceTTC: number;
   actSignedDate: string | null;
@@ -76,7 +75,6 @@ type FieldKey = (typeof FINANCIAL_FIELDS)[number]["key"] | "notes";
 export function LotFondsForm({
   lotId,
   programmeName,
-  programmeReference,
   clientName,
   priceTTC,
   actSignedDate,
@@ -198,7 +196,6 @@ export function LotFondsForm({
         <div>
           <p className="text-xs text-slate-400">Programme</p>
           <p className="text-sm font-medium">{programmeName}</p>
-          <p className="text-xs text-slate-500">{programmeReference}</p>
         </div>
         <div>
           <p className="text-xs text-slate-400">Acquéreur</p>

@@ -14,7 +14,7 @@ import { StepDossiers } from "./step-dossiers";
 interface Props {
   open: boolean;
   onClose: () => void;
-  programmes: Array<{ id: string; name: string; reference: string }>;
+  programmes: Array<{ id: string; name: string }>;
   /** Étape d'ouverture initiale (défaut 0 = dépôt du fichier). */
   initialStep?: 0 | 1 | 2 | 3;
   /** Lignes déjà parsées (cas d'une ouverture directe à l'étape Programme). */

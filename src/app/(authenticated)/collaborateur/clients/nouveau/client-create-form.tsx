@@ -20,7 +20,6 @@ import { FAMILY_STATUS_LABEL } from "@/lib/client-profile/schemas";
 interface ProgrammeOption {
   id: string;
   name: string;
-  reference: string;
   lots: { id: string; reference: string; type: string }[];
 }
 
@@ -179,7 +178,7 @@ export function ClientCreateForm({
           <option value="">Sélectionner un programme…</option>
           {programmes.map((p) => (
             <option key={p.id} value={p.id}>
-              {p.name} ({p.reference})
+              {p.name}
             </option>
           ))}
         </Select>

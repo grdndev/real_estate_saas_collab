@@ -75,9 +75,8 @@ async function ensureDemoProgrammes() {
   if (!seedDemo) return;
 
   const antares = await prisma.programme.upsert({
-    where: { reference: "ANTARES" },
+    where: { name: "Résidence Antarès" },
     create: {
-      reference: "ANTARES",
       name: "Résidence Antarès",
       description:
         "Programme neuf de 18 logements en cœur de ville. Livraison T4 2027.",
@@ -148,7 +147,6 @@ async function ensureClientProgrammes() {
 
   const programmes = [
     {
-      reference: "DUPARC",
       name: "Le Duparc",
       city: "Annecy",
       description: "Résidence Le Duparc — programme résidentiel premium.",
@@ -189,7 +187,6 @@ async function ensureClientProgrammes() {
       ],
     },
     {
-      reference: "ANTERES",
       name: "Antérès",
       city: "Lyon",
       description: "Programme Antérès — 24 logements en accession.",
@@ -230,7 +227,6 @@ async function ensureClientProgrammes() {
       ],
     },
     {
-      reference: "SAINTE_MARIE",
       name: "Sainte Marie",
       city: "Grenoble",
       description:
@@ -272,9 +268,8 @@ async function ensureClientProgrammes() {
 
   for (const prog of programmes) {
     const created = await prisma.programme.upsert({
-      where: { reference: prog.reference },
+      where: { name: prog.name },
       create: {
-        reference: prog.reference,
         name: prog.name,
         description: prog.description,
         city: prog.city,

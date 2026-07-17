@@ -26,7 +26,9 @@ async function main() {
     prisma.user.findUniqueOrThrow({
       where: { email: "client@equatisimmobilier.fr" },
     }),
-    prisma.programme.findUniqueOrThrow({ where: { reference: "ANTARES" } }),
+    prisma.programme.findUniqueOrThrow({
+      where: { name: "Résidence Antarès" },
+    }),
   ]);
   const lot = await prisma.lot.findFirst({
     where: { programmeId: programme.id, reference: "A102" },

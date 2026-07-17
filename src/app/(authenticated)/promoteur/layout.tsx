@@ -13,7 +13,7 @@ export default async function PromoteurLayout({
     me.role === "SUPER_ADMIN"
       ? await prisma.programme.findMany({
           where: { status: "ACTIVE" },
-          select: { id: true, name: true, reference: true },
+          select: { id: true, name: true },
           orderBy: { name: "asc" },
         })
       : await prisma.programme.findMany({
@@ -21,7 +21,7 @@ export default async function PromoteurLayout({
             status: "ACTIVE",
             promoters: { some: { promoterId: me.id } },
           },
-          select: { id: true, name: true, reference: true },
+          select: { id: true, name: true },
           orderBy: { name: "asc" },
         });
 

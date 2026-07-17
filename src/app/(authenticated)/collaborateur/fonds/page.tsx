@@ -6,6 +6,7 @@ import { ProgrammeSelect } from "@/components/collaborateur/fonds/programme-sele
 import { ClickableRow } from "@/components/collaborateur/fonds/clickable-row";
 import { FondsTableHeader } from "@/components/collaborateur/fonds/fonds-table-header";
 import { Table, TBody, Td } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Suivi des fonds" };
@@ -124,7 +125,6 @@ export default async function CollaborateurFondsPage({
   const importProgrammes = programmes.map((p) => ({
     id: p.id,
     name: p.name,
-    reference: p.reference,
   }));
 
   return (
@@ -136,9 +136,7 @@ export default async function CollaborateurFondsPage({
             Suivi des fonds
           </h1>
           {programme && (
-            <p className="mt-1 text-sm text-slate-500">
-              {programme.name} — {programme.reference}
-            </p>
+            <p className="mt-1 text-sm text-slate-500">{programme.name}</p>
           )}
           {programme && appelHeaders.length > 0 && (
             <p className="mt-1 text-sm text-slate-500">
@@ -168,7 +166,6 @@ export default async function CollaborateurFondsPage({
             programmes={programmes.map((p) => ({
               id: p.id,
               name: p.name,
-              reference: p.reference,
             }))}
             selectedId={selectedId}
           />
@@ -181,8 +178,8 @@ export default async function CollaborateurFondsPage({
       ) : lots.length === 0 ? (
         <p className="text-sm text-slate-500">Aucun lot dans ce programme.</p>
       ) : (
-        <div className="rounded-lg border border-slate-200">
-          <Table className="min-w-max border-collapse text-xs">
+        <Card>
+          <Table className="min-w-max">
             <FondsTableHeader
               programmeId={programme.id}
               appelHeaders={appelHeaders}
@@ -208,22 +205,22 @@ export default async function CollaborateurFondsPage({
                     className={rowClass}
                   >
                     {/* Lot référence */}
-                    <Td className="bg-equatis-bg sticky left-0 z-5 px-3 py-2 font-mono font-medium whitespace-nowrap">
+                    <Td className="bg-equatis-bg sticky left-0 z-5 px-4 py-3 font-mono font-medium whitespace-nowrap">
                       {lot.reference}
                     </Td>
 
                     {/* Acquéreur */}
-                    <Td className="px-3 py-2 whitespace-nowrap text-slate-700">
+                    <Td className="px-4 py-3 whitespace-nowrap text-slate-700">
                       {clientName ?? <span className="text-slate-400">—</span>}
                     </Td>
 
                     {/* Prix FAI */}
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fmtMoney(Number(lot.priceTTC))}
                     </Td>
 
                     {/* Date signature acte */}
-                    <Td className="px-3 py-2 whitespace-nowrap text-slate-600">
+                    <Td className="px-4 py-3 whitespace-nowrap text-slate-600">
                       {actSignedDate ? (
                         fmtDate(actSignedDate)
                       ) : (
@@ -232,7 +229,7 @@ export default async function CollaborateurFondsPage({
                     </Td>
 
                     {/* Progression */}
-                    <Td className="px-3 py-2 whitespace-nowrap">
+                    <Td className="px-4 py-3 whitespace-nowrap">
                       {fs && appelHeaders.length > 0 ? (
                         (() => {
                           const montantAppele = fs.appelsFonds
@@ -273,7 +270,7 @@ export default async function CollaborateurFondsPage({
                       return (
                         <Td
                           key={h.numero}
-                          className="px-3 py-2 text-right whitespace-nowrap tabular-nums"
+                          className="px-4 py-3 text-right whitespace-nowrap tabular-nums"
                         >
                           {appel != null ? (
                             <span className="inline-flex items-center justify-end gap-1.5">
@@ -297,7 +294,7 @@ export default async function CollaborateurFondsPage({
                     <Td className="p-0" />
 
                     {/* COM */}
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (
                         fmtMoney(Number(fs.commission))
                       ) : (
@@ -306,7 +303,7 @@ export default async function CollaborateurFondsPage({
                     </Td>
 
                     {/* Frais main levée */}
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.fraisMainLevee != null ? (
                         fmtMoney(Number(fs.fraisMainLevee))
                       ) : (
@@ -315,7 +312,7 @@ export default async function CollaborateurFondsPage({
                     </Td>
 
                     {/* RBST EDD */}
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.rbstEdd != null ? (
                         fmtMoney(Number(fs.rbstEdd))
                       ) : (
@@ -324,7 +321,7 @@ export default async function CollaborateurFondsPage({
                     </Td>
 
                     {/* Solde vendeur */}
-                    <Td className="px-3 py-2 text-right whitespace-nowrap tabular-nums">
+                    <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.soldeVendeur != null ? (
                         fmtMoney(Number(fs.soldeVendeur))
                       ) : (
@@ -333,7 +330,7 @@ export default async function CollaborateurFondsPage({
                     </Td>
 
                     {/* Notes */}
-                    <Td className="max-w-50 px-3 py-2 text-slate-600">
+                    <Td className="max-w-50 px-4 py-3 text-slate-600">
                       {lot.notes ? (
                         <span className="line-clamp-2">{lot.notes}</span>
                       ) : (
@@ -345,7 +342,7 @@ export default async function CollaborateurFondsPage({
               })}
             </TBody>
           </Table>
-        </div>
+        </Card>
       )}
     </div>
   );

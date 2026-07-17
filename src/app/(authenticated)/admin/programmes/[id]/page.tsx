@@ -106,9 +106,6 @@ export default async function ProgrammeDetailPage({ params }: PageProps) {
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-equatis-night-700 font-mono text-xs uppercase">
-              {programme.reference}
-            </p>
             <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
               {programme.name}
             </h1>

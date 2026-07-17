@@ -20,7 +20,6 @@ import { cn } from "@/lib/utils";
 interface ProgrammeOption {
   id: string;
   name: string;
-  reference: string;
 }
 
 export function PromoterSidebar({

@@ -16,7 +16,7 @@ export default async function NotaireDashboardPage() {
     where,
     orderBy: { notaryTransmittedAt: "desc" },
     include: {
-      programme: { select: { name: true, reference: true } },
+      programme: { select: { name: true } },
       lots: { select: { reference: true } },
     },
   });

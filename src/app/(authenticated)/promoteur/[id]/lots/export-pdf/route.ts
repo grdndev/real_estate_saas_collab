@@ -3,6 +3,7 @@ import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
 import { generateLotsPdf } from "@/lib/promoter/pdf-lots";
+import { slugify } from "@/lib/utils";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -21,7 +22,6 @@ export async function GET(_request: Request, ctx: RouteContext) {
 
   const pdf = generateLotsPdf(
     programme.name,
-    programme.reference,
     lots.map((l) => ({
       reference: l.reference,
       surface: Number(l.surface),
@@ -34,7 +34,7 @@ export async function GET(_request: Request, ctx: RouteContext) {
     })),
   );
 
-  const filename = `equatis_lots_${programme.reference}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const filename = `equatis_lots_${slugify(programme.name)}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
   return new Response(pdf.buffer as ArrayBuffer, {
     headers: {

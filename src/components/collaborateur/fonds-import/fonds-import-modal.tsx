@@ -17,7 +17,7 @@ import { StepPreview } from "./step-preview";
 interface Props {
   open: boolean;
   onClose: () => void;
-  programmes: Array<{ id: string; name: string; reference: string }>;
+  programmes: Array<{ id: string; name: string }>;
 }
 
 const STEP_LABELS = ["Fichier", "Programme", "Appels", "Aperçu"];

@@ -50,7 +50,6 @@ export default async function CollabProspectsPage() {
       select: {
         id: true,
         name: true,
-        reference: true,
         lots: {
           where: { status: "AVAILABLE" },
           orderBy: { reference: "asc" },

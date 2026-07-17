@@ -41,7 +41,6 @@ export default async function EditProgrammePage({ params }: PageProps) {
           <ProgrammeForm
             programme={{
               id: programme.id,
-              reference: programme.reference,
               name: programme.name,
               description: programme.description,
               zipcode: programme.zipcode,

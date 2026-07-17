@@ -24,11 +24,11 @@ async function main() {
 
   const programmes = await prisma.programme.findMany({
     where: {
-      reference: { in: ["DUPARC", "ANTERES", "SAINTE_MARIE"] },
+      name: { in: ["Le Duparc", "Antérès", "Sainte Marie"] },
     },
-    select: { id: true, reference: true },
+    select: { id: true, name: true },
   });
-  const byRef = new Map(programmes.map((p) => [p.reference, p.id]));
+  const byRef = new Map(programmes.map((p) => [p.name, p.id]));
 
   const prospects: Array<{
     firstName: string;
@@ -46,7 +46,7 @@ async function main() {
       email: "camille.lefevre@example.com",
       city: "Annecy",
       phone: "06 12 34 56 78",
-      programmeRef: "DUPARC",
+      programmeRef: "Le Duparc",
       source: "google_forms",
       status: "NEW",
     },
@@ -56,7 +56,7 @@ async function main() {
       email: "thomas.bernard@example.com",
       city: "Annecy-le-Vieux",
       phone: "06 23 45 67 89",
-      programmeRef: "DUPARC",
+      programmeRef: "Le Duparc",
       source: "google_forms",
       status: "QUALIFIED",
     },
@@ -66,7 +66,7 @@ async function main() {
       email: "sophie.roche@example.com",
       city: "Lyon 6e",
       phone: "06 34 56 78 90",
-      programmeRef: "ANTERES",
+      programmeRef: "Antérès",
       source: "google_forms",
       status: "QUALIFIED",
     },
@@ -76,7 +76,7 @@ async function main() {
       email: "marc.dubois@example.com",
       city: "Villeurbanne",
       phone: "06 45 67 89 01",
-      programmeRef: "ANTERES",
+      programmeRef: "Antérès",
       source: "google_forms",
       status: "NEW",
     },
@@ -86,7 +86,7 @@ async function main() {
       email: "laure.mercier@example.com",
       city: "Grenoble",
       phone: "06 56 78 90 12",
-      programmeRef: "SAINTE_MARIE",
+      programmeRef: "Sainte Marie",
       source: "google_forms",
       status: "QUALIFIED",
     },
@@ -96,7 +96,7 @@ async function main() {
       email: "julien.faure@example.com",
       city: "Meylan",
       phone: "06 67 89 01 23",
-      programmeRef: "SAINTE_MARIE",
+      programmeRef: "Sainte Marie",
       source: "salon_immobilier",
       status: "NEW",
     },

@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
 import { generateTreasuryPdf } from "@/lib/promoter/pdf-treasury";
 import type { TreasuryPdfMonth } from "@/lib/promoter/pdf-treasury";
+import { slugify } from "@/lib/utils";
 
 const MONTH_NAMES = [
   "janvier",
@@ -65,8 +66,8 @@ export async function GET(_request: Request, ctx: RouteContext) {
     };
   });
 
-  const pdf = generateTreasuryPdf(programme.name, programme.reference, data);
-  const filename = `equatis_tresorerie_${programme.reference}_${today.toISOString().slice(0, 10)}.pdf`;
+  const pdf = generateTreasuryPdf(programme.name, data);
+  const filename = `equatis_tresorerie_${slugify(programme.name)}_${today.toISOString().slice(0, 10)}.pdf`;
 
   return new Response(pdf.buffer as ArrayBuffer, {
     headers: {

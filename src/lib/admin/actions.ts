@@ -247,7 +247,6 @@ export async function createProgrammeAction(
   try {
     const programme = await prisma.programme.create({
       data: {
-        reference: parsed.data.reference.toUpperCase(),
         name: parsed.data.name,
         description: parsed.data.description ?? null,
         zipcode: parsed.data.zipcode ?? null,
@@ -266,7 +265,7 @@ export async function createProgrammeAction(
       resourceId: programme.id,
       ip: ctx.ip,
       userAgent: ctx.userAgent,
-      metadata: `Programme ${programme.reference} créé`,
+      metadata: `Programme ${programme.name} créé`,
     });
     revalidatePath("/admin/programmes");
     return { ok: true, value: { id: programme.id } };
@@ -277,7 +276,7 @@ export async function createProgrammeAction(
     ) {
       return {
         ok: false,
-        error: "Cette référence est déjà utilisée par un autre programme.",
+        error: "Un programme porte déjà ce nom.",
       };
     }
     throw e;
@@ -298,21 +297,30 @@ export async function updateProgrammeAction(
   }
   const ctx = await getRequestContext();
 
-  await prisma.programme.update({
-    where: { id: parsed.data.id },
-    data: {
-      reference: parsed.data.reference.toUpperCase(),
-      name: parsed.data.name,
-      description: parsed.data.description ?? null,
-      zipcode: parsed.data.zipcode ?? null,
-      city: parsed.data.city ?? null,
-      address: parsed.data.address ?? null,
-      caObjective:
-        parsed.data.caObjective != null
-          ? new Prisma.Decimal(parsed.data.caObjective)
-          : null,
-    },
-  });
+  try {
+    await prisma.programme.update({
+      where: { id: parsed.data.id },
+      data: {
+        name: parsed.data.name,
+        description: parsed.data.description ?? null,
+        zipcode: parsed.data.zipcode ?? null,
+        city: parsed.data.city ?? null,
+        address: parsed.data.address ?? null,
+        caObjective:
+          parsed.data.caObjective != null
+            ? new Prisma.Decimal(parsed.data.caObjective)
+            : null,
+      },
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return { ok: false, error: "Un programme porte déjà ce nom." };
+    }
+    throw e;
+  }
   await audit({
     userId: me.id,
     action: "PROGRAMME_UPDATED",

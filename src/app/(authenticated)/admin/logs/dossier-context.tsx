@@ -98,7 +98,7 @@ export function DossierContextPanel({ dossier }: { dossier: DossierContext }) {
               href={`/admin/logs?vue=programme&id=${dossier.programme.id}`}
               className="text-equatis-turquoise-700 hover:underline"
             >
-              {dossier.programme.name} ({dossier.programme.reference})
+              {dossier.programme.name}
             </Link>
           </Fact>
           <Fact label="Lots">

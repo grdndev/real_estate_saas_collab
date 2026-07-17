@@ -37,7 +37,6 @@ export interface TreasuryPdfMonth {
 
 export function generateTreasuryPdf(
   programmeName: string,
-  programmeRef: string,
   months: TreasuryPdfMonth[],
 ): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
@@ -55,7 +54,7 @@ export function generateTreasuryPdf(
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(71, 85, 105); // slate-600
-  doc.text(`${programmeRef} — ${programmeName}`, ML, 30);
+  doc.text(programmeName, ML, 30);
   doc.text(
     `Exporté le ${new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })}`,
     ML,

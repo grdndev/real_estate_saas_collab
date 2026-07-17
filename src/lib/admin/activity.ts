@@ -210,7 +210,7 @@ export async function getDossierContext(dossierId: string) {
       lastActivityAt: true,
       notaryTransmittedAt: true,
       closedAt: true,
-      programme: { select: { id: true, reference: true, name: true } },
+      programme: { select: { id: true, name: true } },
       client: { select: { firstName: true, lastName: true, email: true } },
       lots: { select: { id: true, reference: true, status: true } },
       participants: {
@@ -265,7 +265,6 @@ export async function getProgrammeContext(programmeId: string) {
     where: { id: programmeId },
     select: {
       id: true,
-      reference: true,
       name: true,
       city: true,
       status: true,
@@ -304,7 +303,7 @@ export async function getActivityEntities() {
     }),
     prisma.programme.findMany({
       orderBy: { name: "asc" },
-      select: { id: true, reference: true, name: true },
+      select: { id: true, name: true },
     }),
     prisma.dossier.findMany({
       orderBy: { reference: "asc" },

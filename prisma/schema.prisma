@@ -299,8 +299,7 @@ model LoginAttempt {
 
 model Programme {
   id          String          @id @default(cuid())
-  reference   String          @unique
-  name        String
+  name        String          @unique
   description String?
   zipcode     String?
   city        String?

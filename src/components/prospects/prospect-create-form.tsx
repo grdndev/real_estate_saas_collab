@@ -17,7 +17,7 @@ import {
 } from "@/lib/prospect/schemas";
 
 interface Props {
-  programmes: { id: string; name: string; reference: string }[];
+  programmes: { id: string; name: string }[];
 }
 
 export function ProspectCreateForm({ programmes }: Props) {
