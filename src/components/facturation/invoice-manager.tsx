@@ -83,6 +83,7 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
         dossierId,
         number,
         amountHT: Number(amountHT),
+        vatRate: Number(vatRate.replace(",", ".")),
         amountTTC: Number(amountTTC),
         fileB64,
         fileName,

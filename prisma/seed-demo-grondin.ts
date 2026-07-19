@@ -351,6 +351,7 @@ async function main() {
       number: "HON-2026-GRONDIN",
       amountHT: new Prisma.Decimal(4500),
       amountTTC: new Prisma.Decimal(5400),
+      vatRate: new Prisma.Decimal(20),
       status: "SENT_TO_NOTARY",
       sentToNotaryAt: daysAgo(1),
       createdById: collab.id,

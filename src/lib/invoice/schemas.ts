@@ -8,6 +8,7 @@ export const createInvoiceSchema = z.object({
     .min(1, "Numéro de facture requis")
     .max(60, "Numéro trop long"),
   amountHT: z.coerce.number().min(0).max(9_999_999),
+  vatRate: z.coerce.number().min(0).max(100),
   amountTTC: z.coerce.number().min(0).max(9_999_999),
   // PDF de la facture encodé en base64 (optionnel).
   fileB64: z

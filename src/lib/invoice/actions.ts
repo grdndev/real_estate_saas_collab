@@ -69,6 +69,7 @@ export async function createInvoiceAction(
         dossierId: dossier.id,
         number: data.number,
         amountHT: new Prisma.Decimal(data.amountHT),
+        vatRate: new Prisma.Decimal(data.vatRate),
         amountTTC: new Prisma.Decimal(data.amountTTC),
         storageKey,
         fileName: data.fileName || null,
