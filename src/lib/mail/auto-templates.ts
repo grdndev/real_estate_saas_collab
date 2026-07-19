@@ -26,17 +26,16 @@ function button(label: string, href: string): string {
 export function dossierAssociatedMail(
   to: string,
   firstName: string,
-  reference: string,
 ): MailMessage {
   const link = `${baseUrl}/client`;
   return {
     to,
     subject: "Votre dossier Équatis est prêt",
-    text: `Bonjour ${firstName},\n\nVotre dossier ${reference} a été créé. Vous pouvez consulter son avancement sur votre espace : ${link}`,
+    text: `Bonjour ${firstName},\n\nVotre dossier a été créé. Vous pouvez consulter son avancement sur votre espace : ${link}`,
     html: wrapHtml(
       "Votre dossier est prêt",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">Votre dossier <strong>${reference}</strong> a été créé. Vous pouvez consulter son avancement sur votre espace personnel.</p>
+       <p style="color:#475569; font-size:14px;">Votre dossier a été créé. Vous pouvez consulter son avancement sur votre espace personnel.</p>
        ${button("Accéder à mon dossier", link)}`,
     ),
   };
@@ -66,18 +65,18 @@ export function newDocumentMail(
 export function pieceDepositedMail(
   to: string,
   firstName: string,
-  reference: string,
+  clientName: string,
   fileName: string,
 ): MailMessage {
   const link = `${baseUrl}/collaborateur/dossiers`;
   return {
     to,
-    subject: `[${reference}] Une pièce a été déposée`,
-    text: `Bonjour ${firstName},\n\nLe client a déposé "${fileName}" sur le dossier ${reference}.\nLien : ${link}`,
+    subject: `[${clientName}] Une pièce a été déposée`,
+    text: `Bonjour ${firstName},\n\nLe client a déposé "${fileName}" sur le dossier de ${clientName}.\nLien : ${link}`,
     html: wrapHtml(
       "Pièce déposée par le client",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">Le client a déposé <strong>${fileName}</strong> sur le dossier <strong>${reference}</strong>.</p>
+       <p style="color:#475569; font-size:14px;">Le client a déposé <strong>${fileName}</strong> sur le dossier de <strong>${clientName}</strong>.</p>
        ${button("Ouvrir le dossier", link)}`,
     ),
   };
@@ -87,18 +86,18 @@ export function pieceDepositedMail(
 export function dossierRelaunchMail(
   to: string,
   firstName: string,
-  reference: string,
+  clientName: string,
   daysSinceLastActivity: number,
 ): MailMessage {
   const link = `${baseUrl}/collaborateur/dossiers`;
   return {
     to,
-    subject: `[Relance] Le dossier ${reference} est inactif depuis ${daysSinceLastActivity} jours`,
-    text: `Bonjour ${firstName},\n\nLe dossier ${reference} n'a pas eu d'activité depuis ${daysSinceLastActivity} jours. Pensez à relancer le client si nécessaire.\nLien : ${link}`,
+    subject: `[Relance] Le dossier ${clientName} est inactif depuis ${daysSinceLastActivity} jours`,
+    text: `Bonjour ${firstName},\n\nLe dossier ${clientName} n'a pas eu d'activité depuis ${daysSinceLastActivity} jours. Pensez à relancer le client si nécessaire.\nLien : ${link}`,
     html: wrapHtml(
       "Dossier inactif",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">Le dossier <strong>${reference}</strong> n'a pas eu d'activité depuis <strong>${daysSinceLastActivity} jours</strong>. Pensez à relancer le client si nécessaire.</p>
+       <p style="color:#475569; font-size:14px;">Le dossier <strong>${clientName}</strong> n'a pas eu d'activité depuis <strong>${daysSinceLastActivity} jours</strong>. Pensez à relancer le client si nécessaire.</p>
        ${button("Voir mes dossiers", link)}`,
     ),
   };
@@ -108,7 +107,7 @@ export function dossierRelaunchMail(
 export function notaryRelaunchMail(
   to: string,
   firstName: string,
-  reference: string,
+  clientName: string,
   programmeName: string,
   daysSinceTransmission: number,
   comment?: string,
@@ -120,14 +119,14 @@ export function notaryRelaunchMail(
       : `${daysSinceTransmission} jours`;
   const text =
     `Bonjour Maître ${firstName},\n\n` +
-    `Le collaborateur Équatis vous relance concernant le dossier ${reference} ` +
+    `Le collaborateur Équatis vous relance concernant le dossier ${clientName} ` +
     `(programme ${programmeName}), transmis depuis ${sinceLabel}.\n\n` +
     (comment ? `Message du collaborateur :\n${comment}\n\n` : "") +
     `Merci de traiter ce dossier dès que possible.\n\nLien direct : ${link}`;
   const html = wrapHtml(
-    `Relance — dossier ${reference}`,
+    `Relance — dossier ${clientName}`,
     `<p style="color:#1B2A4A;">Bonjour Maître ${firstName},</p>
-     <p style="color:#475569; font-size:14px;">Le collaborateur Équatis vous relance concernant le dossier <strong>${reference}</strong> (programme ${programmeName}), transmis depuis <strong>${sinceLabel}</strong>.</p>
+     <p style="color:#475569; font-size:14px;">Le collaborateur Équatis vous relance concernant le dossier <strong>${clientName}</strong> (programme ${programmeName}), transmis depuis <strong>${sinceLabel}</strong>.</p>
      ${
        comment
          ? `<div style="margin:16px 0; padding:12px 16px; background:#f8fafc; border-left:3px solid #0FB8A9; border-radius:4px;">
@@ -141,7 +140,7 @@ export function notaryRelaunchMail(
   );
   return {
     to,
-    subject: `[Relance Équatis] Dossier ${reference} en attente`,
+    subject: `[Relance Équatis] Dossier ${clientName} en attente`,
     html,
     text,
   };
@@ -151,7 +150,7 @@ export function notaryRelaunchMail(
 export function transmittedToNotaryMail(
   to: string,
   firstName: string,
-  reference: string,
+  clientName: string,
   programmeName: string,
   attachmentCount = 0,
 ): MailMessage {
@@ -166,12 +165,12 @@ export function transmittedToNotaryMail(
       : "";
   return {
     to,
-    subject: `[Équatis] Nouveau dossier transmis : ${reference}`,
-    text: `Bonjour ${firstName},\n\nLe dossier ${reference} (${programmeName}) vous a été transmis pour traitement.${attachmentNote}\nLien : ${link}`,
+    subject: `[Équatis] Nouveau dossier transmis : ${clientName}`,
+    text: `Bonjour ${firstName},\n\nLe dossier ${clientName} (${programmeName}) vous a été transmis pour traitement.${attachmentNote}\nLien : ${link}`,
     html: wrapHtml(
       "Nouveau dossier transmis",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">Le dossier <strong>${reference}</strong> (programme ${programmeName}) vous a été transmis. Tous les documents sont accessibles sur votre espace.</p>
+       <p style="color:#475569; font-size:14px;">Le dossier <strong>${clientName}</strong> (programme ${programmeName}) vous a été transmis. Tous les documents sont accessibles sur votre espace.</p>
        ${attachmentHtml}
        ${button("Ouvrir mes dossiers", link)}`,
     ),
@@ -182,7 +181,7 @@ export function transmittedToNotaryMail(
 export function documentsTransmittedToNotaryMail(
   to: string,
   firstName: string,
-  reference: string,
+  clientName: string,
   programmeName: string,
   attachmentCount: number,
   comment?: string,
@@ -190,14 +189,14 @@ export function documentsTransmittedToNotaryMail(
   const link = `${baseUrl}/notaire`;
   const text =
     `Bonjour Maître ${firstName},\n\n` +
-    `${attachmentCount} document(s) du dossier ${reference} (programme ${programmeName}) ` +
+    `${attachmentCount} document(s) du dossier ${clientName} (programme ${programmeName}) ` +
     `vous sont transmis en pièce(s) jointe(s) de cet email.\n\n` +
     (comment ? `Message du collaborateur :\n${comment}\n\n` : "") +
     `Lien direct : ${link}`;
   const html = wrapHtml(
-    `Documents transmis — dossier ${reference}`,
+    `Documents transmis — dossier ${clientName}`,
     `<p style="color:#1B2A4A;">Bonjour Maître ${firstName},</p>
-     <p style="color:#475569; font-size:14px;"><strong>${attachmentCount} document(s)</strong> du dossier <strong>${reference}</strong> (programme ${programmeName}) vous sont transmis en pièce(s) jointe(s) de cet email.</p>
+     <p style="color:#475569; font-size:14px;"><strong>${attachmentCount} document(s)</strong> du dossier <strong>${clientName}</strong> (programme ${programmeName}) vous sont transmis en pièce(s) jointe(s) de cet email.</p>
      ${
        comment
          ? `<div style="margin:16px 0; padding:12px 16px; background:#f8fafc; border-left:3px solid #0FB8A9; border-radius:4px;">
@@ -210,7 +209,7 @@ export function documentsTransmittedToNotaryMail(
   );
   return {
     to,
-    subject: `[Équatis] Documents transmis : dossier ${reference}`,
+    subject: `[Équatis] Documents transmis : dossier ${clientName}`,
     html,
     text,
   };
@@ -220,18 +219,18 @@ export function documentsTransmittedToNotaryMail(
 export function signatureCompletedCollaboratorMail(
   to: string,
   firstName: string,
-  reference: string,
+  clientName: string,
   dossierId: string,
 ): MailMessage {
   const link = `${baseUrl}/collaborateur/dossiers/${dossierId}`;
   return {
     to,
-    subject: `[${reference}] Document signé électroniquement`,
-    text: `Bonjour ${firstName},\n\nLe document du dossier ${reference} a été signé électroniquement. Le document signé est disponible sur le dossier.\nLien : ${link}`,
+    subject: `[${clientName}] Document signé électroniquement`,
+    text: `Bonjour ${firstName},\n\nLe document du dossier ${clientName} a été signé électroniquement. Le document signé est disponible sur le dossier.\nLien : ${link}`,
     html: wrapHtml(
       "Document signé",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">Le document du dossier <strong>${reference}</strong> a été signé électroniquement via Yousign. Le document signé est disponible sur le dossier.</p>
+       <p style="color:#475569; font-size:14px;">Le document du dossier <strong>${clientName}</strong> a été signé électroniquement via Yousign. Le document signé est disponible sur le dossier.</p>
        ${button("Ouvrir le dossier", link)}`,
     ),
   };
@@ -241,37 +240,32 @@ export function signatureCompletedCollaboratorMail(
 export function signatureCompletedClientMail(
   to: string,
   firstName: string,
-  reference: string,
 ): MailMessage {
   const link = `${baseUrl}/client`;
   return {
     to,
     subject: "Votre document a été signé",
-    text: `Bonjour ${firstName},\n\nVotre document du dossier ${reference} a été signé électroniquement. Vous pouvez le consulter sur votre espace.\nLien : ${link}`,
+    text: `Bonjour ${firstName},\n\nVotre document a été signé électroniquement. Vous pouvez le consulter sur votre espace.\nLien : ${link}`,
     html: wrapHtml(
       "Votre document est signé",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">Votre document pour le dossier <strong>${reference}</strong> a été signé électroniquement. Vous pouvez le consulter sur votre espace personnel.</p>
+       <p style="color:#475569; font-size:14px;">Votre document a été signé électroniquement. Vous pouvez le consulter sur votre espace personnel.</p>
        ${button("Accéder à mon espace", link)}`,
     ),
   };
 }
 
 // CDC §8.5 — Acte prêt
-export function actReadyMail(
-  to: string,
-  firstName: string,
-  reference: string,
-): MailMessage {
+export function actReadyMail(to: string, firstName: string): MailMessage {
   const link = `${baseUrl}/client`;
   return {
     to,
     subject: "Votre acte de vente est signé",
-    text: `Bonjour ${firstName},\n\nVotre acte de vente pour le dossier ${reference} a été signé chez le notaire. Félicitations !\nLien : ${link}`,
+    text: `Bonjour ${firstName},\n\nVotre acte de vente a été signé chez le notaire. Félicitations !\nLien : ${link}`,
     html: wrapHtml(
       "Votre acte est signé",
       `<p style="color:#1B2A4A;">Bonjour ${firstName},</p>
-       <p style="color:#475569; font-size:14px;">L'acte de vente pour votre dossier <strong>${reference}</strong> a été signé chez le notaire. Félicitations pour votre acquisition !</p>
+       <p style="color:#475569; font-size:14px;">L'acte de vente pour votre dossier a été signé chez le notaire. Félicitations pour votre acquisition !</p>
        ${button("Accéder à mon dossier", link)}`,
     ),
   };

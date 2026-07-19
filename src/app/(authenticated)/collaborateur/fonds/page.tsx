@@ -5,6 +5,7 @@ import { FondsImportButtonLazy } from "@/components/collaborateur/fonds-import/f
 import { ProgrammeSelect } from "@/components/collaborateur/fonds/programme-select";
 import { ClickableRow } from "@/components/collaborateur/fonds/clickable-row";
 import { FondsTableHeader } from "@/components/collaborateur/fonds/fonds-table-header";
+import { GererAppelsButton } from "@/components/collaborateur/fonds/gerer-appels-button";
 import { Table, TBody, Td } from "@/components/ui/table";
 import { Card } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,7 @@ function fmtDate(d: Date | null | undefined): string {
 }
 
 function fmtMoney(n: number | null | undefined): string {
-  if (n == null || n === 0) return "—";
+  if (n == null || n === 0) return "0";
   return n.toLocaleString("fr-FR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
@@ -70,7 +71,7 @@ export default async function CollaborateurFondsPage({
       lots: {
         include: {
           fondsSuivi: {
-            include: { appelsFonds: { orderBy: { numero: "asc" } } },
+            include: { fondsAppeles: true },
           },
           dossier: {
             include: {
@@ -98,17 +99,11 @@ export default async function CollaborateurFondsPage({
   const appelHeaders = programme
     ? (
         await prisma.appelFonds.findMany({
-          where: { lotFonds: { programmeId: programme.id } },
+          where: { programmeId: programme.id },
           orderBy: { numero: "asc" },
-          distinct: ["numero"],
-          select: {
-            numero: true,
-            label: true,
-            pourcentage: true,
-            datePrevue: true,
-          },
         })
       ).map((a) => ({
+        id: a.id,
         numero: a.numero,
         label: a.label,
         pourcentage: Number(a.pourcentage),
@@ -119,7 +114,7 @@ export default async function CollaborateurFondsPage({
 
   // Seuls les appels débloqués (date prévue atteinte) apparaissent dans le tableau.
   const appelsDebloques = appelHeaders.filter((h) => h.debloque);
-  const debloqueNumeros = new Set(appelsDebloques.map((h) => h.numero));
+  const debloqueIds = new Set(appelsDebloques.map((h) => h.id));
   const prochainAppel = appelHeaders.find((h) => !h.debloque) ?? null;
 
   const importProgrammes = programmes.map((p) => ({
@@ -137,6 +132,14 @@ export default async function CollaborateurFondsPage({
           </h1>
           {programme && (
             <p className="mt-1 text-sm text-slate-500">{programme.name}</p>
+          )}
+          {programme && (
+            <div className="mt-2">
+              <GererAppelsButton
+                programmeId={programme.id}
+                appelHeaders={appelHeaders}
+              />
+            </div>
           )}
           {programme && appelHeaders.length > 0 && (
             <p className="mt-1 text-sm text-slate-500">
@@ -232,11 +235,15 @@ export default async function CollaborateurFondsPage({
                     <Td className="px-4 py-3 whitespace-nowrap">
                       {fs && appelHeaders.length > 0 ? (
                         (() => {
-                          const montantAppele = fs.appelsFonds
-                            .filter((a) => debloqueNumeros.has(a.numero))
-                            .reduce((s, a) => s + Number(a.montant), 0);
-                          const montantTotal = fs.appelsFonds.reduce(
-                            (s, a) => s + Number(a.montant),
+                          const montantAppele = fs.fondsAppeles
+                            .filter(
+                              (fa) =>
+                                debloqueIds.has(fa.appelFondsId) &&
+                                fa.dateReceptionVirement != null,
+                            )
+                            .reduce((s, fa) => s + Number(fa.montant), 0);
+                          const montantTotal = fs.fondsAppeles.reduce(
+                            (s, fa) => s + Number(fa.montant),
                             0,
                           );
                           return (
@@ -258,8 +265,8 @@ export default async function CollaborateurFondsPage({
                     </Td>
 
                     {appelsDebloques.map((h) => {
-                      const appel = fs?.appelsFonds.find(
-                        (a) => a.numero === h.numero,
+                      const appel = fs?.fondsAppeles.find(
+                        (fa) => fa.appelFondsId === h.id,
                       );
                       const pastille = appel
                         ? lrPastille(
@@ -290,8 +297,8 @@ export default async function CollaborateurFondsPage({
                       );
                     })}
 
-                    {/* Align with "Gérer" column */}
-                    <Td className="p-0" />
+                    {/* Align with "Aucun appel de fonds" column */}
+                    {appelHeaders.length === 0 && <Td className="p-0" />}
 
                     {/* COM */}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">

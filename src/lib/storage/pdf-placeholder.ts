@@ -5,14 +5,12 @@
  *
  * Le PDF contient :
  *   - Le nom du programme
- *   - La référence du dossier
  *   - Le lot
  *   - Une mention "À signer électroniquement"
  *
  * Format : PDF 1.4 minimal valide (1 page A4).
  */
 export function generatePlaceholderPdf(args: {
-  dossierReference: string;
   programmeName: string;
   lotReference?: string | null;
   signerName: string;
@@ -32,7 +30,6 @@ export function generatePlaceholderPdf(args: {
   const lines = [
     "EQUATIS — DOCUMENT A SIGNER",
     "",
-    `Dossier        : ${args.dossierReference}`,
     `Programme      : ${args.programmeName}`,
     args.lotReference ? `Lot            : ${args.lotReference}` : null,
     `Signataire     : ${args.signerName}`,

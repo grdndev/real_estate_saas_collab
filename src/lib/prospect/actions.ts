@@ -10,7 +10,6 @@ import { programmesForPromoter } from "@/lib/promoter/access";
 import { audit } from "@/lib/audit";
 import { getRequestContext } from "@/lib/request-context";
 import { hashPassword } from "@/lib/auth/password";
-import { generateDossierReference } from "@/lib/dossier/reference";
 import { createClientDossierCore } from "@/lib/dossier/client-dossier-core";
 import { getMailer } from "@/lib/mail";
 import { invitationMail } from "@/lib/mail/admin-templates";
@@ -387,7 +386,7 @@ const INITIAL_TIMELINE_KINDS = new Set(["LEAD_CREATED", "STATUS_CHANGE"]);
 
 export async function convertProspectAction(
   input: ConvertProspectInput,
-): Promise<ActionResult<{ dossierId: string; reference: string }>> {
+): Promise<ActionResult<{ dossierId: string }>> {
   const me = await requireRole(["COLLABORATOR", "PROMOTER", "SUPER_ADMIN"]);
   const parsed = convertProspectSchema.safeParse(input);
   if (!parsed.success) {
@@ -457,7 +456,6 @@ export async function convertProspectAction(
     }
   }
 
-  const reference = await generateDossierReference();
   const placeholderHash = await hashPassword(randomBytes(32).toString("hex"));
 
   let created;
@@ -470,7 +468,6 @@ export async function convertProspectAction(
         phone: prospect.phone,
         programmeId: data.programmeId,
         lotId: data.lotId ?? null,
-        reference,
         passwordHash: placeholderHash,
         collaboratorId,
         actorId: me.id,
@@ -521,14 +518,14 @@ export async function convertProspectAction(
     resourceId: created.dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Prospect ${prospect.id} converti en client (dossier ${reference})`,
+    metadata: `Prospect ${prospect.id} converti en client (dossier ${created.dossier.id})`,
   });
 
   revalidateAll();
   revalidatePath("/collaborateur/dossiers");
   return {
     ok: true,
-    value: { dossierId: created.dossier.id, reference },
+    value: { dossierId: created.dossier.id },
   };
 }
 

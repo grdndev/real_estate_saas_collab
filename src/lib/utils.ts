@@ -14,8 +14,3 @@ export function slugify(input: string): string {
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
-
-/** Référence dossier "EQ-2026-0001". À utiliser via une séquence Postgres en V1.1. */
-export function buildDossierReference(year: number, n: number): string {
-  return `EQ-${year}-${String(n).padStart(4, "0")}`;
-}

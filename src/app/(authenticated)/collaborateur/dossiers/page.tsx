@@ -63,7 +63,16 @@ export default async function DossierListPage({ searchParams }: PageProps) {
   if (filters.search) {
     conds.push({
       OR: [
-        { reference: { contains: filters.search, mode: "insensitive" } },
+        {
+          client: {
+            firstName: { contains: filters.search, mode: "insensitive" },
+          },
+        },
+        {
+          client: {
+            lastName: { contains: filters.search, mode: "insensitive" },
+          },
+        },
         {
           programme: {
             name: { contains: filters.search, mode: "insensitive" },
@@ -79,7 +88,6 @@ export default async function DossierListPage({ searchParams }: PageProps) {
     prisma.dossier.count({ where }),
     prisma.dossier.findMany({
       where,
-      orderBy: { reference: "asc" },
       take: PAGE_SIZE,
       skip,
       include: {
@@ -100,6 +108,9 @@ export default async function DossierListPage({ searchParams }: PageProps) {
   ]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  dossiers.sort((a, b) =>
+    (a.lots[0]?.reference ?? "").localeCompare(b.lots[0]?.reference ?? ""),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -139,7 +150,6 @@ export default async function DossierListPage({ searchParams }: PageProps) {
           <Table>
             <THead>
               <Tr>
-                <Th>Référence</Th>
                 <Th>Client</Th>
                 <Th>Programme</Th>
                 <Th>Lot</Th>
@@ -155,7 +165,6 @@ export default async function DossierListPage({ searchParams }: PageProps) {
                 const primary = d.participants[0]?.user;
                 return (
                   <Tr key={d.id}>
-                    <Td className="font-mono text-xs">{d.reference}</Td>
                     <Td>
                       {d.client ? (
                         <span className="text-sm">

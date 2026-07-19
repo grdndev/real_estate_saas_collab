@@ -11,6 +11,7 @@ import {
 import { formatAdresseProgramme, formatEur } from "@/lib/pdf/letterhead";
 import { prisma } from "@/lib/prisma";
 import { decodeAddress } from "@/lib/profile";
+import { slugify } from "@/lib/utils";
 import { getRequestContext } from "@/lib/request-context";
 import { getCompanyLogo } from "@/lib/settings";
 
@@ -23,7 +24,8 @@ interface RouteContext {
 const querySchema = z.object({
   montantHT: z.coerce.number().positive().max(99_999_999),
   tauxTva: z.coerce.number().min(0).max(50).default(8.5),
-  facture: z.string().max(40).optional(),
+  montantTTC: z.coerce.number().positive().max(99_999_999),
+  facture: z.string().trim().min(1).max(40),
   vendeurNom: z.string().max(120).optional(),
   vendeurAdresse: z.string().max(200).optional(),
 });
@@ -50,7 +52,7 @@ export async function GET(request: Request, ctx: RouteContext) {
     Object.fromEntries(url.searchParams.entries()),
   );
   if (!parsed.success) {
-    return erreur("Paramètres invalides (montant HT requis).", 400);
+    return erreur(JSON.stringify(parsed.error.flatten()), 400);
   }
   const params = parsed.data;
 
@@ -89,7 +91,7 @@ export async function GET(request: Request, ctx: RouteContext) {
   const notaire = dossier.participants[0]?.user ?? null;
   const adresseNotaire = notaire ? decodeAddress(notaire.addressEnc) : null;
 
-  const numeroFacture = params.facture?.trim() || dossier.reference;
+  const numeroFacture = params.facture;
 
   const data: HonorairesPdfData = {
     numeroFacture,
@@ -114,6 +116,7 @@ export async function GET(request: Request, ctx: RouteContext) {
       : null,
     montantHT: params.montantHT,
     tauxTva: params.tauxTva,
+    montantTTC: params.montantTTC,
     logoDataUrl: await getCompanyLogo(),
   };
 
@@ -131,7 +134,7 @@ export async function GET(request: Request, ctx: RouteContext) {
     metadata: `PDF honoraires de négociation généré (facture ${numeroFacture}, montant HT ${formatEur(params.montantHT)})`,
   });
 
-  const filename = `equatis_honoraires_${dossier.reference}_${new Date().toISOString().slice(0, 10)}.pdf`;
+  const filename = `equatis_honoraires_${slugify(`${dossier.client.firstName} ${dossier.client.lastName}`)}_${new Date().toISOString().slice(0, 10)}.pdf`;
 
   return new Response(pdf.buffer as ArrayBuffer, {
     headers: {

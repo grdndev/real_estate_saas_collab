@@ -143,7 +143,6 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
           <Table>
             <THead>
               <Tr>
-                <Th>Référence</Th>
                 <Th>Lot</Th>
                 <Th>Acquéreur</Th>
                 <Th>Statut</Th>
@@ -156,7 +155,6 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
                 const sb = STATUS_BADGE[d.status];
                 return (
                   <Tr key={d.id}>
-                    <Td className="font-mono text-xs">{d.reference}</Td>
                     <Td>
                       {d.lots.length > 0
                         ? d.lots

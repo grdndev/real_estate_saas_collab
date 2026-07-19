@@ -7,7 +7,6 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { getRequestContext } from "@/lib/request-context";
-import { generateDossierReference } from "@/lib/dossier/reference";
 import type { ActionResult } from "@/lib/auth/actions";
 import {
   parseTrackingFileSchema,
@@ -412,12 +411,9 @@ export async function upsertTrackingDossierAction(
   }
 
   // --- Cas B : création ---
-  const reference = await generateDossierReference();
-
   const dossier = await prisma.$transaction(async (tx) => {
     const created = await tx.dossier.create({
       data: {
-        reference,
         programmeId,
         clientId,
         status: dossierStatus,
@@ -487,7 +483,7 @@ export async function upsertTrackingDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Dossier ${reference} créé via l'import d'un fichier de suivi (programme ${programmeId})`,
+    metadata: `Dossier créé via l'import d'un fichier de suivi (programme ${programmeId})`,
   });
 
   revalidatePath("/collaborateur");

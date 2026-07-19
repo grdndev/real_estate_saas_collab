@@ -7,7 +7,7 @@ import { env } from "@/lib/env";
  * lib est installée.
  *
  * Activation en prod :
- *   1. pnpm add @sentry/nextjs
+ *   1. npm install @sentry/nextjs
  *   2. npx @sentry/wizard@latest -i nextjs
  *   3. Renseigner SENTRY_DSN dans .env
  *

@@ -149,9 +149,8 @@ export async function getProgrammeActivity(
       documents: { select: { id: true } },
       prospects: { select: { id: true } },
       dossiers: { select: { id: true } },
-      lotFondsSuivis: {
-        select: { id: true, appelsFonds: { select: { id: true } } },
-      },
+      lotFondsSuivis: { select: { id: true } },
+      appelsFonds: { select: { id: true } },
     },
   });
   if (!programme) return { logs: [], total: 0, page: 0, pageCount: 1 };
@@ -170,10 +169,7 @@ export async function getProgrammeActivity(
   push("Prospect", ids(programme.prospects));
   push("Dossier", ids(programme.dossiers));
   push("LotFondsSuivi", ids(programme.lotFondsSuivis));
-  push(
-    "AppelFonds",
-    programme.lotFondsSuivis.flatMap((s) => ids(s.appelsFonds)),
-  );
+  push("AppelFonds", ids(programme.appelsFonds));
 
   return queryLogs({ OR: scopes }, filters);
 }
@@ -201,7 +197,6 @@ export async function getDossierContext(dossierId: string) {
     where: { id: dossierId },
     select: {
       id: true,
-      reference: true,
       status: true,
       contractStatus: true,
       optioned: true,
@@ -306,10 +301,9 @@ export async function getActivityEntities() {
       select: { id: true, name: true },
     }),
     prisma.dossier.findMany({
-      orderBy: { reference: "asc" },
+      orderBy: { createdAt: "desc" },
       select: {
         id: true,
-        reference: true,
         client: { select: { firstName: true, lastName: true } },
         programme: { select: { name: true } },
       },

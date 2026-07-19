@@ -53,7 +53,7 @@ export function DossierFiltersForm({
       <Input
         type="search"
         defaultValue={params.get("search") ?? ""}
-        placeholder="Rechercher (référence ou programme)…"
+        placeholder="Rechercher (client ou programme)…"
         onChange={(e) => update("search", e.target.value)}
         aria-label="Rechercher dans les dossiers"
       />

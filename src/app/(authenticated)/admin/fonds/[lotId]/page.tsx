@@ -41,7 +41,7 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
         },
       },
       fondsSuivi: {
-        include: { appelsFonds: { orderBy: { numero: "asc" } } },
+        include: { fondsAppeles: true },
       },
     },
   });
@@ -49,10 +49,8 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
   if (!lot) notFound();
 
   const programmeAppelTypes = await prisma.appelFonds.findMany({
-    where: { lotFonds: { programmeId: lot.programmeId } },
+    where: { programmeId: lot.programmeId },
     orderBy: { numero: "asc" },
-    distinct: ["numero"],
-    select: { numero: true, label: true, pourcentage: true, datePrevue: true },
   });
 
   const now = new Date();
@@ -91,14 +89,12 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
           lot.fondsSuivi.soldeVendeur != null
             ? Number(lot.fondsSuivi.soldeVendeur)
             : null,
-        appelsFonds: lot.fondsSuivi.appelsFonds.map((a) => ({
-          numero: a.numero,
-          label: a.label,
-          datePrevue: a.datePrevue.toISOString(),
-          pourcentage: Number(a.pourcentage),
-          montant: Number(a.montant),
-          dateEnvoiLr: a.dateEnvoiLr?.toISOString() ?? null,
-          dateReceptionVirement: a.dateReceptionVirement?.toISOString() ?? null,
+        fondsAppeles: lot.fondsSuivi.fondsAppeles.map((fa) => ({
+          appelFondsId: fa.appelFondsId,
+          montant: Number(fa.montant),
+          dateEnvoiLr: fa.dateEnvoiLr?.toISOString() ?? null,
+          dateReceptionVirement:
+            fa.dateReceptionVirement?.toISOString() ?? null,
         })),
       }
     : null;
@@ -130,6 +126,7 @@ export default async function AdminLotFondsDetailPage({ params }: PageProps) {
         hasClientAddress={Boolean(clientContact?.address)}
         fondsSuivi={fondsSuivi}
         programmeAppelTypes={programmeAppelTypes.map((a) => ({
+          id: a.id,
           numero: a.numero,
           label: a.label,
           pourcentage: Number(a.pourcentage),

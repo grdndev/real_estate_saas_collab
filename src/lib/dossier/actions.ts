@@ -10,7 +10,6 @@ import { findDossierForUser } from "@/lib/dossier/access";
 import { notify } from "@/lib/notifications";
 import { getMailer } from "@/lib/mail";
 import { dossierAssociatedMail } from "@/lib/mail/auto-templates";
-import { generateDossierReference } from "@/lib/dossier/reference";
 import { createClientDossierCore } from "@/lib/dossier/client-dossier-core";
 import { getRequestContext } from "@/lib/request-context";
 import { hashPassword } from "@/lib/auth/password";
@@ -72,7 +71,7 @@ const STATUS_TIMELINE_KIND = {
 
 export async function createDossierAction(
   input: CreateDossierInput,
-): Promise<ActionResult<{ id: string; reference: string }>> {
+): Promise<ActionResult<{ id: string }>> {
   const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
   const parsed = createDossierSchema.safeParse(input);
   if (!parsed.success) {
@@ -127,12 +126,9 @@ export async function createDossierAction(
     return { ok: false, error: "Collaborateur invalide." };
   }
 
-  const reference = await generateDossierReference();
-
   const dossier = await prisma.$transaction(async (tx) => {
     const created = await tx.dossier.create({
       data: {
-        reference,
         programmeId: data.programmeId,
         clientId: data.clientId ?? null,
         status: "NEW_LEAD",
@@ -176,12 +172,12 @@ export async function createDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Dossier ${reference} créé (programme ${data.programmeId}${data.clientId ? ", avec client associé" : ""})`,
+    metadata: `Dossier créé (programme ${data.programmeId}${data.clientId ? ", avec client associé" : ""})`,
   });
 
   revalidatePath("/collaborateur");
   revalidatePath("/collaborateur/dossiers");
-  return { ok: true, value: { id: dossier.id, reference } };
+  return { ok: true, value: { id: dossier.id } };
 }
 
 // =====================================================
@@ -331,14 +327,12 @@ export async function assignClientAction(
     userId: data.clientId,
     kind: "DOSSIER_ASSOCIATED",
     title: "Votre dossier est prêt",
-    body: `Votre dossier ${dossier.reference} a été créé. Vous pouvez maintenant suivre son avancement.`,
+    body: `Votre dossier a été créé. Vous pouvez maintenant suivre son avancement.`,
     link: "/client",
   });
   // Email auto (CDC §8.5)
   void getMailer()
-    .send(
-      dossierAssociatedMail(client.email, client.firstName, dossier.reference),
-    )
+    .send(dossierAssociatedMail(client.email, client.firstName))
     .catch((err) => {
       console.error("[mail] dossierAssociated", err);
     });
@@ -480,9 +474,7 @@ export async function assignCollaboratorAction(
 
 export async function createClientAndDossierAction(
   input: CreateClientAndDossierInput,
-): Promise<
-  ActionResult<{ dossierId: string; reference: string; userId: string }>
-> {
+): Promise<ActionResult<{ dossierId: string; userId: string }>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const parsed = createClientAndDossierSchema.safeParse(input);
   if (!parsed.success) {
@@ -522,7 +514,6 @@ export async function createClientAndDossierAction(
     }
   }
 
-  const reference = await generateDossierReference();
   const placeholderHash = await hashPassword(randomBytes(32).toString("hex"));
 
   const FAMILY_STATUSES = [
@@ -573,7 +564,6 @@ export async function createClientAndDossierAction(
       phone: data.phone || null,
       programmeId: data.programmeId,
       lotId: data.lotId ?? null,
-      reference,
       passwordHash: placeholderHash,
       collaboratorId: me.id,
       actorId: me.id,
@@ -630,7 +620,7 @@ export async function createClientAndDossierAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Compte client créé par un collaborateur (dossier ${reference})`,
+    metadata: `Compte client créé par un collaborateur (dossier ${dossier.id})`,
   });
   await audit({
     userId: me.id,
@@ -639,7 +629,7 @@ export async function createClientAndDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Dossier ${reference} créé avec un nouveau client (programme ${data.programmeId})`,
+    metadata: `Dossier créé avec un nouveau client (programme ${data.programmeId})`,
   });
 
   // Pièces déposées dès la création (best-effort — n'invalide pas la création).
@@ -701,7 +691,7 @@ export async function createClientAndDossierAction(
   revalidatePath("/collaborateur/facturation");
   return {
     ok: true,
-    value: { dossierId: dossier.id, reference, userId: user.id },
+    value: { dossierId: dossier.id, userId: user.id },
   };
 }
 
@@ -892,14 +882,14 @@ export async function relaunchClientAction(
   try {
     await getMailer().send({
       to: client.email,
-      subject: `[Équatis] Action requise sur votre dossier ${dossier.reference}`,
+      subject: `[Équatis] Action requise sur votre dossier`,
       text:
         `Bonjour ${client.firstName},\n\n` +
         (parsed.data.comment
           ? `${parsed.data.comment}\n\n`
           : "Nous attendons des informations de votre part pour faire avancer votre dossier.\n\n") +
         `Lien direct : ${link}`,
-      html: `<div style="font-family:Inter,sans-serif;background:#F8F9FA;padding:24px"><div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e2e6eb"><p style="color:#0FB8A9;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0">Équatis</p><h1 style="color:#1B2A4A;font-size:20px;margin:8px 0 16px">Votre dossier ${dossier.reference}</h1><p style="color:#1B2A4A;font-size:14px">Bonjour ${client.firstName},</p>${parsed.data.comment ? `<div style="margin:16px 0;padding:12px 16px;background:#f8fafc;border-left:3px solid #0FB8A9;border-radius:4px"><p style="color:#475569;font-size:14px;margin:0;white-space:pre-line">${parsed.data.comment.replace(/</g, "&lt;")}</p></div>` : `<p style="color:#475569;font-size:14px">Nous attendons des informations de votre part pour faire avancer votre dossier.</p>`}<p style="text-align:center;margin:24px 0"><a href="${link}" style="background:#1B2A4A;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500">Accéder à mon dossier</a></p></div></div>`,
+      html: `<div style="font-family:Inter,sans-serif;background:#F8F9FA;padding:24px"><div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;padding:32px;border:1px solid #e2e6eb"><p style="color:#0FB8A9;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0">Équatis</p><h1 style="color:#1B2A4A;font-size:20px;margin:8px 0 16px">Votre dossier</h1><p style="color:#1B2A4A;font-size:14px">Bonjour ${client.firstName},</p>${parsed.data.comment ? `<div style="margin:16px 0;padding:12px 16px;background:#f8fafc;border-left:3px solid #0FB8A9;border-radius:4px"><p style="color:#475569;font-size:14px;margin:0;white-space:pre-line">${parsed.data.comment.replace(/</g, "&lt;")}</p></div>` : `<p style="color:#475569;font-size:14px">Nous attendons des informations de votre part pour faire avancer votre dossier.</p>`}<p style="text-align:center;margin:24px 0"><a href="${link}" style="background:#1B2A4A;color:#fff;padding:12px 24px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:500">Accéder à mon dossier</a></p></div></div>`,
     });
   } catch (err) {
     console.error("[mail] clientRelaunch", err);
@@ -910,7 +900,7 @@ export async function relaunchClientAction(
   await notify({
     userId: client.id,
     kind: "DOSSIER_INACTIVE",
-    title: `Relance — dossier ${dossier.reference}`,
+    title: "Relance — votre dossier",
     body:
       parsed.data.comment ??
       "Votre collaborateur attend une action de votre part.",
@@ -1056,7 +1046,7 @@ export async function recordOptionReminderAction(
     await notify({
       userId: dossier.clientId,
       kind: "OPTION_REMINDER",
-      title: `Relance — dossier ${dossier.reference}`,
+      title: "Relance — votre dossier",
       body: "Votre option arrive à échéance. Contactez votre conseiller.",
       link: "/client",
     });
@@ -1123,11 +1113,17 @@ export async function updateContractStatusAction(
     });
   });
 
+  const client = dossier.clientId
+    ? await prisma.user.findUnique({
+        where: { id: dossier.clientId },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
   await notifyDossierParticipants(
     dossier.id,
     me.id,
     "CONTRACT_STATUS_CHANGE",
-    `Dossier ${dossier.reference} — ${label}`,
+    `Dossier${client ? ` ${client.firstName} ${client.lastName}` : ""} — ${label}`,
     data.comment ?? null,
   );
 

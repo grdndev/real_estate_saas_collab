@@ -185,7 +185,7 @@ export async function confirmUploadAction(
       const dossierWithRel = await prisma.dossier.findUnique({
         where: { id: document.dossierId! },
         include: {
-          client: { select: { email: true, firstName: true } },
+          client: { select: { email: true, firstName: true, lastName: true } },
           participants: {
             where: {
               role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
@@ -199,13 +199,16 @@ export async function confirmUploadAction(
       if (!dossierWithRel) return;
       const mailer = getMailer();
       if (document.source === "CLIENT_UPLOAD") {
+        const clientName = dossierWithRel.client
+          ? `${dossierWithRel.client.firstName} ${dossierWithRel.client.lastName}`
+          : "—";
         // Notifier les collaborateurs.
         for (const p of dossierWithRel.participants) {
           await mailer.send(
             pieceDepositedMail(
               p.user.email,
               p.user.firstName,
-              dossierWithRel.reference,
+              clientName,
               document.fileName,
             ),
           );

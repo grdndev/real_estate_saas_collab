@@ -34,7 +34,9 @@ async function main() {
     where: { programmeId: programme.id, reference: "A102" },
   });
   if (!lot)
-    throw new Error("Lot A102 introuvable — relancer SEED_DEMO=1 pnpm db:seed");
+    throw new Error(
+      "Lot A102 introuvable — relancer SEED_DEMO=1 npm run db:seed",
+    );
 
   // Skip si client déjà associé.
   const existing = await prisma.dossier.findUnique({
@@ -46,12 +48,9 @@ async function main() {
     return;
   }
 
-  const reference = `EQ-${new Date().getFullYear()}-D001`;
-
   const dossier = await prisma.$transaction(async (tx) => {
     const created = await tx.dossier.create({
       data: {
-        reference,
         programmeId: programme.id,
         clientId: client.id,
         status: "RESERVATION_SENT",
@@ -133,7 +132,7 @@ async function main() {
   });
 
   console.log(
-    `\n✓ Dossier démo créé : ${reference}\n  Lot A102 — Résidence Antarès\n  Client : Julie Bernard\n  Collab : Sophie Martin\n  Statut : RESERVATION_SENT\n`,
+    `\n✓ Dossier démo créé\n  Lot A102 — Résidence Antarès\n  Client : Julie Bernard\n  Collab : Sophie Martin\n  Statut : RESERVATION_SENT\n`,
   );
   void dossier;
 }

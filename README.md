@@ -13,7 +13,7 @@ Quatre espaces cloisonnés : **Collaborateurs**, **Promoteurs**, **Notaires**, *
 | Outil | Version minimale | Vérifier |
 |---|---|---|
 | Node.js | 20.9 | `node --version` |
-| pnpm | 10 | `pnpm --version` |
+| npm | 10 | `npm --version` |
 | Docker (et Docker Compose) | 24+ | `docker --version` |
 | OpenSSL | 1.1+ | `openssl version` |
 
@@ -23,7 +23,7 @@ Quatre espaces cloisonnés : **Collaborateurs**, **Promoteurs**, **Notaires**, *
 
 ```bash
 # 1. Installer les dépendances
-pnpm install
+npm install
 
 # 2. Copier le fichier d'environnement (le .env du dev a déjà été généré
 #    avec des secrets aléatoires lors du scaffold)
@@ -33,13 +33,13 @@ cp .env.example .env
 docker compose up -d postgres
 
 # 4. Générer le client Prisma puis créer le schéma
-pnpm db:generate
-pnpm db:push       # première fois — sans migration
+npm run db:generate
+npm run db:push       # première fois — sans migration
 # ou
-pnpm db:migrate    # crée une migration versionnée (à utiliser dès que le schéma se stabilise)
+npm run db:migrate    # crée une migration versionnée (à utiliser dès que le schéma se stabilise)
 
 # 5. Lancer le serveur de développement
-pnpm dev
+npm run dev
 ```
 
 Ouvrir http://localhost:3000 — la page d'accueil publique doit s'afficher avec
@@ -51,19 +51,19 @@ le titre **« Plateforme de coordination immobilière »**.
 
 | Script | Description |
 |---|---|
-| `pnpm dev` | Serveur de développement Next.js (Turbopack) |
-| `pnpm build` | Build de production |
-| `pnpm start` | Démarre le build de production |
-| `pnpm lint` | Lint ESLint |
-| `pnpm format` | Formatte le code via Prettier |
-| `pnpm typecheck` | Vérifie les types TS strict |
-| `pnpm test` | Tests unitaires Vitest |
-| `pnpm db:generate` | Génère le client Prisma |
-| `pnpm db:migrate` | Crée et applique une migration |
-| `pnpm db:push` | Pousse le schéma sans migration (dev only) |
-| `pnpm db:studio` | Ouvre Prisma Studio |
-| `pnpm db:seed` | Seed les données initiales |
-| `pnpm db:reset` | Reset complet de la base (destructif) |
+| `npm run dev` | Serveur de développement Next.js (Turbopack) |
+| `npm run build` | Build de production |
+| `npm run start` | Démarre le build de production |
+| `npm run lint` | Lint ESLint |
+| `npm run format` | Formatte le code via Prettier |
+| `npm run typecheck` | Vérifie les types TS strict |
+| `npm run test` | Tests unitaires Vitest |
+| `npm run db:generate` | Génère le client Prisma |
+| `npm run db:migrate` | Crée et applique une migration |
+| `npm run db:push` | Pousse le schéma sans migration (dev only) |
+| `npm run db:studio` | Ouvre Prisma Studio |
+| `npm run db:seed` | Seed les données initiales |
+| `npm run db:reset` | Reset complet de la base (destructif) |
 
 ---
 

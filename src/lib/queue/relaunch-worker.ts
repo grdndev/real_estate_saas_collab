@@ -42,8 +42,8 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
     },
     select: {
       id: true,
-      reference: true,
       lastActivityAt: true,
+      client: { select: { firstName: true, lastName: true } },
       programme: { select: { name: true } },
       participants: {
         include: {
@@ -55,6 +55,9 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
 
   let relaunched = 0;
   for (const d of dossiers) {
+    const clientName = d.client
+      ? `${d.client.firstName} ${d.client.lastName}`
+      : "—";
     const days = Math.max(
       1,
       Math.round(
@@ -67,7 +70,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
         await notify({
           userId: n.user.id,
           kind: "DOSSIER_INACTIVE",
-          title: `Dossier inactif : ${d.reference}`,
+          title: `Dossier inactif : ${clientName}`,
           body: `${days} jours sans activité.`,
           link: `/notaire/dossiers/${d.id}`,
         });
@@ -78,7 +81,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
               notaryRelaunchMail(
                 n.user.email,
                 n.user.firstName,
-                d.reference,
+                clientName,
                 d.programme.name,
                 days,
               ),
@@ -97,7 +100,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
       await notify({
         userId: p.user.id,
         kind: "DOSSIER_INACTIVE",
-        title: `Dossier inactif : ${d.reference}`,
+        title: `Dossier inactif : ${clientName}`,
         body: `${days} jours sans activité.`,
         link: `/collaborateur/dossiers/${d.id}`,
       });
@@ -108,7 +111,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
             dossierRelaunchMail(
               p.user.email,
               p.user.firstName,
-              d.reference,
+              clientName,
               days,
             ),
           );

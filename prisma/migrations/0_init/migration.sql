@@ -1,6 +1,3 @@
--- CreateSchema
-CREATE SCHEMA IF NOT EXISTS "public";
-
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'COLLABORATOR', 'PROMOTER', 'NOTARY', 'CLIENT');
 
@@ -197,7 +194,6 @@ CREATE TABLE "TresoreriePrev" (
 -- CreateTable
 CREATE TABLE "Dossier" (
     "id" TEXT NOT NULL,
-    "reference" TEXT NOT NULL,
     "programmeId" TEXT NOT NULL,
     "clientId" TEXT,
     "status" "DossierStatus" NOT NULL DEFAULT 'NEW_LEAD',
@@ -448,6 +444,7 @@ CREATE TABLE "Invoice" (
     "dossierId" TEXT NOT NULL,
     "number" TEXT NOT NULL,
     "amountHT" DECIMAL(12,2) NOT NULL,
+    "vatRate" DECIMAL(5,2) NOT NULL,
     "amountTTC" DECIMAL(12,2) NOT NULL,
     "storageKey" TEXT,
     "fileName" TEXT,
@@ -478,17 +475,27 @@ CREATE TABLE "LotFondsSuivi" (
 -- CreateTable
 CREATE TABLE "AppelFonds" (
     "id" TEXT NOT NULL,
-    "lotFondsId" TEXT NOT NULL,
+    "programmeId" TEXT NOT NULL,
     "numero" INTEGER NOT NULL,
     "label" TEXT NOT NULL,
     "datePrevue" TIMESTAMP(3) NOT NULL,
     "pourcentage" DECIMAL(5,2) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AppelFonds_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FondsAppele" (
+    "id" TEXT NOT NULL,
+    "lotFondsId" TEXT NOT NULL,
+    "appelFondsId" TEXT NOT NULL,
     "montant" DECIMAL(12,2) NOT NULL,
     "dateEnvoiLr" TIMESTAMP(3),
     "dateReceptionVirement" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "AppelFonds_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "FondsAppele_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -550,9 +557,6 @@ CREATE UNIQUE INDEX "Lot_programmeId_reference_key" ON "Lot"("programmeId", "ref
 
 -- CreateIndex
 CREATE UNIQUE INDEX "TresoreriePrev_programmeId_month_key" ON "TresoreriePrev"("programmeId", "month");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Dossier_reference_key" ON "Dossier"("reference");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Dossier_clientId_key" ON "Dossier"("clientId");
@@ -684,10 +688,16 @@ CREATE INDEX "Invoice_status_idx" ON "Invoice"("status");
 CREATE UNIQUE INDEX "LotFondsSuivi_lotId_key" ON "LotFondsSuivi"("lotId");
 
 -- CreateIndex
-CREATE INDEX "AppelFonds_lotFondsId_idx" ON "AppelFonds"("lotFondsId");
+CREATE INDEX "AppelFonds_programmeId_idx" ON "AppelFonds"("programmeId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "AppelFonds_lotFondsId_numero_key" ON "AppelFonds"("lotFondsId", "numero");
+CREATE UNIQUE INDEX "AppelFonds_programmeId_numero_key" ON "AppelFonds"("programmeId", "numero");
+
+-- CreateIndex
+CREATE INDEX "FondsAppele_appelFondsId_idx" ON "FondsAppele"("appelFondsId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FondsAppele_lotFondsId_appelFondsId_key" ON "FondsAppele"("lotFondsId", "appelFondsId");
 
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -807,4 +817,10 @@ ALTER TABLE "LotFondsSuivi" ADD CONSTRAINT "LotFondsSuivi_lotId_fkey" FOREIGN KE
 ALTER TABLE "LotFondsSuivi" ADD CONSTRAINT "LotFondsSuivi_programmeId_fkey" FOREIGN KEY ("programmeId") REFERENCES "Programme"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "AppelFonds" ADD CONSTRAINT "AppelFonds_lotFondsId_fkey" FOREIGN KEY ("lotFondsId") REFERENCES "LotFondsSuivi"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "AppelFonds" ADD CONSTRAINT "AppelFonds_programmeId_fkey" FOREIGN KEY ("programmeId") REFERENCES "Programme"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FondsAppele" ADD CONSTRAINT "FondsAppele_lotFondsId_fkey" FOREIGN KEY ("lotFondsId") REFERENCES "LotFondsSuivi"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FondsAppele" ADD CONSTRAINT "FondsAppele_appelFondsId_fkey" FOREIGN KEY ("appelFondsId") REFERENCES "AppelFonds"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -92,12 +92,20 @@ export async function createAppointmentAction(
     timeStyle: "short",
   });
 
+  const client = dossier.clientId
+    ? await prisma.user.findUnique({
+        where: { id: dossier.clientId },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
+  const clientName = client ? `${client.firstName} ${client.lastName}` : "—";
+
   // Diffusion : collaborateurs participants, client, notaire, promoteurs.
   await notifyDossierParticipants(
     dossier.id,
     me.id,
     "APPOINTMENT_SCHEDULED",
-    `RDV notaire — dossier ${dossier.reference}`,
+    `RDV notaire — dossier ${clientName}`,
     `Rendez-vous prévu le ${whenLabel}.`,
   );
 
@@ -113,7 +121,7 @@ export async function createAppointmentAction(
         notify({
           userId: c.id,
           kind: "APPOINTMENT_SCHEDULED",
-          title: `RDV notaire confirmé — dossier ${dossier.reference}`,
+          title: `RDV notaire confirmé — dossier ${clientName}`,
           body: `Facturation : honoraires à préparer. RDV le ${whenLabel}.`,
           link: "/collaborateur/facturation",
         }),
@@ -127,7 +135,7 @@ export async function createAppointmentAction(
     resourceId: appointment.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Rendez-vous notaire créé (dossier ${dossier.reference})`,
+    metadata: `Rendez-vous notaire créé (dossier ${dossier.id})`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
@@ -162,11 +170,19 @@ export async function cancelAppointmentAction(
     data: { status: "CANCELLED" },
   });
 
+  const client = dossier.clientId
+    ? await prisma.user.findUnique({
+        where: { id: dossier.clientId },
+        select: { firstName: true, lastName: true },
+      })
+    : null;
+  const clientName = client ? `${client.firstName} ${client.lastName}` : "—";
+
   await notifyDossierParticipants(
     dossier.id,
     me.id,
     "APPOINTMENT_SCHEDULED",
-    `RDV notaire annulé — dossier ${dossier.reference}`,
+    `RDV notaire annulé — dossier ${clientName}`,
     "Le rendez-vous notaire a été annulé.",
   );
 
@@ -177,7 +193,7 @@ export async function cancelAppointmentAction(
     resourceId: appointmentId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Rendez-vous notaire annulé (dossier ${dossier.reference})`,
+    metadata: `Rendez-vous notaire annulé (dossier ${dossier.id})`,
   });
 
   revalidatePath(`/collaborateur/dossiers/${dossier.id}`);

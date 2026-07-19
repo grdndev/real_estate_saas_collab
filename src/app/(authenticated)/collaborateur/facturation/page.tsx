@@ -18,7 +18,7 @@ export default async function FacturationPage() {
     orderBy: { updatedAt: "desc" },
     include: {
       client: { select: { firstName: true, lastName: true } },
-      programme: { select: { name: true } },
+      programme: { select: { name: true, id: true } },
       invoices: { orderBy: { createdAt: "desc" } },
       appointments: {
         where: { status: { in: ["SCHEDULED", "CONFIRMED"] } },
@@ -77,9 +77,6 @@ export default async function FacturationPage() {
                       ? `${d.client.firstName} ${d.client.lastName}`
                       : "Client non associé"}
                   </Link>
-                  <span className="ml-2 font-mono text-xs font-normal text-slate-500">
-                    {d.reference}
-                  </span>
                 </CardTitle>
                 {d.appointments[0] && (
                   <Badge variant="info">
@@ -98,6 +95,7 @@ export default async function FacturationPage() {
                   id: i.id,
                   number: i.number,
                   amountHT: Number(i.amountHT),
+                  vatRate: Number(i.vatRate),
                   amountTTC: Number(i.amountTTC),
                   status: i.status,
                   hasFile: Boolean(i.storageKey),

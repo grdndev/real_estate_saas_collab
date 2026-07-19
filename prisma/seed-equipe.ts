@@ -1,7 +1,7 @@
 /**
  * Seed équipe Équatis — comptes réels des 2 promoteurs et 2 collaboratrices.
  *
- * Usage : pnpm tsx prisma/seed-equipe.ts
+ * Usage : npx tsx prisma/seed-equipe.ts
  *
  * Mot de passe initial commun : Equatis2026!  (à changer à la première connexion)
  */

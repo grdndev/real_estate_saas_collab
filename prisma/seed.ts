@@ -4,7 +4,7 @@
  *
  * Idempotent : peut être lancé plusieurs fois sans dupliquer.
  *
- * Usage : pnpm db:seed
+ * Usage : npm run db:seed
  *
  * Variables optionnelles :
  *   SEED_ADMIN_EMAIL    (défaut : admin@equatisimmobilier.fr)

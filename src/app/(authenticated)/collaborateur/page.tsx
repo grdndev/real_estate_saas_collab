@@ -191,7 +191,6 @@ export default async function CollaborateurDashboardPage() {
           <Table>
             <THead>
               <Tr>
-                <Th>Référence</Th>
                 <Th>Client</Th>
                 <Th>Programme</Th>
                 <Th>Lot</Th>
@@ -205,7 +204,6 @@ export default async function CollaborateurDashboardPage() {
                 const sb = STATUS_BADGE[d.status];
                 return (
                   <Tr key={d.id}>
-                    <Td className="font-mono text-xs">{d.reference}</Td>
                     <Td className="text-xs text-slate-600">
                       {d.client
                         ? `${d.client.firstName} ${d.client.lastName}`

@@ -28,7 +28,6 @@ export interface CreateClientDossierCoreParams {
   phone?: string | null;
   programmeId: string;
   lotId?: string | null;
-  reference: string;
   /** Hash de mot de passe placeholder (calculé hors transaction). */
   passwordHash: string;
   /**
@@ -44,7 +43,7 @@ export interface CreateClientDossierCoreParams {
 }
 
 export interface CreateClientDossierCoreResult {
-  dossier: { id: string; reference: string };
+  dossier: { id: string };
   user: { id: string; email: string; firstName: string };
   /** Token brut d'invitation (à envoyer par email hors transaction). */
   token: string;
@@ -75,7 +74,6 @@ export async function createClientDossierCore(
 
   const createdDossier = await tx.dossier.create({
     data: {
-      reference: params.reference,
       programmeId: params.programmeId,
       clientId: createdUser.id,
       status: "NEW_LEAD",
@@ -127,7 +125,7 @@ export async function createClientDossierCore(
   });
 
   return {
-    dossier: { id: createdDossier.id, reference: createdDossier.reference },
+    dossier: { id: createdDossier.id },
     user: {
       id: createdUser.id,
       email: createdUser.email,

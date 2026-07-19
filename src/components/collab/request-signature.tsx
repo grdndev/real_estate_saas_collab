@@ -35,7 +35,7 @@ export interface SignatureDocument {
 
 interface Props {
   dossierId: string;
-  reference: string;
+  clientName: string;
   recipients: SignatureRecipient[];
   documents: SignatureDocument[];
   signatures: SignatureRow[];
@@ -60,7 +60,7 @@ const STATUS_BADGE: Record<
 
 export function RequestSignatureBlock({
   dossierId,
-  reference,
+  clientName,
   recipients,
   documents,
   signatures,
@@ -97,7 +97,7 @@ export function RequestSignatureBlock({
         signerEmail: email,
         signerFirstName: firstName,
         signerLastName: lastName,
-        procedureName: `Équatis - ${reference}`,
+        procedureName: `Équatis - ${clientName}`,
       });
       if (!result.ok) {
         setError(result.error);

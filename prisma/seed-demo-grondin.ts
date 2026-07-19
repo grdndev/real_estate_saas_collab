@@ -6,7 +6,7 @@
  * relances, signature électronique, RDV notaire, facture d'honoraires, notes.
  *
  * Idempotent : ré-exécutable (supprime puis recrée le dossier de démo).
- * Usage : pnpm tsx prisma/seed-demo-grondin.ts
+ * Usage : npx tsx prisma/seed-demo-grondin.ts
  */
 
 import "dotenv/config";
@@ -88,7 +88,7 @@ async function main() {
   });
   if (!programme) {
     throw new Error(
-      "Aucun programme ACTIVE — lancer SEED_DEMO=1 pnpm db:seed.",
+      "Aucun programme ACTIVE — lancer SEED_DEMO=1 npm run db:seed.",
     );
   }
 
@@ -153,14 +153,12 @@ async function main() {
     },
   });
 
-  const reference = `EQ-${new Date().getFullYear()}-GRONDIN`;
   const now = Date.now();
   const daysAgo = (n: number) => new Date(now - n * 24 * 3600_000);
 
   // --- Dossier ---
   const dossier = await prisma.dossier.create({
     data: {
-      reference,
       programmeId: programme.id,
       clientId: client.id,
       status: "SIGNED_AT_NOTARY",
@@ -219,7 +217,6 @@ async function main() {
   for (const spec of docSpecs) {
     const storageKey = `dossiers/${dossier.id}/${randomUUID()}`;
     const pdf = generatePlaceholderPdf({
-      dossierReference: reference,
       programmeName: programme.name,
       lotReference: lot.reference,
       signerName: "Jayan GRONDIN",
@@ -410,7 +407,7 @@ async function main() {
       {
         userId: collab.id,
         kind: "APPOINTMENT_SCHEDULED",
-        title: `RDV notaire confirmé — dossier ${reference}`,
+        title: "RDV notaire confirmé — dossier Jayan GRONDIN",
         body: "Facturation : honoraires à préparer.",
         link: "/collaborateur/facturation",
       },
@@ -424,7 +421,7 @@ async function main() {
     ],
   });
 
-  console.log(`✓ Dossier ${reference} créé pour Jayan GRONDIN`);
+  console.log(`✓ Dossier créé pour Jayan GRONDIN`);
   console.log(`  Programme : ${programme.name} · Lot ${lot.reference}`);
   console.log(`  Collaboratrice : Mégane · Notaire : Hélène Rousseau`);
   console.log(`  Connexion client : ${CLIENT_EMAIL} / ${DEMO_PASSWORD}`);

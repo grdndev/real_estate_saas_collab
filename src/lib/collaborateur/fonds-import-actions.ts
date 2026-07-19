@@ -121,6 +121,29 @@ export async function importFondsSuiviAction(input: {
     datePrevueByNumero.set(at.numero, d);
   }
 
+  // Les appels de fonds sont définis au niveau du programme.
+  const appelIdByNumero = new Map<number, string>();
+  for (const at of appelTypes) {
+    const appel = await prisma.appelFonds.upsert({
+      where: {
+        programmeId_numero: { programmeId, numero: at.numero },
+      },
+      create: {
+        programmeId,
+        numero: at.numero,
+        label: at.label,
+        datePrevue: datePrevueByNumero.get(at.numero)!,
+        pourcentage: new Prisma.Decimal(at.pourcentage),
+      },
+      update: {
+        label: at.label,
+        datePrevue: datePrevueByNumero.get(at.numero)!,
+        pourcentage: new Prisma.Decimal(at.pourcentage),
+      },
+    });
+    appelIdByNumero.set(at.numero, appel.id);
+  }
+
   // Load all lots for this programme once
   const programmeLots = await prisma.lot.findMany({
     where: { programmeId },
@@ -187,11 +210,11 @@ export async function importFondsSuiviAction(input: {
       });
     }
 
-    // 4. Replace appels de fonds using appelTypes metadata
-    await prisma.appelFonds.deleteMany({
+    // 4. Replace fonds appelés using appelTypes metadata
+    await prisma.fondsAppele.deleteMany({
       where: { lotFondsId: fondsSuivi.id },
     });
-    const appelFondsData = appelTypes
+    const fondsAppeleData = appelTypes
       .map((at) => {
         const montant = row.appelsFonds.find(
           (a) => a.numero === at.numero,
@@ -199,17 +222,14 @@ export async function importFondsSuiviAction(input: {
         if (montant == null) return null;
         return {
           lotFondsId: fondsSuivi.id,
-          numero: at.numero,
-          label: at.label,
-          datePrevue: datePrevueByNumero.get(at.numero)!,
-          pourcentage: new Prisma.Decimal(at.pourcentage),
+          appelFondsId: appelIdByNumero.get(at.numero)!,
           montant: new Prisma.Decimal(montant),
         };
       })
       .filter((x): x is NonNullable<typeof x> => x !== null);
 
-    if (appelFondsData.length > 0) {
-      await prisma.appelFonds.createMany({ data: appelFondsData });
+    if (fondsAppeleData.length > 0) {
+      await prisma.fondsAppele.createMany({ data: fondsAppeleData });
     }
 
     // 5. ACT_SIGNED timeline event

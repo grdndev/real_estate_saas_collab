@@ -22,6 +22,7 @@ import {
   uploadDocument,
 } from "@/lib/yousign/client";
 import { generatePlaceholderPdf } from "@/lib/storage/pdf-placeholder";
+import { slugify } from "@/lib/utils";
 import { isStorageConfigured, putObject, readObject } from "@/lib/storage/s3";
 import { randomUUID } from "node:crypto";
 import { getRequestContext } from "@/lib/request-context";
@@ -106,13 +107,13 @@ export async function requestSignatureAction(
       select: { reference: true },
     });
     const lotReference = lots.map((l) => l.reference).join(", ") || undefined;
+    const signerName = `${parsed.data.signerFirstName} ${parsed.data.signerLastName}`;
     pdfBuffer = generatePlaceholderPdf({
-      dossierReference: dossier.reference,
       programmeName: programme?.name ?? "—",
       lotReference,
-      signerName: `${parsed.data.signerFirstName} ${parsed.data.signerLastName}`,
+      signerName,
     });
-    pdfFileName = `${dossier.reference}_a_signer.pdf`;
+    pdfFileName = `${slugify(signerName) || "document"}_a_signer.pdf`;
   }
 
   // 1. Créer la procédure Yousign (draft)
@@ -232,7 +233,6 @@ export async function notifySignatureUpdate(
       dossier: {
         select: {
           id: true,
-          reference: true,
           clientId: true,
           participants: {
             where: {
@@ -243,7 +243,9 @@ export async function notifySignatureUpdate(
               user: { select: { email: true, firstName: true } },
             },
           },
-          client: { select: { email: true, firstName: true } },
+          client: {
+            select: { email: true, firstName: true, lastName: true },
+          },
         },
       },
     },
@@ -261,12 +263,15 @@ export async function notifySignatureUpdate(
   if (newStatus === "SIGNED") {
     // Notifier collaborateurs + client
     const mailer = getMailer();
+    const clientName = signature.dossier.client
+      ? `${signature.dossier.client.firstName} ${signature.dossier.client.lastName}`
+      : "—";
     for (const p of signature.dossier.participants) {
       await notify({
         userId: p.userId,
         kind: "SIGNATURE_COMPLETED",
         title: "Signature complétée",
-        body: `Le document du dossier ${signature.dossier.reference} a été signé.`,
+        body: `Le document du dossier ${clientName} a été signé.`,
         link: `/collaborateur/dossiers/${signature.dossier.id}`,
       });
       mailer
@@ -274,7 +279,7 @@ export async function notifySignatureUpdate(
           signatureCompletedCollaboratorMail(
             p.user.email,
             p.user.firstName,
-            signature.dossier.reference,
+            clientName,
             signature.dossierId,
           ),
         )
@@ -287,7 +292,7 @@ export async function notifySignatureUpdate(
         userId: signature.dossier.clientId,
         kind: "SIGNATURE_COMPLETED",
         title: "Votre document est signé",
-        body: `Document du dossier ${signature.dossier.reference}`,
+        body: "Votre document a été signé électroniquement.",
         link: "/client",
       });
       mailer
@@ -295,7 +300,6 @@ export async function notifySignatureUpdate(
           signatureCompletedClientMail(
             signature.dossier.client.email,
             signature.dossier.client.firstName,
-            signature.dossier.reference,
           ),
         )
         .catch((err) =>

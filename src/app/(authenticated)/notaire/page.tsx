@@ -18,6 +18,7 @@ export default async function NotaireDashboardPage() {
     include: {
       programme: { select: { name: true } },
       lots: { select: { reference: true } },
+      client: { select: { firstName: true, lastName: true } },
     },
   });
 

@@ -69,7 +69,12 @@ export function DossierContextPanel({ dossier }: { dossier: DossierContext }) {
   return (
     <Card>
       <CardHeader className="flex-row flex-wrap items-center justify-between">
-        <CardTitle>Dossier {dossier.reference}</CardTitle>
+        <CardTitle>
+          Dossier{" "}
+          {dossier.client
+            ? `${dossier.client.firstName} ${dossier.client.lastName}`
+            : "sans client"}
+        </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
           {dossier.contractStatus && (

@@ -17,11 +17,10 @@ const updateSchema = z.object({
   rbstEdd: z.number().nullable(),
   soldeVendeur: z.number().nullable(),
   notes: z.string().nullable(),
-  appels: z.array(
+  fondsAppeles: z.array(
     z.object({
-      numero: z.number(),
-      montant: z.number(),
-      datePrevue: z.string().min(1),
+      appelFondsId: z.string().min(1),
+      montant: z.number().min(0),
       dateEnvoiLr: z.string().nullable(),
       dateReceptionVirement: z.string().nullable(),
     }),
@@ -50,25 +49,26 @@ export async function updateLotFondsSuiviAction(
   const parsed = updateSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Données invalides." };
 
-  const { lotId, appels, notes, ...fields } = parsed.data;
-
-  const appelsAvecDate = appels.map((a) => ({
-    ...a,
-    datePrevueDate: monthToDate(a.datePrevue),
-  }));
-  const sansDate = appelsAvecDate.find((a) => !a.datePrevueDate);
-  if (sansDate) {
-    return {
-      ok: false,
-      error: `Date prévue invalide pour l'appel n°${sansDate.numero}.`,
-    };
-  }
+  const { lotId, fondsAppeles, notes, ...fields } = parsed.data;
 
   const lot = await prisma.lot.findUnique({
     where: { id: lotId },
     select: { programmeId: true, reference: true },
   });
   if (!lot) return { ok: false, error: "Lot introuvable." };
+
+  // Les fonds appelés doivent référencer des appels de fonds du programme du lot.
+  const appelsProgramme = await prisma.appelFonds.findMany({
+    where: { programmeId: lot.programmeId },
+    select: { id: true },
+  });
+  const appelIds = new Set(appelsProgramme.map((a) => a.id));
+  if (fondsAppeles.some((fa) => !appelIds.has(fa.appelFondsId))) {
+    return {
+      ok: false,
+      error: "Appel de fonds inconnu pour ce programme.",
+    };
+  }
 
   const fondsData = {
     commission:
@@ -96,42 +96,25 @@ export async function updateLotFondsSuiviAction(
     }),
   ]);
 
-  const modeles = await prisma.appelFonds.findMany({
-    where: {
-      numero: { in: appelsAvecDate.map((a) => a.numero) },
-      lotFonds: { programmeId: lot.programmeId },
-      NOT: { label: "" },
-    },
-    distinct: ["numero"],
-    select: { numero: true, label: true, pourcentage: true },
-  });
-  const modeleByNumero = new Map(modeles.map((m) => [m.numero, m]));
-
-  for (const appel of appelsAvecDate) {
-    await prisma.appelFonds.upsert({
+  for (const fa of fondsAppeles) {
+    await prisma.fondsAppele.upsert({
       where: {
-        lotFondsId_numero: {
+        lotFondsId_appelFondsId: {
           lotFondsId: fondsUpserted.id,
-          numero: appel.numero,
+          appelFondsId: fa.appelFondsId,
         },
       },
       create: {
         lotFondsId: fondsUpserted.id,
-        numero: appel.numero,
-        label: modeleByNumero.get(appel.numero)?.label ?? "",
-        pourcentage:
-          modeleByNumero.get(appel.numero)?.pourcentage ??
-          new Prisma.Decimal(0),
-        montant: new Prisma.Decimal(appel.montant),
-        datePrevue: appel.datePrevueDate!,
-        dateEnvoiLr: toDate(appel.dateEnvoiLr),
-        dateReceptionVirement: toDate(appel.dateReceptionVirement),
+        appelFondsId: fa.appelFondsId,
+        montant: new Prisma.Decimal(fa.montant),
+        dateEnvoiLr: toDate(fa.dateEnvoiLr),
+        dateReceptionVirement: toDate(fa.dateReceptionVirement),
       },
       update: {
-        montant: new Prisma.Decimal(appel.montant),
-        datePrevue: appel.datePrevueDate!,
-        dateEnvoiLr: toDate(appel.dateEnvoiLr),
-        dateReceptionVirement: toDate(appel.dateReceptionVirement),
+        montant: new Prisma.Decimal(fa.montant),
+        dateEnvoiLr: toDate(fa.dateEnvoiLr),
+        dateReceptionVirement: toDate(fa.dateReceptionVirement),
       },
     });
   }
@@ -144,7 +127,7 @@ export async function updateLotFondsSuiviAction(
     resourceId: fondsUpserted.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Suivi des fonds mis à jour pour le lot ${lot.reference} (${appels.length} appel(s) de fonds)`,
+    metadata: `Suivi des fonds mis à jour pour le lot ${lot.reference} (${fondsAppeles.length} appel(s) de fonds)`,
   });
 
   revalidatePath("/collaborateur/fonds");
@@ -155,54 +138,78 @@ export async function updateLotFondsSuiviAction(
   return { ok: true, value: undefined };
 }
 
-export async function upsertProgrammeAppelAction(input: {
-  programmeId: string;
-  numero: number;
-  label: string;
-  pourcentage: number;
-  datePrevue: string;
-}): Promise<ActionResult<void>> {
+const upsertAppelSchema = z.object({
+  programmeId: z.string().min(1),
+  // null → création : le numéro est calculé côté serveur (max + 1).
+  numero: z.number().int().min(1).nullable(),
+  label: z.string().trim().min(1, "Le label est obligatoire."),
+  pourcentage: z
+    .number()
+    .min(0, "Le pourcentage doit être positif.")
+    .max(100, "Le pourcentage ne peut pas dépasser 100."),
+  datePrevue: z.string().min(1),
+});
+
+export async function upsertProgrammeAppelAction(
+  input: unknown,
+): Promise<ActionResult<void>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
-  const datePrevue = monthToDate(input.datePrevue);
+  const parsed = upsertAppelSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? "Saisie invalide.",
+    };
+  }
+  const { programmeId, label, pourcentage } = parsed.data;
+
+  const datePrevue = monthToDate(parsed.data.datePrevue);
   if (!datePrevue) {
     return { ok: false, error: "La date prévue de l'appel est obligatoire." };
   }
 
-  const lotsFonds = await prisma.lotFondsSuivi.findMany({
-    where: { programmeId: input.programmeId },
+  const programme = await prisma.programme.findUnique({
+    where: { id: programmeId },
+    select: { id: true },
   });
+  if (!programme) return { ok: false, error: "Programme introuvable." };
 
-  for (const lfs of lotsFonds) {
-    await prisma.appelFonds.upsert({
-      where: {
-        lotFondsId_numero: { lotFondsId: lfs.id, numero: input.numero },
-      },
-      create: {
-        lotFondsId: lfs.id,
-        numero: input.numero,
-        label: input.label,
-        pourcentage: new Prisma.Decimal(input.pourcentage),
-        montant: new Prisma.Decimal(0),
-        datePrevue,
-      },
-      update: {
-        label: input.label,
-        pourcentage: new Prisma.Decimal(input.pourcentage),
-        datePrevue,
-      },
+  let numero = parsed.data.numero;
+  if (numero == null) {
+    const dernier = await prisma.appelFonds.findFirst({
+      where: { programmeId },
+      orderBy: { numero: "desc" },
+      select: { numero: true },
     });
+    numero = (dernier?.numero ?? 0) + 1;
   }
+
+  await prisma.appelFonds.upsert({
+    where: { programmeId_numero: { programmeId, numero } },
+    create: {
+      programmeId,
+      numero,
+      label,
+      pourcentage: new Prisma.Decimal(pourcentage),
+      datePrevue,
+    },
+    update: {
+      label,
+      pourcentage: new Prisma.Decimal(pourcentage),
+      datePrevue,
+    },
+  });
 
   const ctx = await getRequestContext();
   await audit({
     userId: me.id,
     action: "FONDS_UPDATED",
     resourceType: "Programme",
-    resourceId: input.programmeId,
+    resourceId: programmeId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Appel de fonds n°${input.numero} « ${input.label} » défini sur ${lotsFonds.length} lot(s)`,
+    metadata: `Appel de fonds n°${numero} « ${label} » défini sur le programme`,
   });
 
   revalidatePath("/collaborateur/fonds");
@@ -319,10 +326,11 @@ export async function deleteProgrammeAppelAction(input: {
 }): Promise<ActionResult<void>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
+  // La suppression cascade sur les fonds appelés des lots.
   await prisma.appelFonds.deleteMany({
     where: {
       numero: input.numero,
-      lotFonds: { programmeId: input.programmeId },
+      programmeId: input.programmeId,
     },
   });
 

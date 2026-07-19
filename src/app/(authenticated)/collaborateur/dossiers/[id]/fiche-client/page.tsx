@@ -40,7 +40,6 @@ export default async function FicheClientPage({ params }: PageProps) {
     where: { id },
     select: {
       id: true,
-      reference: true,
       clientId: true,
       client: {
         select: {
@@ -71,7 +70,10 @@ export default async function FicheClientPage({ params }: PageProps) {
           Fiche client
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Dossier <span className="font-mono">{dossier.reference}</span>
+          Dossier{" "}
+          {dossier.client
+            ? `${dossier.client.firstName} ${dossier.client.lastName}`
+            : "sans client"}
         </p>
       </div>
 

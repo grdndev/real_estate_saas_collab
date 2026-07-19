@@ -23,6 +23,7 @@ interface Props {
     | "COLLABORATOR_UPLOAD"
     | "YOUSIGN_SIGNED"
     | "PROGRAMME_RESOURCE";
+  canToggle?: boolean;
 }
 
 export function DocumentRowActions({
@@ -31,6 +32,7 @@ export function DocumentRowActions({
   canDelete,
   isShared,
   source,
+  canToggle = true,
 }: Props) {
   const router = useRouter();
   const [pendingDownload, startDownload] = useTransition();
@@ -94,7 +96,8 @@ export function DocumentRowActions({
     });
   }
 
-  const showToggle = source !== undefined && source !== "CLIENT_UPLOAD";
+  const showToggle =
+    canToggle && source !== undefined && source !== "CLIENT_UPLOAD";
 
   return (
     <div className="flex items-center justify-end gap-1">

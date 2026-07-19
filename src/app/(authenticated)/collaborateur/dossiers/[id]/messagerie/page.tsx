@@ -94,7 +94,7 @@ export default async function CollabMessageriePage({ params }: PageProps) {
           ← Retour au dossier
         </Link>
         <h1 className="text-equatis-night-800 mt-2 text-2xl font-semibold tracking-tight">
-          Messagerie · {dossier.reference}
+          Messagerie
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           Conversation avec <strong>{clientLabel}</strong>.

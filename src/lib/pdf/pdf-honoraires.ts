@@ -40,6 +40,7 @@ export interface HonorairesPdfData {
   montantHT: number;
   /** Taux de TVA en % (8,5 par défaut côté formulaire). */
   tauxTva: number;
+  montantTTC: number;
   /** Logo société (data URL) affiché en en-tête à la place du texte, si défini. */
   logoDataUrl: string | null;
 }
@@ -72,7 +73,7 @@ function drawComplement(doc: jsPDF, y: number, texte: string) {
 
 /** Bloc destinataire (vendeur) aligné à droite. */
 function drawDestinataire(doc: jsPDF, y: number, data: HonorairesPdfData) {
-  const x = 120; // colonne du bloc adresse, comme sur un courrier papier
+  const x = 120;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...COULEURS.night);
@@ -81,8 +82,7 @@ function drawDestinataire(doc: jsPDF, y: number, data: HonorairesPdfData) {
 
   doc.setFont("helvetica", "normal");
   if (data.vendeurAdresse) {
-    // splitTextToSize gère les adresses sur plusieurs lignes.
-    const lignes = doc.splitTextToSize(data.vendeurAdresse, 70) as string[];
+    const lignes = doc.splitTextToSize(data.vendeurAdresse, 45) as string[];
     doc.text(lignes, x, y);
     y += lignes.length * 5;
   }
@@ -119,8 +119,7 @@ function libelleLot(lot: HonorairesLot): string {
 
 /** Bloc des montants : HT, TVA, TTC alignés à droite. */
 function drawMontants(doc: jsPDF, y: number, data: HonorairesPdfData) {
-  const montantTva = (data.montantHT * data.tauxTva) / 100;
-  const montantTtc = data.montantHT + montantTva;
+  const montantTtc = data.montantTTC;
   const xValeur = 150; // colonne des montants, alignés à droite
 
   doc.setFont("helvetica", "bold");
@@ -131,7 +130,11 @@ function drawMontants(doc: jsPDF, y: number, data: HonorairesPdfData) {
 
   const lignes: Array<[string, number, boolean]> = [
     ["MONTANT HT", data.montantHT, false],
-    [`TVA ${String(data.tauxTva).replace(".", ",")} %`, montantTva, false],
+    [
+      `TVA ${String(data.tauxTva).replace(".", ",")} %`,
+      data.montantTTC - data.montantHT,
+      false,
+    ],
     ["TOTAL TTC", montantTtc, true],
   ];
   for (const [libelle, montant, gras] of lignes) {

@@ -112,8 +112,10 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
         >
           ← Retour aux dossiers
         </Link>
-        <p className="text-equatis-night-700 mt-2 font-mono text-xs uppercase">
-          {dossier.reference}
+        <p className="text-equatis-night-700 mt-2 text-xs uppercase">
+          {dossier.client
+            ? `${dossier.client.firstName} ${dossier.client.lastName}`
+            : "Dossier sans client"}
         </p>
         <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
           {dossier.programme.name}
@@ -132,10 +134,6 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
               <CardTitle>Informations</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-xs text-slate-500">Référence</p>
-                <p className="font-mono">{dossier.reference}</p>
-              </div>
               <div>
                 <p className="text-xs text-slate-500">Programme</p>
                 <p>{dossier.programme.name}</p>
@@ -240,6 +238,7 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
                           canDelete={false}
                           isShared={doc.isShared}
                           source={doc.source}
+                          canToggle={false}
                         />
                       </Td>
                     </Tr>

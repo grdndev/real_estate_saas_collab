@@ -200,16 +200,6 @@ export default async function DossierDetailPage({ params }: PageProps) {
 
   const sb = STATUS_BADGE[dossier.status];
 
-  // Vendeur pré-rempli pour le PDF honoraires : 1er promoteur du programme.
-  const firstPromoter = await prisma.programmePromoter.findFirst({
-    where: { programmeId: dossier.programmeId },
-    orderBy: { createdAt: "asc" },
-    include: { promoter: { select: { firstName: true, lastName: true } } },
-  });
-  const defaultVendeurNom = firstPromoter
-    ? `${firstPromoter.promoter.firstName} ${firstPromoter.promoter.lastName}`
-    : "";
-
   // Pré-calcul (hors rendu) : nom du notaire assigné + jours depuis transmission.
   const notaryParticipant = dossier.participants.find(
     (p) => p.role === "NOTARY" && p.userId === dossier.notaryId,
@@ -239,8 +229,10 @@ export default async function DossierDetailPage({ params }: PageProps) {
         </Link>
         <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-equatis-night-700 font-mono text-xs uppercase">
-              {dossier.reference}
+            <p className="text-equatis-night-700 text-xs uppercase">
+              {dossier.client
+                ? `${dossier.client.firstName} ${dossier.client.lastName}`
+                : "Dossier sans client"}
             </p>
             <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
               {dossier.programme.name}
@@ -507,14 +499,6 @@ export default async function DossierDetailPage({ params }: PageProps) {
                       )}
                     </strong>
                   </p>
-                  {dossier.client && (
-                    <div className="border-t border-slate-100 pt-3">
-                      <HonorairesPdfDialog
-                        dossierId={dossier.id}
-                        defaultVendeurNom={defaultVendeurNom}
-                      />
-                    </div>
-                  )}
                 </>
               ) : (
                 <p className="text-slate-500">Aucun lot rattaché.</p>
@@ -647,7 +631,11 @@ export default async function DossierDetailPage({ params }: PageProps) {
             <CardContent>
               <RequestSignatureBlock
                 dossierId={dossier.id}
-                reference={dossier.reference}
+                clientName={
+                  dossier.client
+                    ? `${dossier.client.firstName} ${dossier.client.lastName}`
+                    : "—"
+                }
                 recipients={[
                   ...(dossier.client
                     ? [

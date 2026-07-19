@@ -32,7 +32,7 @@ function expiryBadge(date: Date | null) {
 export default async function ClientsEnAttentePage() {
   await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
-  const [dossiers, prospects] = await Promise.all([
+  const [dossiers, optionedProspects, prospects] = await Promise.all([
     prisma.dossier.findMany({
       where: { optioned: true },
       orderBy: { optionExpiresAt: "asc" },
@@ -41,6 +41,11 @@ export default async function ClientsEnAttentePage() {
         programme: { select: { name: true } },
         lots: { select: { reference: true } },
       },
+    }),
+    prisma.prospect.findMany({
+      where: { status: "OPTIONED" },
+      orderBy: { optionExpiresAt: "asc" },
+      include: { programme: { select: { name: true } } },
     }),
     prisma.prospect.findMany({
       where: { status: "QUALIFIED" },
@@ -56,8 +61,9 @@ export default async function ClientsEnAttentePage() {
           Clients en attente
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Prospects qualifiés et dossiers optionnés — capables d&apos;acheter
-          mais avec un délai. Pensez à les relancer avant l&apos;échéance.
+          Dossiers optionnés, prospects réservataires et prospects qualifiés —
+          capables d&apos;acheter mais avec un délai. Pensez à les relancer
+          avant l&apos;échéance.
         </p>
       </div>
 
@@ -74,7 +80,6 @@ export default async function ClientsEnAttentePage() {
           <Table>
             <THead>
               <Tr>
-                <Th>Référence</Th>
                 <Th>Client</Th>
                 <Th>Programme</Th>
                 <Th>Échéance de l&apos;option</Th>
@@ -84,7 +89,6 @@ export default async function ClientsEnAttentePage() {
             <TBody>
               {dossiers.map((d) => (
                 <Tr key={d.id}>
-                  <Td className="font-mono text-xs">{d.reference}</Td>
                   <Td>
                     {d.client
                       ? `${d.client.firstName} ${d.client.lastName}`
@@ -100,6 +104,43 @@ export default async function ClientsEnAttentePage() {
                       Ouvrir
                     </Link>
                   </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Prospects réservataires ({optionedProspects.length})
+          </CardTitle>
+        </CardHeader>
+        {optionedProspects.length === 0 ? (
+          <EmptyState
+            title="Aucun prospect réservataire"
+            description="Dès qu'un prospect passe au statut « Réservataire », il apparaît ici automatiquement."
+          />
+        ) : (
+          <Table>
+            <THead>
+              <Tr>
+                <Th>Prospect</Th>
+                <Th>Email</Th>
+                <Th>Programme</Th>
+                <Th>Échéance de relance</Th>
+              </Tr>
+            </THead>
+            <TBody>
+              {optionedProspects.map((p) => (
+                <Tr key={p.id}>
+                  <Td className="font-medium">
+                    {p.firstName} {p.lastName}
+                  </Td>
+                  <Td className="text-xs text-slate-500">{p.email}</Td>
+                  <Td>{p.programme?.name ?? "—"}</Td>
+                  <Td>{expiryBadge(p.optionExpiresAt)}</Td>
                 </Tr>
               ))}
             </TBody>

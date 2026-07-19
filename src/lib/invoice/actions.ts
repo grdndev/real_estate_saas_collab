@@ -40,7 +40,7 @@ export async function createInvoiceAction(
 
   const dossier = await prisma.dossier.findUnique({
     where: { id: data.dossierId },
-    select: { id: true, reference: true },
+    select: { id: true },
   });
   if (!dossier) return { ok: false, error: "Dossier introuvable." };
 
@@ -111,7 +111,13 @@ export async function sendInvoiceToNotaryAction(
   const invoice = await prisma.invoice.findUnique({
     where: { id: invoiceId },
     include: {
-      dossier: { select: { id: true, reference: true, notaryId: true } },
+      dossier: {
+        select: {
+          id: true,
+          notaryId: true,
+          client: { select: { firstName: true, lastName: true } },
+        },
+      },
     },
   });
   if (!invoice) return { ok: false, error: "Facture introuvable." };
@@ -140,10 +146,13 @@ export async function sendInvoiceToNotaryAction(
     });
   });
 
+  const clientName = invoice.dossier.client
+    ? `${invoice.dossier.client.firstName} ${invoice.dossier.client.lastName}`
+    : "—";
   await notify({
     userId: invoice.dossier.notaryId,
     kind: "INVOICE_RECEIVED",
-    title: `Facture d'honoraires — dossier ${invoice.dossier.reference}`,
+    title: `Facture d'honoraires — dossier ${clientName}`,
     body: `La facture ${invoice.number} vous a été transmise.`,
     link: `/notaire/${invoice.dossier.id}`,
   });
@@ -155,7 +164,7 @@ export async function sendInvoiceToNotaryAction(
     resourceId: invoiceId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Facture ${invoice.number} transmise au notaire (dossier ${invoice.dossier.reference})`,
+    metadata: `Facture ${invoice.number} transmise au notaire (dossier ${invoice.dossier.id})`,
   });
 
   revalidatePath("/collaborateur/facturation");

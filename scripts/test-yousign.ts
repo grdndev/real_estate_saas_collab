@@ -5,9 +5,9 @@
  * active → le signataire reçoit un email Yousign.
  *
  * Usage :
- *   pnpm tsx scripts/test-yousign.ts <signer-email>
+ *   npx tsx scripts/test-yousign.ts <signer-email>
  * Exemple :
- *   pnpm tsx scripts/test-yousign.ts test@example.com
+ *   npx tsx scripts/test-yousign.ts test@example.com
  */
 
 import "dotenv/config";
@@ -22,7 +22,7 @@ import { generatePlaceholderPdf } from "../src/lib/storage/pdf-placeholder";
 async function main() {
   const signerEmail = process.argv[2];
   if (!signerEmail || !signerEmail.includes("@")) {
-    console.error("Usage : pnpm tsx scripts/test-yousign.ts <signer-email>");
+    console.error("Usage : npx tsx scripts/test-yousign.ts <signer-email>");
     process.exit(1);
   }
 
@@ -31,7 +31,6 @@ async function main() {
 
   // 1. PDF placeholder
   const pdf = generatePlaceholderPdf({
-    dossierReference: "EQ-TEST-001",
     programmeName: "Résidence Antarès",
     lotReference: "A102",
     signerName: "Test Signataire",

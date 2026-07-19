@@ -82,9 +82,12 @@ export default async function CollabProspectsPage() {
     })),
   }));
 
-  // Les prospects qualifiés sont isolés dans leur propre section.
+  // Les prospects réservataires et qualifiés sont isolés dans leur propre section.
+  const optioned = rows.filter((p) => p.status === "OPTIONED");
   const qualified = rows.filter((p) => p.status === "QUALIFIED");
-  const others = rows.filter((p) => p.status !== "QUALIFIED");
+  const others = rows.filter(
+    (p) => p.status !== "QUALIFIED" && p.status !== "OPTIONED",
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -112,6 +115,23 @@ export default async function CollabProspectsPage() {
         </CardHeader>
         <CardContent>
           <ProspectCreateForm programmes={programmes} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Prospects réservataires ({optioned.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-3 text-sm text-slate-600">
+            Prospects ayant réservé, prêts à être convertis en client.
+          </p>
+          <ProspectsTable
+            prospects={optioned}
+            programmes={programmes}
+            canDelete
+            currentUserId={me.id}
+          />
         </CardContent>
       </Card>
 

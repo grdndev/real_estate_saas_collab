@@ -29,6 +29,16 @@ function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
 }
 
+/** Nom du client — identifiant humain du dossier dans les emails/notifications. */
+async function dossierClientName(clientId: string | null): Promise<string> {
+  if (!clientId) return "—";
+  const client = await prisma.user.findUnique({
+    where: { id: clientId },
+    select: { firstName: true, lastName: true },
+  });
+  return client ? `${client.firstName} ${client.lastName}` : "—";
+}
+
 // =====================================================
 // Côté Collaborateur — TRANSMISSION AU NOTAIRE
 // =====================================================
@@ -201,13 +211,14 @@ export async function transmitToNotaryAction(
   });
 
   // Notifier le notaire
+  const clientName = await dossierClientName(dossier.clientId);
   await notify({
     userId: parsed.data.notaryId,
     kind: "TRANSMITTED_TO_NOTARY",
     title: isRetransmission ? "Documents reçus" : "Nouveau dossier reçu",
     body: isRetransmission
-      ? `Dossier ${dossier.reference} : ${documents.length} document(s) transmis par email.`
-      : `Dossier ${dossier.reference} transmis pour traitement.`,
+      ? `Dossier ${clientName} : ${documents.length} document(s) transmis par email.`
+      : `Dossier ${clientName} transmis pour traitement.`,
     link: `/notaire/${dossier.id}`,
   });
 
@@ -219,7 +230,7 @@ export async function transmitToNotaryAction(
     ? documentsTransmittedToNotaryMail(
         notary.email,
         notary.firstName,
-        dossier.reference,
+        clientName,
         programme?.name ?? "—",
         documents.length,
         parsed.data.comment,
@@ -227,7 +238,7 @@ export async function transmitToNotaryAction(
     : transmittedToNotaryMail(
         notary.email,
         notary.firstName,
-        dossier.reference,
+        clientName,
         programme?.name ?? "—",
         documents.length,
       );
@@ -318,6 +329,7 @@ export async function notaryUpdateStatusAction(
   });
 
   // Notifier les participants (sauf le notaire qui agit).
+  const clientName = await dossierClientName(dossier.clientId);
   if (status === "ACT_SIGNED") {
     const { notifyDossierParticipants } = await import("@/lib/notifications");
     await notifyDossierParticipants(
@@ -325,7 +337,7 @@ export async function notaryUpdateStatusAction(
       me.id,
       "ACT_READY",
       "Acte signé",
-      `Le dossier ${dossier.reference} a été signé chez le notaire.`,
+      `Le dossier ${clientName} a été signé chez le notaire.`,
       `/collaborateur/dossiers/${dossier.id}`,
     );
 
@@ -342,7 +354,7 @@ export async function notaryUpdateStatusAction(
             userId: p.promoterId,
             kind: "ACT_READY",
             title: "Acte signé",
-            body: `Le dossier ${dossier.reference} a été signé chez le notaire.`,
+            body: `Le dossier ${clientName} a été signé chez le notaire.`,
             link: `/promoteur/${dossier.programmeId}/ventes`,
           }),
         ),
@@ -354,7 +366,7 @@ export async function notaryUpdateStatusAction(
       me.id,
       "DOSSIER_INACTIVE",
       "Dossier bloqué",
-      `Le notaire a bloqué le dossier ${dossier.reference}.${comment ? " " + comment : ""}`,
+      `Le notaire a bloqué le dossier ${clientName}.${comment ? " " + comment : ""}`,
       `/collaborateur/dossiers/${dossier.id}`,
     );
 
@@ -381,14 +393,11 @@ export async function notaryUpdateStatusAction(
           actReadyMail(
             dossierWithRel.client.email,
             dossierWithRel.client.firstName,
-            dossier.reference,
           ),
         );
       }
       for (const p of dossierWithRel.participants) {
-        await mailer.send(
-          actReadyMail(p.user.email, p.user.firstName, dossier.reference),
-        );
+        await mailer.send(actReadyMail(p.user.email, p.user.firstName));
       }
     })().catch((err) => {
       console.error("[mail] actReady", err);
@@ -460,6 +469,7 @@ export async function flagMissingPieceAction(
   });
 
   // Notifier les collaborateurs du dossier.
+  const clientName = await dossierClientName(dossier.clientId);
   const collaborators = await prisma.dossierParticipant.findMany({
     where: {
       dossierId: dossier.id,
@@ -473,7 +483,7 @@ export async function flagMissingPieceAction(
         userId: c.userId,
         kind: "MISSING_PIECE_REPORTED",
         title: "Pièce manquante signalée par le notaire",
-        body: `${dossier.reference} : ${parsed.data.label}`,
+        body: `${clientName} : ${parsed.data.label}`,
         link: `/collaborateur/dossiers/${dossier.id}`,
       }),
     ),
@@ -569,12 +579,13 @@ export async function relaunchNotaryAction(input: {
   );
 
   // Email
+  const clientName = await dossierClientName(dossier.clientId);
   try {
     await getMailer().send(
       notaryRelaunchMail(
         notary.email,
         notary.firstName,
-        dossier.reference,
+        clientName,
         programme?.name ?? "—",
         daysSinceTransmission,
         parsed.data.comment,
@@ -592,7 +603,7 @@ export async function relaunchNotaryAction(input: {
   await notify({
     userId: notary.id,
     kind: "DOSSIER_INACTIVE",
-    title: `Relance — dossier ${dossier.reference}`,
+    title: `Relance — dossier ${clientName}`,
     body:
       parsed.data.comment ?? `Transmis depuis ${daysSinceTransmission} jours.`,
     link: `/notaire/${dossier.id}`,

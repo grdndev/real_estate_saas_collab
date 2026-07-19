@@ -8,11 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
 
-export interface AppelFondsData {
-  numero: number;
-  label: string;
-  datePrevue: string;
-  pourcentage: number;
+/** Fonds appelés pour le lot au titre d'un appel de fonds du programme. */
+export interface FondsAppeleData {
+  appelFondsId: string;
   montant: number;
   dateEnvoiLr: string | null;
   dateReceptionVirement: string | null;
@@ -23,7 +21,16 @@ export interface FondsSuiviData {
   fraisMainLevee: number | null;
   rbstEdd: number | null;
   soldeVendeur: number | null;
-  appelsFonds: AppelFondsData[];
+  fondsAppeles: FondsAppeleData[];
+}
+
+interface ProgrammeAppelType {
+  id: string;
+  numero: number;
+  label: string;
+  pourcentage: number;
+  datePrevue: string;
+  debloque: boolean;
 }
 
 interface Props {
@@ -38,13 +45,7 @@ interface Props {
   /** Le client a une adresse postale renseignée (requis pour le courrier PDF). */
   hasClientAddress: boolean;
   fondsSuivi: FondsSuiviData | null;
-  programmeAppelTypes: Array<{
-    numero: number;
-    label: string;
-    pourcentage: number;
-    datePrevue: string;
-    debloque: boolean;
-  }>;
+  programmeAppelTypes: ProgrammeAppelType[];
 }
 
 function toDateInput(iso: string | null | undefined): string {
@@ -97,17 +98,15 @@ export function LotFondsForm({
     notes: initialNotes ?? "",
   });
 
-  const [appels, setAppels] = useState<AppelFondsData[]>(() => {
-    const existingByNumero = new Map(
-      (fondsSuivi?.appelsFonds ?? []).map((a) => [a.numero, a]),
+  // Une ligne par appel de fonds du programme, montant/suivi LR du lot en face.
+  const [appels, setAppels] = useState<FondsAppeleData[]>(() => {
+    const existingById = new Map(
+      (fondsSuivi?.fondsAppeles ?? []).map((fa) => [fa.appelFondsId, fa]),
     );
     return programmeAppelTypes.map((type) => {
-      const existing = existingByNumero.get(type.numero);
+      const existing = existingById.get(type.id);
       return {
-        numero: type.numero,
-        label: type.label,
-        pourcentage: type.pourcentage,
-        datePrevue: existing?.datePrevue ?? type.datePrevue,
+        appelFondsId: type.id,
         montant: existing?.montant ?? 0,
         dateEnvoiLr: existing?.dateEnvoiLr ?? null,
         dateReceptionVirement: existing?.dateReceptionVirement ?? null,
@@ -115,9 +114,7 @@ export function LotFondsForm({
     });
   });
 
-  const debloqueByNumero = new Map(
-    programmeAppelTypes.map((t) => [t.numero, t.debloque]),
-  );
+  const appelsById = new Map(appels.map((a) => [a.appelFondsId, a]));
 
   // Courrier PDF : nécessite un client avec adresse postale.
   const courrierBloque = !hasClient
@@ -141,22 +138,26 @@ export function LotFondsForm({
     setSaved(false);
   }
 
-  function setAppelMontant(numero: number, val: string) {
+  function setAppelMontant(appelFondsId: string, val: string) {
     setAppels((prev) =>
       prev.map((a) =>
-        a.numero === numero ? { ...a, montant: parseFloat(val) || 0 } : a,
+        a.appelFondsId === appelFondsId
+          ? { ...a, montant: parseFloat(val) || 0 }
+          : a,
       ),
     );
     setSaved(false);
   }
 
   function setAppelDate(
-    numero: number,
+    appelFondsId: string,
     key: "dateEnvoiLr" | "dateReceptionVirement",
     val: string,
   ) {
     setAppels((prev) =>
-      prev.map((a) => (a.numero === numero ? { ...a, [key]: val || null } : a)),
+      prev.map((a) =>
+        a.appelFondsId === appelFondsId ? { ...a, [key]: val || null } : a,
+      ),
     );
     setSaved(false);
   }
@@ -172,10 +173,9 @@ export function LotFondsForm({
         rbstEdd: parseNum(fields.rbstEdd),
         soldeVendeur: parseNum(fields.soldeVendeur),
         notes: fields.notes || null,
-        appels: appels.map((a) => ({
-          numero: a.numero,
+        fondsAppeles: appels.map((a) => ({
+          appelFondsId: a.appelFondsId,
           montant: a.montant,
-          datePrevue: a.datePrevue,
           dateEnvoiLr: toDateInput(a.dateEnvoiLr) || null,
           dateReceptionVirement: toDateInput(a.dateReceptionVirement) || null,
         })),
@@ -250,11 +250,13 @@ export function LotFondsForm({
                 </Tr>
               </THead>
               <TBody>
-                {appels.map((a) => {
-                  const debloque = debloqueByNumero.get(a.numero) ?? false;
+                {programmeAppelTypes.map((type) => {
+                  const a = appelsById.get(type.id);
+                  if (!a) return null;
+                  const debloque = type.debloque;
                   return (
                     <Tr
-                      key={a.numero}
+                      key={type.id}
                       className={debloque ? undefined : "bg-slate-50/60"}
                     >
                       <Td className="px-3 py-2 text-slate-700">
@@ -262,17 +264,17 @@ export function LotFondsForm({
                           <span
                             className={debloque ? undefined : "text-slate-400"}
                           >
-                            {a.label}
+                            {type.label}
                           </span>
                           {!debloque && (
                             <Badge variant="neutral" suppressHydrationWarning>
-                              À venir · {fmtMonth(a.datePrevue)}
+                              À venir · {fmtMonth(type.datePrevue)}
                             </Badge>
                           )}
                         </span>
                       </Td>
                       <Td className="px-3 py-2 text-right text-slate-500 tabular-nums">
-                        {a.pourcentage}%
+                        {type.pourcentage}%
                       </Td>
                       <Td className="px-3 py-2 text-right">
                         <input
@@ -281,7 +283,7 @@ export function LotFondsForm({
                           step={0.01}
                           value={a.montant}
                           onChange={(e) =>
-                            setAppelMontant(a.numero, e.target.value)
+                            setAppelMontant(type.id, e.target.value)
                           }
                           className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
                         />
@@ -291,11 +293,7 @@ export function LotFondsForm({
                           type="date"
                           value={toDateInput(a.dateEnvoiLr)}
                           onChange={(e) =>
-                            setAppelDate(
-                              a.numero,
-                              "dateEnvoiLr",
-                              e.target.value,
-                            )
+                            setAppelDate(type.id, "dateEnvoiLr", e.target.value)
                           }
                           className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
                         />
@@ -306,7 +304,7 @@ export function LotFondsForm({
                           value={toDateInput(a.dateReceptionVirement)}
                           onChange={(e) =>
                             setAppelDate(
-                              a.numero,
+                              type.id,
                               "dateReceptionVirement",
                               e.target.value,
                             )
@@ -327,7 +325,7 @@ export function LotFondsForm({
                               variant="ghost"
                               size="sm"
                               disabled={Boolean(courrierBloque)}
-                              onClick={() => ouvrirCourrierPdf(a.numero)}
+                              onClick={() => ouvrirCourrierPdf(type.numero)}
                             >
                               Courrier PDF
                             </Button>

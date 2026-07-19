@@ -59,7 +59,12 @@ export async function GET(request: Request, ctx: RouteContext) {
         },
       },
       fondsSuivi: {
-        include: { appelsFonds: { where: { numero } } },
+        include: {
+          fondsAppeles: {
+            where: { appelFonds: { numero } },
+            include: { appelFonds: true },
+          },
+        },
       },
     },
   });
@@ -75,10 +80,11 @@ export async function GET(request: Request, ctx: RouteContext) {
   if (!adresse) {
     return erreur("Le client n'a pas d'adresse postale renseignée.", 400);
   }
-  const appel = lot.fondsSuivi?.appelsFonds[0] ?? null;
-  if (!appel) {
+  const fondsAppele = lot.fondsSuivi?.fondsAppeles[0] ?? null;
+  if (!fondsAppele) {
     return erreur(`Appel de fonds n° ${numero} introuvable pour ce lot.`, 404);
   }
+  const appel = fondsAppele.appelFonds;
   // On ne génère pas de courrier pour un appel non encore débloqué.
   if (appel.datePrevue > new Date()) {
     return erreur(
@@ -101,7 +107,7 @@ export async function GET(request: Request, ctx: RouteContext) {
     lotReference: lot.reference,
     appelLabel: appel.label,
     appelPourcentage: Number(appel.pourcentage),
-    appelMontant: Number(appel.montant),
+    appelMontant: Number(fondsAppele.montant),
     logoDataUrl: await getCompanyLogo(),
   };
 

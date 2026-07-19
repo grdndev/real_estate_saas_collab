@@ -12,6 +12,8 @@ import {
   createInvoiceAction,
   sendInvoiceToNotaryAction,
 } from "@/lib/invoice/actions";
+import { HonorairesPdfDialog } from "../collab/honoraires-pdf-dialog";
+import { prisma } from "@/lib/prisma";
 
 export interface InvoiceItem {
   id: string;
@@ -51,7 +53,10 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
   const [pending, startTransition] = useTransition();
   const [number, setNumber] = useState("");
   const [amountHT, setAmountHT] = useState("");
+  const [vatRate, setVatRate] = useState("8.5");
   const [amountTTC, setAmountTTC] = useState("");
+  const [vendeurNom, setVendeurNom] = useState("");
+  const [vendeurAdresse, setVendeurAdresse] = useState("");
   const [error, setError] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -173,7 +178,7 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
         </p>
       )}
 
-      <div className="grid grid-cols-1 gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 rounded-md border border-slate-200 p-3 sm:grid-cols-4">
         <label className="text-sm">
           <span className="mb-1 block text-xs text-slate-500">
             N° de facture
@@ -196,6 +201,15 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
           />
         </label>
         <label className="text-sm">
+          <span className="mb-1 block text-xs text-slate-500">TVA (%)</span>
+          <Input
+            type="number"
+            step="0.01"
+            value={vatRate}
+            onChange={(e) => setVatRate(e.target.value)}
+          />
+        </label>
+        <label className="text-sm">
           <span className="mb-1 block text-xs text-slate-500">
             Montant TTC (€)
           </span>
@@ -206,7 +220,40 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
             onChange={(e) => setAmountTTC(e.target.value)}
           />
         </label>
-        <label className="text-sm sm:col-span-3">
+        <label className="text-sm sm:col-span-2">
+          <span className="mb-1 block text-xs text-slate-500">
+            Nom du vendeur
+          </span>
+          <Input
+            value={vendeurNom}
+            onChange={(e) => setVendeurNom(e.target.value)}
+            placeholder="Nom du vendeur"
+          />
+        </label>
+        <label className="text-sm sm:col-span-4">
+          <span className="mb-1 block text-xs text-slate-500">
+            Adresse du vendeur
+          </span>
+          <Input
+            value={vendeurAdresse}
+            onChange={(e) => setVendeurAdresse(e.target.value)}
+            placeholder="Adresse du vendeur"
+          />
+        </label>
+        <label className="text-sm sm:col-span-4">
+          <div className="border-t border-slate-100 pt-3">
+            <HonorairesPdfDialog
+              dossierId={dossierId}
+              facture={number}
+              montantHt={amountHT}
+              tauxTva={vatRate}
+              montantTtc={amountTTC}
+              vendeurNom={vendeurNom}
+              vendeurAdresse={vendeurAdresse}
+            />
+          </div>
+        </label>
+        <label className="text-sm sm:col-span-4">
           <span className="mb-1 block text-xs text-slate-500">
             PDF de la facture (optionnel)
           </span>
@@ -217,7 +264,7 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
             className="inline-block cursor-pointer rounded-md border border-slate-300 bg-slate-100 px-3 py-2 text-sm text-slate-700 file:mr-3 file:border-0 file:bg-slate-200 file:px-3 file:py-2 file:text-sm file:text-slate-700 hover:bg-slate-200 hover:file:bg-slate-300"
           />
         </label>
-        <div className="sm:col-span-3">
+        <div className="sm:col-span-4">
           <Button type="button" size="sm" onClick={deposit} disabled={pending}>
             <Upload className="size-4" aria-hidden />
             {pending ? "Dépôt…" : "Déposer la facture d'honoraires"}

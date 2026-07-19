@@ -27,11 +27,11 @@ export default function ListeDossiers({
 }: {
   dossiers: Array<{
     id: string;
-    reference: string;
     status: keyof typeof STATUS_BADGE;
     notaryTransmittedAt: Date | null;
     programme: { name: string };
     lots: { reference: string }[];
+    client: { firstName: string; lastName: string } | null;
   }>;
 }) {
   const [page, setPage] = useState(0);
@@ -47,7 +47,7 @@ export default function ListeDossiers({
       <Table>
         <THead>
           <Tr>
-            <Th>Référence</Th>
+            <Th>Client</Th>
             <Th>Programme</Th>
             <Th>Lot</Th>
             <Th>Statut</Th>
@@ -60,7 +60,11 @@ export default function ListeDossiers({
             const sb = STATUS_BADGE[d.status];
             return (
               <Tr key={d.id}>
-                <Td className="font-mono text-xs">{d.reference}</Td>
+                <Td>
+                  {d.client
+                    ? `${d.client.firstName} ${d.client.lastName}`
+                    : "—"}
+                </Td>
                 <Td>{d.programme.name}</Td>
                 <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
                 <Td>

@@ -2,7 +2,7 @@
  * Seed démo — crée 4 comptes (1 par rôle) avec mots de passe connus
  * pour faciliter la démo locale. À NE PAS utiliser en production.
  *
- * Usage : pnpm tsx prisma/seed-demo-users.ts
+ * Usage : npx tsx prisma/seed-demo-users.ts
  */
 
 import "dotenv/config";
