@@ -53,7 +53,7 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
               className="cursor-pointer px-4 py-3 text-right select-none hover:bg-slate-100 hover:text-slate-800"
               title={`${h.label} — ${fmtMonth(h.datePrevue)} (cliquer pour modifier)`}
             >
-              ({h.numero}) {fmtPct(h.pourcentage)}%
+              {h.label} ({fmtPct(h.pourcentage)}%)
             </Th>
           ))}
 

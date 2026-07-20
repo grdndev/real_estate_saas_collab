@@ -314,7 +314,7 @@ export function DossiersTable({ rows }: { rows: DossierRow[] }) {
           Colonnes ({activeColumns.length}/{COLUMNS.length})
         </button>
         {pickerOpen && (
-          <div className="absolute top-full right-0 z-10 mt-1 max-h-96 w-72 overflow-y-auto rounded-md border border-slate-200 bg-white p-3 shadow-lg">
+          <div className="absolute top-full right-0 z-20 mt-1 max-h-96 w-72 overflow-y-auto rounded-md border border-slate-200 bg-white p-3 shadow-lg">
             <div className="mb-2 flex justify-between text-xs text-slate-500">
               <button
                 type="button"
