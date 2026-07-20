@@ -109,7 +109,6 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
       }))
     : [];
 
-  // Seuls les appels débloqués (date prévue atteinte) apparaissent dans le tableau.
   const appelsDebloques = appelHeaders.filter((h) => h.debloque);
   const debloqueIds = new Set(appelsDebloques.map((h) => h.id));
   const prochainAppel = appelHeaders.find((h) => !h.debloque) ?? null;
@@ -182,24 +181,15 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
             <TBody>
               {lots.map((lot) => {
                 const fs = lot.fondsSuivi;
-                const isEmpty = !fs;
                 const actSignedDate =
                   lot.dossier?.timelineEvents?.[0]?.occurredAt ?? null;
                 const clientName = lot.dossier?.client
                   ? `${lot.dossier.client.firstName} ${lot.dossier.client.lastName}`.trim()
                   : null;
 
-                const rowClass = cn(
-                  isEmpty ? "bg-slate-50/60" : "hover:bg-slate-50",
-                );
-
                 return (
-                  <ClickableRow
-                    key={lot.id}
-                    href={`/admin/fonds/${lot.id}`}
-                    className={rowClass}
-                  >
-                    <Td className="sticky left-0 z-10 bg-inherit px-4 py-3 font-mono font-medium whitespace-nowrap">
+                  <ClickableRow key={lot.id} href={`/admin/fonds/${lot.id}`}>
+                    <Td className="bg-equatis-surface sticky left-0 z-10 px-4 py-3 font-mono font-medium whitespace-nowrap">
                       {lot.reference}
                     </Td>
                     <Td className="px-4 py-3 whitespace-nowrap text-slate-700">
@@ -215,7 +205,6 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-                    {/* Progression */}
                     <Td className="px-4 py-3 whitespace-nowrap">
                       {fs && appelHeaders.length > 0 ? (
                         (() => {
@@ -275,7 +264,6 @@ export default async function AdminFondsPage({ searchParams }: PageProps) {
                         </Td>
                       );
                     })}
-                    {/* Align with "Aucun appel de fonds" column */}
                     {appelHeaders.length === 0 && <Td className="p-0" />}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (

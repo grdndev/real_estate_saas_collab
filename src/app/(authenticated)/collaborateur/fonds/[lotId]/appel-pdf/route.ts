@@ -17,12 +17,10 @@ interface RouteContext {
   params: Promise<{ lotId: string }>;
 }
 
-// Seul le numéro d'appel transite en query param (aucune donnée sensible).
 const querySchema = z.object({
   numero: z.coerce.number().int().min(1).max(100),
 });
 
-/** Réponse d'erreur lisible (affichée dans l'onglet ouvert). */
 function erreur(message: string, status: number): Response {
   return new Response(message, {
     status,
@@ -34,7 +32,6 @@ export async function GET(request: Request, ctx: RouteContext) {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const { lotId } = await ctx.params;
 
-  // Validation du paramètre utilisateur.
   const url = new URL(request.url);
   const parsed = querySchema.safeParse(
     Object.fromEntries(url.searchParams.entries()),
@@ -44,7 +41,6 @@ export async function GET(request: Request, ctx: RouteContext) {
   }
   const { numero } = parsed.data;
 
-  // Chargement du lot, de son suivi de fonds et du client du dossier.
   const lot = await prisma.lot.findUnique({
     where: { id: lotId },
     include: {
@@ -70,12 +66,10 @@ export async function GET(request: Request, ctx: RouteContext) {
   });
   if (!lot) notFound();
 
-  // Erreurs métier explicites avant génération.
   const client = lot.dossier?.client ?? null;
   if (!client) {
     return erreur("Ce lot n'a pas de dossier client.", 400);
   }
-  // L'adresse est déchiffrée UNIQUEMENT côté serveur, jamais en query param.
   const adresse = decodeAddress(client.addressEnc);
   if (!adresse) {
     return erreur("Le client n'a pas d'adresse postale renseignée.", 400);
@@ -85,7 +79,6 @@ export async function GET(request: Request, ctx: RouteContext) {
     return erreur(`Appel de fonds n° ${numero} introuvable pour ce lot.`, 404);
   }
   const appel = fondsAppele.appelFonds;
-  // On ne génère pas de courrier pour un appel non encore débloqué.
   if (appel.datePrevue > new Date()) {
     return erreur(
       `L'appel de fonds n° ${numero} n'est pas encore débloqué.`,
@@ -113,7 +106,6 @@ export async function GET(request: Request, ctx: RouteContext) {
 
   const pdf = generateAppelFondsPdf(data);
 
-  // Trace d'audit après génération réussie uniquement.
   const reqCtx = await getRequestContext();
   await audit({
     userId: me.id,

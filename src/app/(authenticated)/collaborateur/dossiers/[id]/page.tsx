@@ -470,39 +470,195 @@ export default async function DossierDetailPage({ params }: PageProps) {
             <CardHeader>
               <CardTitle>Lot</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-1 text-sm">
+            <CardContent className="space-y-3 text-sm">
               {dossier.lots.length > 0 ? (
-                <>
-                  <p className="font-mono">
-                    {dossier.lots.map((l) => l.reference).join(", ")}
-                  </p>
-                  <p className="text-slate-600">
-                    {dossier.lots
-                      .map((l) => `${l.type} ${l.surface} m²`)
-                      .join(", ")}
-                  </p>
-                  <p className="text-slate-600">
-                    <strong>
-                      {dossier.lots
-                        .map((l) => eur.format(Number(l.priceTTC)))
-                        .join(" + ")}
-                    </strong>
-                  </p>
-                  <p className="text-slate-600">
-                    Prix TTC :{" "}
-                    <strong>
-                      {eur.format(
-                        dossier.lots.reduce(
-                          (acc, l) => acc + Number(l.priceTTC),
-                          0,
-                        ),
-                      )}
-                    </strong>
-                  </p>
-                </>
+                dossier.lots.map((l) => {
+                  const totalSurface =
+                    Number(l.surface) + Number(l.annexSurface ?? 0);
+                  const rows: [string, string][] = [
+                    ["Localisation", l.building ?? "—"],
+                    ["Étage", l.floor != null ? String(l.floor) : "—"],
+                    ["Type", l.type],
+                    ["Surface habitable", `${l.surface} m²`],
+                    [
+                      "Surface annexes",
+                      l.annexSurface != null ? `${l.annexSurface} m²` : "—",
+                    ],
+                    ["SUV", l.suv != null ? `${l.suv} m²` : "—"],
+                    ["Total (habitable + annexe)", `${totalSurface} m²`],
+                    [
+                      "Jardin",
+                      l.garden == null ? "—" : l.garden ? "Oui" : "Non",
+                    ],
+                    ["Prix FAI", eur.format(Number(l.priceTTC))],
+                    [
+                      "Prix net vendeur",
+                      l.priceNetVendeur != null
+                        ? eur.format(Number(l.priceNetVendeur))
+                        : "—",
+                    ],
+                    [
+                      "NV avec place parking",
+                      l.priceNetVendeurWithParking != null
+                        ? eur.format(Number(l.priceNetVendeurWithParking))
+                        : "—",
+                    ],
+                    [
+                      "Commission agence",
+                      l.commissionAgence != null
+                        ? eur.format(Number(l.commissionAgence))
+                        : "—",
+                    ],
+                    [
+                      "CA pour place parking",
+                      l.commissionAgenceParking != null
+                        ? eur.format(Number(l.commissionAgenceParking))
+                        : "—",
+                    ],
+                    [
+                      "Prix à la location",
+                      l.priceLocation != null
+                        ? eur.format(Number(l.priceLocation))
+                        : "—",
+                    ],
+                    [
+                      "Crédit d'impôt 35%",
+                      l.creditImpot35 != null
+                        ? eur.format(Number(l.creditImpot35))
+                        : "—",
+                    ],
+                    [
+                      "Prix de revient (avec CRD imp.)",
+                      l.priceRevientCrdImp != null
+                        ? eur.format(Number(l.priceRevientCrdImp))
+                        : "—",
+                    ],
+                    [
+                      "Parking supplémentaire",
+                      l.additionalParking == null
+                        ? "—"
+                        : l.additionalParking
+                          ? "Oui"
+                          : "Non",
+                    ],
+                  ];
+                  return (
+                    <div
+                      key={l.id}
+                      className="space-y-1 border-b border-slate-100 pb-3 last:border-b-0 last:pb-0"
+                    >
+                      <p className="font-mono font-medium">{l.reference}</p>
+                      <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs">
+                        {rows.map(([label, value]) => (
+                          <div key={label} className="contents">
+                            <dt className="text-slate-500">{label}</dt>
+                            <dd className="text-right text-slate-700">
+                              {value}
+                            </dd>
+                          </div>
+                        ))}
+                      </dl>
+                    </div>
+                  );
+                })
               ) : (
                 <p className="text-slate-500">Aucun lot rattaché.</p>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Suivi complémentaire</CardTitle>
+            </CardHeader>
+            <CardContent className="text-sm">
+              <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
+                {(
+                  [
+                    ["Mode de financement", dossier.financingMode ?? "—"],
+                    ["Observation", dossier.observation ?? "—"],
+                    [
+                      "Obtention Kbis",
+                      dossier.kbisObtainedAt
+                        ? dossier.kbisObtainedAt.toLocaleDateString("fr-FR")
+                        : "—",
+                    ],
+                    [
+                      "Client chez RSM",
+                      dossier.clientAtRsm == null
+                        ? "—"
+                        : dossier.clientAtRsm
+                          ? "Oui"
+                          : "Non",
+                    ],
+                    [
+                      "Signature contrat de résa",
+                      dossier.reservationSignedAt
+                        ? dossier.reservationSignedAt.toLocaleDateString(
+                            "fr-FR",
+                          )
+                        : "—",
+                    ],
+                    [
+                      "Réception des 200€",
+                      dossier.deposit200ReceivedAt
+                        ? dossier.deposit200ReceivedAt.toLocaleDateString(
+                            "fr-FR",
+                          )
+                        : "—",
+                    ],
+                    [
+                      "Dépôt de garantie",
+                      dossier.guaranteeDepositAmount != null
+                        ? eur.format(Number(dossier.guaranteeDepositAmount))
+                        : "—",
+                    ],
+                    [
+                      "Réception du dépôt de garantie",
+                      dossier.guaranteeDepositReceivedAt
+                        ? dossier.guaranteeDepositReceivedAt.toLocaleDateString(
+                            "fr-FR",
+                          )
+                        : "—",
+                    ],
+                    [
+                      "Envoi RAR par le notaire",
+                      dossier.rarSentByNotaryAt
+                        ? dossier.rarSentByNotaryAt.toLocaleDateString("fr-FR")
+                        : "—",
+                    ],
+                    [
+                      "Dépôt de prêt",
+                      dossier.loanFiledAt
+                        ? dossier.loanFiledAt.toLocaleDateString("fr-FR")
+                        : "—",
+                    ],
+                    [
+                      "Obtention de prêt",
+                      dossier.loanObtainedAt
+                        ? dossier.loanObtainedAt.toLocaleDateString("fr-FR")
+                        : "—",
+                    ],
+                    [
+                      "Date de fin de contrat de résa",
+                      dossier.reservationEndDate
+                        ? dossier.reservationEndDate.toLocaleDateString("fr-FR")
+                        : "—",
+                    ],
+                    [
+                      "Acte",
+                      dossier.actSignedAt
+                        ? dossier.actSignedAt.toLocaleDateString("fr-FR")
+                        : "—",
+                    ],
+                  ] as [string, string][]
+                ).map(([label, value]) => (
+                  <div key={label} className="contents">
+                    <dt className="text-slate-500">{label}</dt>
+                    <dd className="text-right text-slate-700">{value}</dd>
+                  </div>
+                ))}
+              </dl>
             </CardContent>
           </Card>
 

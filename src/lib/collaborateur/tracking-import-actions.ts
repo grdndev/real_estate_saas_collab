@@ -154,15 +154,29 @@ export async function importTrackingLotsAction(
   const lotIds: Record<string, string> = {};
   let upserted = 0;
 
+  const toDecimal = (n: number | null) =>
+    n == null ? null : new Prisma.Decimal(n);
+
   for (const lot of lots) {
     const vatRate = new Prisma.Decimal(lot.vatRate);
     const priceHT = new Prisma.Decimal(lot.priceHT);
     // TTC importé du fichier (colonne "Prix FAI"), conservé tel quel.
     const priceTTC = new Prisma.Decimal(lot.priceTTC);
 
-    const effectiveNotes = lot.building
-      ? `Bâtiment: ${lot.building}${lot.notes ? ` | ${lot.notes}` : ""}`
-      : (lot.notes ?? null);
+    const extraFields = {
+      building: lot.building,
+      annexSurface: toDecimal(lot.annexSurface),
+      suv: toDecimal(lot.suv),
+      garden: lot.garden,
+      priceNetVendeur: toDecimal(lot.priceNetVendeur),
+      priceNetVendeurWithParking: toDecimal(lot.priceNetVendeurWithParking),
+      commissionAgence: toDecimal(lot.commissionAgence),
+      commissionAgenceParking: toDecimal(lot.commissionAgenceParking),
+      priceLocation: toDecimal(lot.priceLocation),
+      creditImpot35: toDecimal(lot.creditImpot35),
+      priceRevientCrdImp: toDecimal(lot.priceRevientCrdImp),
+      additionalParking: lot.additionalParking,
+    };
 
     const result = await prisma.lot.upsert({
       where: {
@@ -177,8 +191,9 @@ export async function importTrackingLotsAction(
         priceHT,
         vatRate,
         priceTTC,
-        notes: effectiveNotes,
+        notes: lot.notes,
         status: "AVAILABLE",
+        ...extraFields,
       },
       update: {
         floor: lot.floor,
@@ -187,7 +202,8 @@ export async function importTrackingLotsAction(
         priceHT,
         vatRate,
         priceTTC,
-        notes: effectiveNotes,
+        notes: lot.notes,
+        ...extraFields,
       },
       select: { id: true, reference: true },
     });
@@ -271,6 +287,31 @@ export async function upsertTrackingDossierAction(
     processData.guaranteeDepositReceivedAt,
   );
   const reservationEndDate = toDate(processData.reservationEndDate);
+  const kbisObtainedAt = toDate(processData.kbisObtainedAt);
+  const deposit200ReceivedAt = toDate(processData.deposit200ReceivedAt);
+  const rarSentByNotaryAt = toDate(processData.rarSentByNotaryAt);
+  const loanFiledAt = toDate(processData.loanFiledAt);
+  const loanObtainedAt = toDate(processData.loanObtainedAt);
+  const guaranteeDepositAmount =
+    processData.guaranteeDepositAmount != null
+      ? new Prisma.Decimal(processData.guaranteeDepositAmount)
+      : null;
+
+  const extraDossierFields = {
+    observation: processData.observation,
+    financingMode: processData.financingMode,
+    reservationSignedAt,
+    guaranteeDepositAmount,
+    guaranteeDepositReceivedAt,
+    reservationEndDate,
+    actSignedAt,
+    kbisObtainedAt,
+    clientAtRsm: processData.clientAtRsm,
+    deposit200ReceivedAt,
+    rarSentByNotaryAt,
+    loanFiledAt,
+    loanObtainedAt,
+  };
   // L'expiration de l'option est la fin de réservation ; à défaut, la date
   // de prise d'option (mieux vaut une option affichée expirée qu'aucune date).
   const optionExpiry = reservationEndDate ?? optionDate;
@@ -365,6 +406,7 @@ export async function upsertTrackingDossierAction(
           optionExpiresAt: optioned ? optionExpiry : null,
           notaryTransmittedAt,
           closedAt: actSignedAt ?? null,
+          ...extraDossierFields,
         },
       });
 
@@ -422,6 +464,7 @@ export async function upsertTrackingDossierAction(
         optionExpiresAt: optioned ? optionExpiry : null,
         notaryTransmittedAt,
         closedAt: actSignedAt ?? null,
+        ...extraDossierFields,
       },
     });
 

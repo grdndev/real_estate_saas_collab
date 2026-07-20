@@ -48,6 +48,17 @@ type MappedField =
   | "surface"
   | "priceTTC"
   | "vatRate"
+  | "annexSurface"
+  | "suv"
+  | "garden"
+  | "priceNetVendeur"
+  | "priceNetVendeurWithParking"
+  | "commissionAgence"
+  | "commissionAgenceParking"
+  | "priceLocation"
+  | "creditImpot35"
+  | "priceRevientCrdImp"
+  | "additionalParking"
   | "buyerName"
   | "buyerPhone"
   | "buyerEmail"
@@ -61,47 +72,11 @@ type MappedField =
   | "loanFiled"
   | "loanObtained"
   | "reservationEndDate"
-  | "actSignedAt";
-
-// Colonnes dont la valeur brute est concaténée dans lotNotes avec un libellé lisible
-type NotesField =
-  | "kbis"
-  | "rsm"
-  | "parking"
-  | "acompte200"
-  | "envoiparnotaire"
-  | "nvavecplaceparking"
-  | "suvtotal"
-  | "suv"
-  | "surfacedesannexes"
-  | "annexes"
-  | "jardin"
-  | "commissionagence"
-  | "capourplaceparking"
-  | "prixalalocation"
-  | "montantcreditdimpot"
-  | "creditimpot"
-  | "prixderevient";
-
-const NOTES_LABELS: Record<NotesField, string> = {
-  kbis: "Obtention Kbis",
-  rsm: "Client chez RSM",
-  parking: "Parking supplémentaire",
-  acompte200: "Réception des 200€",
-  envoiparnotaire: "Envoi par le notaire",
-  nvavecplaceparking: "NV avec place parking",
-  suvtotal: "SUV total",
-  suv: "SUV",
-  surfacedesannexes: "Surface des annexes",
-  annexes: "Annexes",
-  jardin: "Jardin",
-  commissionagence: "Commission agence",
-  capourplaceparking: "CA pour place parking",
-  prixalalocation: "Prix à la location",
-  montantcreditdimpot: "Montant crédit d'impôt",
-  creditimpot: "Crédit d'impôt",
-  prixderevient: "Prix de revient",
-};
+  | "actSignedAt"
+  | "kbisObtainedAt"
+  | "clientAtRsm"
+  | "deposit200ReceivedAt"
+  | "rarSentByNotaryAt";
 
 const COLUMN_ALIASES: Record<MappedField, string[]> = {
   building: ["localisation"],
@@ -111,6 +86,17 @@ const COLUMN_ALIASES: Record<MappedField, string[]> = {
   surface: ["surfacehabitable", "surface", "shab", "m2"],
   priceTTC: ["prixfai", "fai", "prixttc", "ttc"],
   vatRate: ["tva", "tauxtva"],
+  annexSurface: ["surfacedesannexes", "annexes"],
+  suv: ["suvtotal", "suv"],
+  garden: ["jardin"],
+  priceNetVendeur: ["prixnetvendeur"],
+  priceNetVendeurWithParking: ["nvavecplaceparking"],
+  commissionAgence: ["commissionagence"],
+  commissionAgenceParking: ["capourplaceparking"],
+  priceLocation: ["prixalalocation"],
+  creditImpot35: ["montantcreditdimpot", "creditimpot"],
+  priceRevientCrdImp: ["prixderevient"],
+  additionalParking: ["parkingsupplementaire", "parkingsupp", "parking"],
   buyerName: ["nom"],
   buyerPhone: ["tel", "telephone"],
   buyerEmail: ["mail", "email"],
@@ -136,26 +122,10 @@ const COLUMN_ALIASES: Record<MappedField, string[]> = {
   loanObtained: ["obtentiondepret", "obtentionpret"],
   reservationEndDate: ["datedefindcontratderesa", "fincontratresa", "finresa"],
   actSignedAt: ["acte"],
-};
-
-const NOTES_ALIASES: Record<NotesField, string[]> = {
-  kbis: ["obtentionkbis", "kbis"],
-  rsm: ["clientchezrsm", "rsm"],
-  parking: ["parkingsupplementaire", "parkingsupp", "parking"],
-  acompte200: ["receptiondes200", "200€", "acompte200"],
-  envoiparnotaire: ["envoiparlenotaire", "envoiparnotaire"],
-  nvavecplaceparking: ["nvavecplaceparking"],
-  suvtotal: ["suvtotal"],
-  suv: ["suv"],
-  surfacedesannexes: ["surfacedesannexes"],
-  annexes: ["annexes"],
-  jardin: ["jardin"],
-  commissionagence: ["commissionagence"],
-  capourplaceparking: ["capourplaceparking"],
-  prixalalocation: ["prixalalocation"],
-  montantcreditdimpot: ["montantcreditdimpot"],
-  creditimpot: ["creditimpot"],
-  prixderevient: ["prixderevient"],
+  kbisObtainedAt: ["obtentionkbis", "kbis"],
+  clientAtRsm: ["clientchezrsm", "rsm"],
+  deposit200ReceivedAt: ["receptiondes200", "200€", "acompte200"],
+  rarSentByNotaryAt: ["envoiparlenotaire", "envoiparnotaire"],
 };
 
 const FLOOR_TEXT: Record<string, number> = {
@@ -221,6 +191,17 @@ function parseDate(value: ExcelJS.CellValue): Date | null {
   }
 
   return null;
+}
+
+const TRUE_VALUES = new Set(["oui", "o", "yes", "y", "x", "ok", "1", "vrai"]);
+const FALSE_VALUES = new Set(["non", "n", "no", "0", "faux"]);
+
+function parseBoolean(raw: string): boolean | null {
+  if (!raw) return null;
+  const norm = normalize(raw);
+  if (FALSE_VALUES.has(norm)) return false;
+  if (TRUE_VALUES.has(norm)) return true;
+  return true;
 }
 
 function parseLoanFiled(value: ExcelJS.CellValue): boolean | Date | null {
@@ -297,9 +278,6 @@ export async function parseTrackingWorkbook(
   // Pour "type" / "typologie" : prendre la 2ème occurrence si deux colonnes "type"
   const typeOccurrences: number[] = [];
 
-  // Mapper les colonnes → champ notes
-  const notesColMap = new Map<NotesField, number>();
-
   headerRow.eachCell((cell, colNumber) => {
     const norm = normalize(cellText(cell.value));
     if (!norm) return;
@@ -315,17 +293,6 @@ export async function parseTrackingWorkbook(
         } else if (!colMap.has(field)) {
           colMap.set(field, colNumber);
         }
-        return;
-      }
-    }
-
-    // Colonnes notes
-    for (const [noteKey, aliases] of Object.entries(NOTES_ALIASES) as [
-      NotesField,
-      string[],
-    ][]) {
-      if (aliases.includes(norm) && !notesColMap.has(noteKey)) {
-        notesColMap.set(noteKey, colNumber);
         return;
       }
     }
@@ -391,16 +358,8 @@ export async function parseTrackingWorkbook(
       lotStatus = "OPTIONED";
     }
 
-    // Construire lotNotes depuis les colonnes notes non vides
-    const notesParts: string[] = [];
-    for (const [noteKey, col] of notesColMap.entries()) {
-      const val = cellText(row.getCell(col).value).trim();
-      if (val) {
-        const label = NOTES_LABELS[noteKey];
-        notesParts.push(`${label}: ${val}`);
-      }
-    }
-    const lotNotes = notesParts.length > 0 ? notesParts.join(" | ") : null;
+    const loanFiledCell = getCell("loanFiled");
+    const loanObtainedCell = getCell("loanObtained");
 
     rows.push({
       building: getText("building") || null,
@@ -412,7 +371,20 @@ export async function parseTrackingWorkbook(
       priceTTC,
       vatRate,
       lotStatus,
-      lotNotes,
+      lotNotes: null,
+      annexSurface: parseNumber(getText("annexSurface")),
+      suv: parseNumber(getText("suv")),
+      garden: parseBoolean(getText("garden")),
+      priceNetVendeur: parseNumber(getText("priceNetVendeur")),
+      priceNetVendeurWithParking: parseNumber(
+        getText("priceNetVendeurWithParking"),
+      ),
+      commissionAgence: parseNumber(getText("commissionAgence")),
+      commissionAgenceParking: parseNumber(getText("commissionAgenceParking")),
+      priceLocation: parseNumber(getText("priceLocation")),
+      creditImpot35: parseNumber(getText("creditImpot35")),
+      priceRevientCrdImp: parseNumber(getText("priceRevientCrdImp")),
+      additionalParking: parseBoolean(getText("additionalParking")),
       buyerName: getText("buyerName") || null,
       buyerEmail: getText("buyerEmail") || null,
       buyerPhone: getText("buyerPhone") || null,
@@ -425,10 +397,16 @@ export async function parseTrackingWorkbook(
       guaranteeDepositReceivedAt: parseDate(
         getCell("guaranteeDepositReceivedAt"),
       ),
-      loanFiled: parseLoanFiled(getCell("loanFiled")),
-      loanObtained: parseLoanObtained(getCell("loanObtained")),
+      loanFiled: parseLoanFiled(loanFiledCell),
+      loanObtained: parseLoanObtained(loanObtainedCell),
       reservationEndDate: parseDate(getCell("reservationEndDate")),
       actSignedAt,
+      kbisObtainedAt: parseDate(getCell("kbisObtainedAt")),
+      clientAtRsm: parseBoolean(getText("clientAtRsm")),
+      deposit200ReceivedAt: parseDate(getCell("deposit200ReceivedAt")),
+      rarSentByNotaryAt: parseDate(getCell("rarSentByNotaryAt")),
+      loanFiledAt: parseDate(loanFiledCell),
+      loanObtainedAt: parseDate(loanObtainedCell),
     });
   }
 

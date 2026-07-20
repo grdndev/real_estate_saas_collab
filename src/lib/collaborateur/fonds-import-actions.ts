@@ -21,7 +21,6 @@ const parseFileSchema = z.object({
 const appelTypeSchema = z.object({
   numero: z.number(),
   label: z.string(),
-  // "YYYY-MM" — obligatoire : le déblocage des appels dépend de cette date.
   datePrevue: z.string().regex(/^\d{4}-\d{2}$/),
   pourcentage: z.number(),
 });
@@ -61,17 +60,12 @@ function digitsOnly(s: string): string {
   return s.replace(/\D/g, "");
 }
 
-/** "YYYY-MM" → Date au 1er du mois (UTC). */
 function monthValueToDate(value: string): Date | null {
   const m = value.match(/^(\d{4})-(\d{2})$/);
   if (!m) return null;
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 1));
   return isNaN(d.getTime()) ? null : d;
 }
-
-// ---------------------------------------------------------------------------
-// ACTION 1 : parse
-// ---------------------------------------------------------------------------
 
 export async function parseFondsFileAction(fileB64: string): Promise<
   ActionResult<{
@@ -91,10 +85,6 @@ export async function parseFondsFileAction(fileB64: string): Promise<
   const result = await parseFondsWorkbook(buffer);
   return { ok: true, value: result };
 }
-
-// ---------------------------------------------------------------------------
-// ACTION 2 : import
-// ---------------------------------------------------------------------------
 
 export async function importFondsSuiviAction(input: {
   programmeId: string;
@@ -121,7 +111,6 @@ export async function importFondsSuiviAction(input: {
     datePrevueByNumero.set(at.numero, d);
   }
 
-  // Les appels de fonds sont définis au niveau du programme.
   const appelIdByNumero = new Map<number, string>();
   for (const at of appelTypes) {
     const appel = await prisma.appelFonds.upsert({
@@ -144,7 +133,6 @@ export async function importFondsSuiviAction(input: {
     appelIdByNumero.set(at.numero, appel.id);
   }
 
-  // Load all lots for this programme once
   const programmeLots = await prisma.lot.findMany({
     where: { programmeId },
     select: { id: true, reference: true, dossierId: true },
@@ -155,11 +143,8 @@ export async function importFondsSuiviAction(input: {
   const matchedRefs = new Set<string>();
 
   for (const row of rows) {
-    // 1. Direct match by reference
     let lot =
       programmeLots.find((l) => l.reference === row.lotReference) ?? null;
-
-    // 2. Fallback: compare digits only
     if (!lot) {
       const rowDigits = digitsOnly(row.lotReference);
       if (rowDigits) {
@@ -177,7 +162,6 @@ export async function importFondsSuiviAction(input: {
       continue;
     }
 
-    // 3. Upsert LotFondsSuivi
     const fondsData = {
       commission:
         row.commission != null ? new Prisma.Decimal(row.commission) : null,
@@ -194,8 +178,6 @@ export async function importFondsSuiviAction(input: {
       create: { lotId: lot.id, programmeId, ...fondsData },
       update: { programmeId, ...fondsData },
     });
-
-    // 3b. Append notes to Lot.notes
     if (row.notes) {
       const existing = await prisma.lot.findUnique({
         where: { id: lot.id },
@@ -209,8 +191,6 @@ export async function importFondsSuiviAction(input: {
         data: { notes: newNotes },
       });
     }
-
-    // 4. Replace fonds appelés using appelTypes metadata
     await prisma.fondsAppele.deleteMany({
       where: { lotFondsId: fondsSuivi.id },
     });
@@ -231,8 +211,6 @@ export async function importFondsSuiviAction(input: {
     if (fondsAppeleData.length > 0) {
       await prisma.fondsAppele.createMany({ data: fondsAppeleData });
     }
-
-    // 5. ACT_SIGNED timeline event
     const actSignedDate = toDate(row.dateSignatureActe);
     if (actSignedDate && lot.dossierId) {
       const dossier = await prisma.dossier.findUnique({
@@ -268,7 +246,6 @@ export async function importFondsSuiviAction(input: {
     matched++;
   }
 
-  // 6. TresoreriePrev — accumulate monthly income across appelTypes
   const monthMap = new Map<string, { month: Date; income: number }>();
   for (const at of appelTypes) {
     const monthDate = datePrevueByNumero.get(at.numero);

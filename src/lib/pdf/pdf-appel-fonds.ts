@@ -11,32 +11,21 @@ import {
 } from "./letterhead";
 import { montantEnLettres } from "./montant-en-lettres";
 
-/** Données nécessaires au courrier « Appel de fonds ». */
 export interface AppelFondsPdfData {
-  /** Nom complet du client destinataire. */
   clientNom: string;
-  /** Adresse postale du client (déjà déchiffrée), ligne par ligne. */
   clientAdresse: string[];
   programmeName: string;
   programmeAdresse: string;
-  /** Référence du lot concerné. */
   lotReference: string;
-  /** Libellé de l'appel de fonds (ex : "Achèvement des fondations"). */
   appelLabel: string;
-  /** Pourcentage du prix appelé (ex : 35). */
   appelPourcentage: number;
-  /** Montant appelé en euros. */
   appelMontant: number;
-  /** Logo société (data URL) affiché en en-tête à la place du texte, si défini. */
   logoDataUrl: string | null;
 }
 
-// Interligne du courrier (en mm).
 const LIGNE = 6;
-// Largeur utile du texte.
 const LARGEUR_TEXTE = 210 - MARGES.gauche - MARGES.droite;
 
-/** Bloc adresse du client, aligné à droite comme sur un courrier papier. */
 function drawAdresseClient(doc: jsPDF, y: number, data: AppelFondsPdfData) {
   const x = 120;
   doc.setFont("helvetica", "bold");
@@ -56,7 +45,6 @@ function drawAdresseClient(doc: jsPDF, y: number, data: AppelFondsPdfData) {
   return y + 14;
 }
 
-/** Écrit un paragraphe justifié à gauche et retourne le Y suivant. */
 function drawParagraphe(doc: jsPDF, y: number, texte: string) {
   doc.setFontSize(10);
   doc.setTextColor(...COULEURS.night);
@@ -65,9 +53,6 @@ function drawParagraphe(doc: jsPDF, y: number, texte: string) {
   return y + lignes.length * LIGNE + 4;
 }
 
-/**
- * Génère le courrier « Appel de fonds » (A4 portrait), destiné au client du lot.
- */
 export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pourcentage = String(data.appelPourcentage).replace(".", ",");
@@ -75,7 +60,6 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
   let y = drawEnTete(doc, data.logoDataUrl);
   y = drawAdresseClient(doc, y, data);
 
-  // Objet du courrier.
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
   doc.setTextColor(...COULEURS.night);
@@ -90,7 +74,6 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
 
   y = drawParagraphe(doc, y, "Madame, Monsieur,");
 
-  // Corps du courrier : lot, appel, pourcentage.
   y = drawParagraphe(
     doc,
     y,
@@ -99,7 +82,6 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
       `${formatEur(data.appelMontant)} (${montantEnLettres(data.appelMontant)}).`,
   );
 
-  // Montant en chiffres ET en toutes lettres.
   y = drawParagraphe(
     doc,
     y,
@@ -120,7 +102,6 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
     "Je vous prie d'agréer, Madame, Monsieur, l'expression de mes salutations les meilleures.",
   );
 
-  // Signature.
   y += 6;
   doc.setFont("helvetica", "bold");
   doc.text(`Christian VIRAPATRIN, Gérant`, 130, y);

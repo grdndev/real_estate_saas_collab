@@ -112,7 +112,6 @@ export default async function CollaborateurFondsPage({
       }))
     : [];
 
-  // Seuls les appels débloqués (date prévue atteinte) apparaissent dans le tableau.
   const appelsDebloques = appelHeaders.filter((h) => h.debloque);
   const debloqueIds = new Set(appelsDebloques.map((h) => h.id));
   const prochainAppel = appelHeaders.find((h) => !h.debloque) ?? null;
@@ -124,7 +123,6 @@ export default async function CollaborateurFondsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
@@ -161,7 +159,6 @@ export default async function CollaborateurFondsPage({
         </div>
       </div>
 
-      {/* Programme selector */}
       {programmes.length > 0 && (
         <div className="flex items-center gap-2">
           <span className="text-sm text-slate-500">Programme :</span>
@@ -175,7 +172,6 @@ export default async function CollaborateurFondsPage({
         </div>
       )}
 
-      {/* Table */}
       {!programme ? (
         <p className="text-sm text-slate-500">Aucun programme actif.</p>
       ) : lots.length === 0 ? (
@@ -190,39 +186,26 @@ export default async function CollaborateurFondsPage({
             <TBody>
               {lots.map((lot) => {
                 const fs = lot.fondsSuivi;
-                const isEmpty = !fs;
                 const actSignedDate =
                   lot.dossier?.timelineEvents?.[0]?.occurredAt ?? null;
                 const clientName = lot.dossier?.client
                   ? `${lot.dossier.client.firstName} ${lot.dossier.client.lastName}`.trim()
                   : null;
 
-                const rowClass = cn(
-                  isEmpty ? "bg-slate-50/60" : "hover:bg-slate-50",
-                );
-
                 return (
                   <ClickableRow
                     key={lot.id}
                     href={`/collaborateur/fonds/${lot.id}`}
-                    className={rowClass}
                   >
-                    {/* Lot référence */}
-                    <Td className="bg-equatis-bg sticky left-0 z-5 px-4 py-3 font-mono font-medium whitespace-nowrap">
+                    <Td className="bg-equatis-surface sticky left-0 z-5 px-4 py-3 font-mono font-medium whitespace-nowrap">
                       {lot.reference}
                     </Td>
-
-                    {/* Acquéreur */}
                     <Td className="px-4 py-3 whitespace-nowrap text-slate-700">
                       {clientName ?? <span className="text-slate-400">—</span>}
                     </Td>
-
-                    {/* Prix FAI */}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fmtMoney(Number(lot.priceTTC))}
                     </Td>
-
-                    {/* Date signature acte */}
                     <Td className="px-4 py-3 whitespace-nowrap text-slate-600">
                       {actSignedDate ? (
                         fmtDate(actSignedDate)
@@ -230,8 +213,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-
-                    {/* Progression */}
                     <Td className="px-4 py-3 whitespace-nowrap">
                       {fs && appelHeaders.length > 0 ? (
                         (() => {
@@ -296,11 +277,7 @@ export default async function CollaborateurFondsPage({
                         </Td>
                       );
                     })}
-
-                    {/* Align with "Aucun appel de fonds" column */}
                     {appelHeaders.length === 0 && <Td className="p-0" />}
-
-                    {/* COM */}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.commission != null ? (
                         fmtMoney(Number(fs.commission))
@@ -308,8 +285,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-
-                    {/* Frais main levée */}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.fraisMainLevee != null ? (
                         fmtMoney(Number(fs.fraisMainLevee))
@@ -317,8 +292,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-
-                    {/* RBST EDD */}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.rbstEdd != null ? (
                         fmtMoney(Number(fs.rbstEdd))
@@ -326,8 +299,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-
-                    {/* Solde vendeur */}
                     <Td className="px-4 py-3 text-right whitespace-nowrap tabular-nums">
                       {fs?.soldeVendeur != null ? (
                         fmtMoney(Number(fs.soldeVendeur))
@@ -335,8 +306,6 @@ export default async function CollaborateurFondsPage({
                         <span className="text-slate-300">—</span>
                       )}
                     </Td>
-
-                    {/* Notes */}
                     <Td className="max-w-50 px-4 py-3 text-slate-600">
                       {lot.notes ? (
                         <span className="line-clamp-2">{lot.notes}</span>

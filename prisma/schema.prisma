@@ -351,6 +351,22 @@ model Lot {
   status      LotStatus @default(AVAILABLE)
   notes       String?
 
+  // Localisation / annexes
+  building     String?
+  annexSurface Decimal? @db.Decimal(8, 2)
+  suv          Decimal? @db.Decimal(8, 2)
+  garden       Boolean?
+
+  // Champs financiers additionnels (tracking import)
+  priceNetVendeur            Decimal? @db.Decimal(12, 2)
+  priceNetVendeurWithParking Decimal? @db.Decimal(12, 2)
+  commissionAgence           Decimal? @db.Decimal(12, 2)
+  commissionAgenceParking    Decimal? @db.Decimal(12, 2)
+  priceLocation              Decimal? @db.Decimal(12, 2)
+  creditImpot35              Decimal? @db.Decimal(12, 2)
+  priceRevientCrdImp         Decimal? @db.Decimal(12, 2)
+  additionalParking          Boolean?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -402,6 +418,21 @@ model Dossier {
   closedAt            DateTime?
   notaryId            String?
   notaryTransmittedAt DateTime?
+
+  // Suivi du process de vente (dates brutes saisies, en plus des enums status/contractStatus)
+  observation                String?
+  financingMode              String?
+  kbisObtainedAt             DateTime?
+  clientAtRsm                Boolean?
+  reservationSignedAt        DateTime?
+  deposit200ReceivedAt       DateTime?
+  guaranteeDepositAmount     Decimal?  @db.Decimal(12, 2)
+  guaranteeDepositReceivedAt DateTime?
+  rarSentByNotaryAt          DateTime?
+  loanFiledAt                DateTime?
+  loanObtainedAt             DateTime?
+  reservationEndDate         DateTime?
+  actSignedAt                DateTime?
 
   programme        Programme            @relation(fields: [programmeId], references: [id])
   lots             Lot[]
@@ -792,10 +823,6 @@ model Invoice {
   @@index([status])
 }
 
-// =====================================================
-// SUIVI DES APPELS DE FONDS
-// =====================================================
-
 model LotFondsSuivi {
   id                    String    @id @default(cuid())
   lotId                 String    @unique
@@ -812,13 +839,11 @@ model LotFondsSuivi {
   fondsAppeles FondsAppele[]
 }
 
-// Définition d'un appel de fonds au niveau du programme (1 programme → 0..n appels).
 model AppelFonds {
   id          String   @id @default(cuid())
   programmeId String
   numero      Int
   label       String
-  // Date prévue de l'appel : détermine son déblocage (datePrevue <= aujourd'hui).
   datePrevue  DateTime
   pourcentage Decimal  @db.Decimal(5, 2)
   createdAt   DateTime @default(now())
@@ -830,13 +855,11 @@ model AppelFonds {
   @@index([programmeId])
 }
 
-// Fonds appelés pour un lot au titre d'un appel de fonds du programme (montant + suivi LR).
 model FondsAppele {
   id           String  @id @default(cuid())
   lotFondsId   String
   appelFondsId String
   montant      Decimal @db.Decimal(12, 2)
-  // Suivi LR au niveau du lot.
   dateEnvoiLr           DateTime?
   dateReceptionVirement DateTime?
   createdAt    DateTime @default(now())

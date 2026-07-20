@@ -1,23 +1,18 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
 import { DossierFiltersForm } from "@/components/collab/dossier-filters-form";
+import {
+  DossiersTable,
+  type DossierRow,
+} from "@/components/collab/dossiers-table";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
 import { dossierFiltersSchema } from "@/lib/dossier/schemas";
+import { decodePhone } from "@/lib/profile";
 
 export const metadata: Metadata = { title: "Dossiers" };
 
@@ -92,8 +87,15 @@ export default async function DossierListPage({ searchParams }: PageProps) {
       skip,
       include: {
         programme: { select: { name: true } },
-        lots: { select: { reference: true } },
-        client: { select: { firstName: true, lastName: true } },
+        lots: true,
+        client: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+            phoneEnc: true,
+          },
+        },
         participants: {
           where: { role: "COLLABORATOR_PRIMARY" },
           include: { user: { select: { firstName: true, lastName: true } } },
@@ -111,6 +113,81 @@ export default async function DossierListPage({ searchParams }: PageProps) {
   dossiers.sort((a, b) =>
     (a.lots[0]?.reference ?? "").localeCompare(b.lots[0]?.reference ?? ""),
   );
+
+  const fmt = (d: Date | null) => (d ? d.toLocaleDateString("fr-FR") : null);
+
+  const rows: DossierRow[] = dossiers.map((d) => {
+    const sb = STATUS_BADGE[d.status];
+    const primary = d.participants[0]?.user;
+    const lot = d.lots[0];
+    const totalSurface = lot
+      ? Number(lot.surface) + Number(lot.annexSurface ?? 0)
+      : null;
+    return {
+      id: d.id,
+      clientName: d.client
+        ? `${d.client.firstName} ${d.client.lastName}`
+        : null,
+      clientPhone: d.client ? decodePhone(d.client.phoneEnc) || null : null,
+      clientEmail: d.client?.email ?? null,
+      programmeName: d.programme.name,
+      statusLabel: sb.label,
+      statusVariant: sb.variant,
+      responsable: primary ? `${primary.firstName} ${primary.lastName}` : null,
+      lastActivity: fmt(d.lastActivityAt) ?? "—",
+
+      building: lot?.building ?? null,
+      reference: d.lots.map((l) => l.reference).join(", ") || null,
+      floor: lot?.floor ?? null,
+      type: lot?.type ?? null,
+      surface: lot ? Number(lot.surface) : null,
+      annexSurface: lot?.annexSurface != null ? Number(lot.annexSurface) : null,
+      suv: lot?.suv != null ? Number(lot.suv) : null,
+      totalSurface,
+      garden: lot?.garden ?? null,
+      priceNetVendeur:
+        lot?.priceNetVendeur != null ? Number(lot.priceNetVendeur) : null,
+      priceNetVendeurWithParking:
+        lot?.priceNetVendeurWithParking != null
+          ? Number(lot.priceNetVendeurWithParking)
+          : null,
+      commissionAgence:
+        lot?.commissionAgence != null ? Number(lot.commissionAgence) : null,
+      commissionAgenceParking:
+        lot?.commissionAgenceParking != null
+          ? Number(lot.commissionAgenceParking)
+          : null,
+      priceFAI: lot ? Number(lot.priceTTC) : null,
+      priceLocation:
+        lot?.priceLocation != null ? Number(lot.priceLocation) : null,
+      creditImpot35:
+        lot?.creditImpot35 != null ? Number(lot.creditImpot35) : null,
+      priceRevientCrdImp:
+        lot?.priceRevientCrdImp != null ? Number(lot.priceRevientCrdImp) : null,
+      additionalParking: lot?.additionalParking ?? null,
+
+      observation: d.observation,
+      financingMode: d.financingMode,
+      optionLabel: d.optioned
+        ? `Oui${d.optionExpiresAt ? ` (jusqu'au ${fmt(d.optionExpiresAt)})` : ""}`
+        : "Non",
+      kbisObtainedAt: fmt(d.kbisObtainedAt),
+      clientAtRsm: d.clientAtRsm,
+      reservationSignedAt: fmt(d.reservationSignedAt),
+      notaryTransmittedAt: fmt(d.notaryTransmittedAt),
+      deposit200ReceivedAt: fmt(d.deposit200ReceivedAt),
+      guaranteeDepositAmount:
+        d.guaranteeDepositAmount != null
+          ? Number(d.guaranteeDepositAmount)
+          : null,
+      guaranteeDepositReceivedAt: fmt(d.guaranteeDepositReceivedAt),
+      rarSentByNotaryAt: fmt(d.rarSentByNotaryAt),
+      loanFiledAt: fmt(d.loanFiledAt),
+      loanObtainedAt: fmt(d.loanObtainedAt),
+      reservationEndDate: fmt(d.reservationEndDate),
+      actSignedAt: fmt(d.actSignedAt),
+    };
+  });
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,66 +218,9 @@ export default async function DossierListPage({ searchParams }: PageProps) {
       </Card>
 
       <Card>
-        {dossiers.length === 0 ? (
-          <EmptyState
-            title="Aucun dossier ne correspond"
-            description="Modifiez vos filtres ou créez un nouveau dossier."
-          />
-        ) : (
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Client</Th>
-                <Th>Programme</Th>
-                <Th>Lot</Th>
-                <Th>Statut</Th>
-                <Th>Responsable</Th>
-                <Th>Dernière action</Th>
-                <Th />
-              </Tr>
-            </THead>
-            <TBody>
-              {dossiers.map((d) => {
-                const sb = STATUS_BADGE[d.status];
-                const primary = d.participants[0]?.user;
-                return (
-                  <Tr key={d.id}>
-                    <Td>
-                      {d.client ? (
-                        <span className="text-sm">
-                          {`${d.client.firstName} ${d.client.lastName}`}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </Td>
-                    <Td>{d.programme.name}</Td>
-                    <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
-                    <Td>
-                      <Badge variant={sb.variant}>{sb.label}</Badge>
-                    </Td>
-                    <Td className="text-xs text-slate-600">
-                      {primary
-                        ? `${primary.firstName} ${primary.lastName}`
-                        : "—"}
-                    </Td>
-                    <Td className="text-xs text-slate-500">
-                      {d.lastActivityAt.toLocaleDateString("fr-FR")}
-                    </Td>
-                    <Td className="text-right">
-                      <Link
-                        href={`/collaborateur/dossiers/${d.id}`}
-                        className="text-equatis-turquoise-700 text-sm hover:underline"
-                      >
-                        Ouvrir →
-                      </Link>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </TBody>
-          </Table>
-        )}
+        <CardContent>
+          <DossiersTable rows={rows} />
+        </CardContent>
       </Card>
 
       {totalPages > 1 && (

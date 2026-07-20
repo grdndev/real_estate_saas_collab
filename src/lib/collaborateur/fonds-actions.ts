@@ -33,7 +33,6 @@ function toDate(iso: string | null | undefined): Date | null {
   return isNaN(d.getTime()) ? null : d;
 }
 
-/** Convertit "YYYY-MM" (input type="month") ou une date ISO en Date au 1er du mois (UTC). */
 function monthToDate(value: string): Date | null {
   const m = value.match(/^(\d{4})-(\d{2})/);
   if (!m) return null;
@@ -57,7 +56,6 @@ export async function updateLotFondsSuiviAction(
   });
   if (!lot) return { ok: false, error: "Lot introuvable." };
 
-  // Les fonds appelés doivent référencer des appels de fonds du programme du lot.
   const appelsProgramme = await prisma.appelFonds.findMany({
     where: { programmeId: lot.programmeId },
     select: { id: true },
@@ -140,7 +138,6 @@ export async function updateLotFondsSuiviAction(
 
 const upsertAppelSchema = z.object({
   programmeId: z.string().min(1),
-  // null → création : le numéro est calculé côté serveur (max + 1).
   numero: z.number().int().min(1).nullable(),
   label: z.string().trim().min(1, "Le label est obligatoire."),
   pourcentage: z
@@ -326,7 +323,6 @@ export async function deleteProgrammeAppelAction(input: {
 }): Promise<ActionResult<void>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
-  // La suppression cascade sur les fonds appelés des lots.
   await prisma.appelFonds.deleteMany({
     where: {
       numero: input.numero,

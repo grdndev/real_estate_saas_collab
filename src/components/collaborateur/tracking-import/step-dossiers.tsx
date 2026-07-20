@@ -47,6 +47,12 @@ function toProcessData(row: ParsedTrackingLot) {
     actSignedAt: isoOrNull(row.actSignedAt),
     financingMode: row.financingMode,
     observation: row.observation,
+    kbisObtainedAt: isoOrNull(row.kbisObtainedAt),
+    clientAtRsm: row.clientAtRsm,
+    deposit200ReceivedAt: isoOrNull(row.deposit200ReceivedAt),
+    rarSentByNotaryAt: isoOrNull(row.rarSentByNotaryAt),
+    loanFiledAt: isoOrNull(row.loanFiledAt),
+    loanObtainedAt: isoOrNull(row.loanObtainedAt),
   };
 }
 

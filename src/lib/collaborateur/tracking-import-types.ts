@@ -10,6 +10,18 @@ export interface ParsedTrackingLot {
   lotStatus: "AVAILABLE" | "OPTIONED" | "RESERVED" | "SOLD" | "WITHDRAWN";
   lotNotes: string | null;
 
+  annexSurface: number | null;
+  suv: number | null;
+  garden: boolean | null;
+  priceNetVendeur: number | null;
+  priceNetVendeurWithParking: number | null;
+  commissionAgence: number | null;
+  commissionAgenceParking: number | null;
+  priceLocation: number | null;
+  creditImpot35: number | null;
+  priceRevientCrdImp: number | null;
+  additionalParking: boolean | null;
+
   buyerName: string | null;
   buyerEmail: string | null;
   buyerPhone: string | null;
@@ -25,6 +37,13 @@ export interface ParsedTrackingLot {
   loanObtained: string | null;
   reservationEndDate: Date | null;
   actSignedAt: Date | null;
+
+  kbisObtainedAt: Date | null;
+  clientAtRsm: boolean | null;
+  deposit200ReceivedAt: Date | null;
+  rarSentByNotaryAt: Date | null;
+  loanFiledAt: Date | null;
+  loanObtainedAt: Date | null;
 }
 
 export interface TrackingParseResult {

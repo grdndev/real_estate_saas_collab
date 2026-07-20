@@ -13,7 +13,7 @@ export interface AppelHeader {
   numero: number;
   label: string;
   pourcentage: number;
-  datePrevue: string; // ISO
+  datePrevue: string;
   debloque: boolean;
 }
 

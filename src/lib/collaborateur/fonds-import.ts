@@ -84,7 +84,6 @@ const MONTHS: Record<string, number> = {
   decembre: 12,
 };
 
-/** "Janvier" + 2027 → "2027-01" (format input type="month"), "" si non reconnu. */
 function monthYearToMonthValue(
   mois: string | null,
   annee: number | null,
@@ -117,10 +116,6 @@ function detectHeaderRow(sheet: ExcelJS.Worksheet): { rowIdx: number } | null {
   }
   return null;
 }
-
-// ---------------------------------------------------------------------------
-// Feuil1 parser
-// ---------------------------------------------------------------------------
 
 interface AppelColInfo {
   colNumber: number;
@@ -236,7 +231,6 @@ function parseSheet1(sheet: ExcelJS.Worksheet): {
     if (info) appelCols.push(info);
   });
 
-  // Scan rows 1..headerRowIdx+1 to catch appel headers in merged cells above the header row
   for (let r = 1; r <= headerRowIdx + 1; r++) {
     const scanRow = sheet.getRow(r);
     scanRow.eachCell((cell, colNumber) => {
@@ -302,10 +296,6 @@ function parseSheet1(sheet: ExcelJS.Worksheet): {
   return { lots, appelCols };
 }
 
-// ---------------------------------------------------------------------------
-// Feuil4 parser — enrichit la map existante
-// ---------------------------------------------------------------------------
-
 function parseSheet4(
   sheet: ExcelJS.Worksheet,
   map: Map<string, ParsedFondsLot>,
@@ -346,10 +336,6 @@ function parseSheet4(
     }
   }
 }
-
-// ---------------------------------------------------------------------------
-// Main export
-// ---------------------------------------------------------------------------
 
 export async function parseFondsWorkbook(
   buffer: Buffer,

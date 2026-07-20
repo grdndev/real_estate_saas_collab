@@ -20,8 +20,6 @@ export interface ParsedFondsLot {
 export interface ParsedFondsAppelType {
   numero: number;
   label: string;
-  // Date prévue de l'appel au format "YYYY-MM" ("" si non détectée dans le fichier :
-  // l'utilisateur doit alors la renseigner à l'étape « Appels »).
   datePrevue: string;
   pourcentage: number;
 }

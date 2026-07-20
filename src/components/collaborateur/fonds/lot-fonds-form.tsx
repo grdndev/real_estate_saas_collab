@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
 
-/** Fonds appelés pour le lot au titre d'un appel de fonds du programme. */
 export interface FondsAppeleData {
   appelFondsId: string;
   montant: number;
@@ -40,9 +39,7 @@ interface Props {
   priceTTC: number;
   actSignedDate: string | null;
   notes: string | null;
-  /** Le lot a un dossier avec client (requis pour le courrier PDF). */
   hasClient: boolean;
-  /** Le client a une adresse postale renseignée (requis pour le courrier PDF). */
   hasClientAddress: boolean;
   fondsSuivi: FondsSuiviData | null;
   programmeAppelTypes: ProgrammeAppelType[];
@@ -98,7 +95,6 @@ export function LotFondsForm({
     notes: initialNotes ?? "",
   });
 
-  // Une ligne par appel de fonds du programme, montant/suivi LR du lot en face.
   const [appels, setAppels] = useState<FondsAppeleData[]>(() => {
     const existingById = new Map(
       (fondsSuivi?.fondsAppeles ?? []).map((fa) => [fa.appelFondsId, fa]),
@@ -116,14 +112,12 @@ export function LotFondsForm({
 
   const appelsById = new Map(appels.map((a) => [a.appelFondsId, a]));
 
-  // Courrier PDF : nécessite un client avec adresse postale.
   const courrierBloque = !hasClient
     ? "Aucun client rattaché à ce lot."
     : !hasClientAddress
       ? "Le client n'a pas d'adresse postale renseignée."
       : null;
 
-  /** Ouvre le courrier d'appel de fonds dans un nouvel onglet. */
   function ouvrirCourrierPdf(numero: number) {
     window.open(
       `/collaborateur/fonds/${lotId}/appel-pdf?numero=${numero}`,
@@ -191,7 +185,6 @@ export function LotFondsForm({
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Read-only summary */}
       <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-5">
         <div>
           <p className="text-xs text-slate-400">Programme</p>
@@ -227,7 +220,6 @@ export function LotFondsForm({
         )}
       </div>
 
-      {/* Appels de fonds */}
       {appels.length > 0 && (
         <section>
           <h2 className="mb-3 text-sm font-semibold text-slate-700">
@@ -313,7 +305,6 @@ export function LotFondsForm({
                         />
                       </Td>
                       <Td className="px-3 py-2 text-right">
-                        {/* Courrier PDF uniquement pour les appels débloqués. */}
                         {debloque && (
                           <span
                             title={
@@ -341,7 +332,6 @@ export function LotFondsForm({
         </section>
       )}
 
-      {/* Données financières */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-slate-700">
           Données financières
@@ -364,7 +354,6 @@ export function LotFondsForm({
         </div>
       </section>
 
-      {/* Commentaire */}
       <section>
         <h2 className="mb-3 text-sm font-semibold text-slate-700">
           Commentaire

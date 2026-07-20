@@ -68,7 +68,6 @@ export function FondsImportModal({ open, onClose, programmes }: Props) {
         "open:flex open:flex-col",
       )}
     >
-      {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
         <div>
           <h2 className="text-equatis-night-800 text-lg font-semibold">
@@ -102,7 +101,6 @@ export function FondsImportModal({ open, onClose, programmes }: Props) {
         </button>
       </div>
 
-      {/* Body */}
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         {parseErrors.length > 0 && step === 1 && (
           <Alert variant="warning" className="mb-4">
