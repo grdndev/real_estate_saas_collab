@@ -484,12 +484,8 @@ export default async function DossierDetailPage({ params }: PageProps) {
                       "Surface annexes",
                       l.annexSurface != null ? `${l.annexSurface} m²` : "—",
                     ],
-                    ["SUV", l.suv != null ? `${l.suv} m²` : "—"],
                     ["Total (habitable + annexe)", `${totalSurface} m²`],
-                    [
-                      "Jardin",
-                      l.garden == null ? "—" : l.garden ? "Oui" : "Non",
-                    ],
+                    ["Jardin", l.garden != null ? `${l.garden} m²` : "—"],
                     ["Prix FAI", eur.format(Number(l.priceTTC))],
                     [
                       "Prix net vendeur",

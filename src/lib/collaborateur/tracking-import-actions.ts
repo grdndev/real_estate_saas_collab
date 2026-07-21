@@ -166,8 +166,7 @@ export async function importTrackingLotsAction(
     const extraFields = {
       building: lot.building,
       annexSurface: toDecimal(lot.annexSurface),
-      suv: toDecimal(lot.suv),
-      garden: lot.garden,
+      garden: toDecimal(lot.garden),
       priceNetVendeur: toDecimal(lot.priceNetVendeur),
       priceNetVendeurWithParking: toDecimal(lot.priceNetVendeurWithParking),
       commissionAgence: toDecimal(lot.commissionAgence),

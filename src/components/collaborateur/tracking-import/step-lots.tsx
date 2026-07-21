@@ -18,8 +18,7 @@ interface EditableLot {
   vatRate: number;
   notes: string | null;
   annexSurface: number | null;
-  suv: number | null;
-  garden: boolean | null;
+  garden: number | null;
   priceNetVendeur: number | null;
   priceNetVendeurWithParking: number | null;
   commissionAgence: number | null;
@@ -52,7 +51,6 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
       vatRate: r.vatRate,
       notes: r.lotNotes,
       annexSurface: r.annexSurface,
-      suv: r.suv,
       garden: r.garden,
       priceNetVendeur: r.priceNetVendeur,
       priceNetVendeurWithParking: r.priceNetVendeurWithParking,
@@ -107,8 +105,7 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 "Type",
                 "Surface (m²)",
                 "Surface annexes (m²)",
-                "SUV (m²)",
-                "Jardin",
+                "Jardin (m²)",
                 "Prix TTC (€)",
                 "TVA (%)",
                 "Prix net vendeur (€)",
@@ -184,10 +181,6 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                   onChange={(v) => update(i, "annexSurface", v)}
                 />
                 <NumberCell
-                  value={lot.suv}
-                  onChange={(v) => update(i, "suv", v)}
-                />
-                <BoolCell
                   value={lot.garden}
                   onChange={(v) => update(i, "garden", v)}
                 />

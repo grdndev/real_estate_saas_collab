@@ -354,8 +354,7 @@ model Lot {
   // Localisation / annexes
   building     String?
   annexSurface Decimal? @db.Decimal(8, 2)
-  suv          Decimal? @db.Decimal(8, 2)
-  garden       Boolean?
+  garden       Decimal? @db.Decimal(8, 2)
 
   // Champs financiers additionnels (tracking import)
   priceNetVendeur            Decimal? @db.Decimal(12, 2)

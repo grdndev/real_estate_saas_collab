@@ -32,9 +32,8 @@ export interface DossierRow {
   type: string | null;
   surface: number | null;
   annexSurface: number | null;
-  suv: number | null;
   totalSurface: number | null;
-  garden: boolean | null;
+  garden: number | null;
   priceNetVendeur: number | null;
   priceNetVendeurWithParking: number | null;
   commissionAgence: number | null;
@@ -124,16 +123,15 @@ const COLUMNS: ColumnDef[] = [
     render: (r) => (r.annexSurface != null ? `${r.annexSurface} m²` : "—"),
   },
   {
-    key: "suv",
-    label: "SUV",
-    render: (r) => (r.suv != null ? `${r.suv} m²` : "—"),
-  },
-  {
     key: "totalSurface",
     label: "Total (Habitable+annexe)",
     render: (r) => (r.totalSurface != null ? `${r.totalSurface} m²` : "—"),
   },
-  { key: "jardin", label: "Jardin", render: (r) => bool(r.garden) },
+  {
+    key: "jardin",
+    label: "Jardin",
+    render: (r) => (r.garden != null ? `${r.garden} m²` : "—"),
+  },
   {
     key: "prixNetVendeur",
     label: "Prix net vendeur",

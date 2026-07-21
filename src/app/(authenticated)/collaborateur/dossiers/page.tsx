@@ -142,9 +142,8 @@ export default async function DossierListPage({ searchParams }: PageProps) {
       type: lot?.type ?? null,
       surface: lot ? Number(lot.surface) : null,
       annexSurface: lot?.annexSurface != null ? Number(lot.annexSurface) : null,
-      suv: lot?.suv != null ? Number(lot.suv) : null,
       totalSurface,
-      garden: lot?.garden ?? null,
+      garden: lot?.garden != null ? Number(lot.garden) : null,
       priceNetVendeur:
         lot?.priceNetVendeur != null ? Number(lot.priceNetVendeur) : null,
       priceNetVendeurWithParking:

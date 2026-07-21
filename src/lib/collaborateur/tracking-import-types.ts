@@ -11,8 +11,7 @@ export interface ParsedTrackingLot {
   lotNotes: string | null;
 
   annexSurface: number | null;
-  suv: number | null;
-  garden: boolean | null;
+  garden: number | null;
   priceNetVendeur: number | null;
   priceNetVendeurWithParking: number | null;
   commissionAgence: number | null;

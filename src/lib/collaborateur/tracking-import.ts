@@ -49,7 +49,6 @@ type MappedField =
   | "priceTTC"
   | "vatRate"
   | "annexSurface"
-  | "suv"
   | "garden"
   | "priceNetVendeur"
   | "priceNetVendeurWithParking"
@@ -87,7 +86,6 @@ const COLUMN_ALIASES: Record<MappedField, string[]> = {
   priceTTC: ["prixfai", "fai", "prixttc", "ttc"],
   vatRate: ["tva", "tauxtva"],
   annexSurface: ["surfacedesannexes", "annexes"],
-  suv: ["suvtotal", "suv"],
   garden: ["jardin"],
   priceNetVendeur: ["prixnetvendeur"],
   priceNetVendeurWithParking: ["nvavecplaceparking"],
@@ -373,8 +371,7 @@ export async function parseTrackingWorkbook(
       lotStatus,
       lotNotes: null,
       annexSurface: parseNumber(getText("annexSurface")),
-      suv: parseNumber(getText("suv")),
-      garden: parseBoolean(getText("garden")),
+      garden: parseNumber(getText("garden")),
       priceNetVendeur: parseNumber(getText("priceNetVendeur")),
       priceNetVendeurWithParking: parseNumber(
         getText("priceNetVendeurWithParking"),
