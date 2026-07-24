@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TBody, Td, Th, THead, Tr } from "@/components/ui/table";
 import { updateLotFondsSuiviAction } from "@/lib/collaborateur/fonds-actions";
 
@@ -185,186 +186,211 @@ export function LotFondsForm({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 sm:grid-cols-5">
-        <div>
-          <p className="text-xs text-slate-400">Programme</p>
-          <p className="text-sm font-medium">{programmeName}</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-400">Acquéreur</p>
-          <p className="text-sm font-medium">{clientName ?? "—"}</p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-400">Prix FAI</p>
-          <p className="text-sm font-medium tabular-nums">
-            {priceTTC.toLocaleString("fr-FR", { maximumFractionDigits: 0 })} €
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-slate-400">Date signature acte</p>
-          <p className="text-sm font-medium" suppressHydrationWarning>
-            {actSignedDate
-              ? new Date(actSignedDate).toLocaleDateString("fr-FR")
-              : "—"}
-          </p>
-        </div>
-        {programmeAppelTypes.length > 0 && (
-          <div>
-            <p className="text-xs text-slate-400">Avancement</p>
-            <p className="text-sm font-medium">
-              {nbDebloques}/{programmeAppelTypes.length} appel
-              {nbDebloques > 1 ? "s" : ""} demandé
-              {nbDebloques > 1 ? "s" : ""}
-            </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>Récapitulatif</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
+            <div>
+              <p className="text-xs text-slate-400">Programme</p>
+              <p className="text-sm font-medium">{programmeName}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">Acquéreur</p>
+              <p className="text-sm font-medium">{clientName ?? "—"}</p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">Prix FAI</p>
+              <p className="text-sm font-medium tabular-nums">
+                {priceTTC.toLocaleString("fr-FR", { maximumFractionDigits: 0 })}{" "}
+                €
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-slate-400">Date signature acte</p>
+              <p className="text-sm font-medium" suppressHydrationWarning>
+                {actSignedDate
+                  ? new Date(actSignedDate).toLocaleDateString("fr-FR")
+                  : "—"}
+              </p>
+            </div>
+            {programmeAppelTypes.length > 0 && (
+              <div>
+                <p className="text-xs text-slate-400">Avancement</p>
+                <p className="text-sm font-medium">
+                  {nbDebloques}/{programmeAppelTypes.length} appel
+                  {nbDebloques > 1 ? "s" : ""} demandé
+                  {nbDebloques > 1 ? "s" : ""}
+                </p>
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </CardContent>
+      </Card>
 
       {appels.length > 0 && (
-        <section>
-          <h2 className="mb-3 text-sm font-semibold text-slate-700">
-            Appels de fonds
-          </h2>
-          <div className="rounded-lg border border-slate-200">
-            <Table>
-              <THead className="tracking-normal text-slate-500 normal-case">
-                <Tr>
-                  <Th className="px-3 py-2 font-medium">Appel</Th>
-                  <Th className="px-3 py-2 text-right font-medium">%</Th>
-                  <Th className="px-3 py-2 text-right font-medium">
-                    Montant (€)
-                  </Th>
-                  <Th className="px-3 py-2 font-medium">Date envoi LR</Th>
-                  <Th className="px-3 py-2 font-medium">
-                    Date réception virement
-                  </Th>
-                  <Th className="px-3 py-2" />
-                </Tr>
-              </THead>
-              <TBody>
-                {programmeAppelTypes.map((type) => {
-                  const a = appelsById.get(type.id);
-                  if (!a) return null;
-                  const debloque = type.debloque;
-                  return (
-                    <Tr
-                      key={type.id}
-                      className={debloque ? undefined : "bg-slate-50/60"}
-                    >
-                      <Td className="px-3 py-2 text-slate-700">
-                        <span className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={debloque ? undefined : "text-slate-400"}
-                          >
-                            {type.label}
-                          </span>
-                          {!debloque && (
-                            <Badge variant="neutral" suppressHydrationWarning>
-                              À venir · {fmtMonth(type.datePrevue)}
-                            </Badge>
-                          )}
-                        </span>
-                      </Td>
-                      <Td className="px-3 py-2 text-right text-slate-500 tabular-nums">
-                        {type.pourcentage}%
-                      </Td>
-                      <Td className="px-3 py-2 text-right">
-                        <input
-                          type="number"
-                          min={0}
-                          step={0.01}
-                          value={a.montant}
-                          onChange={(e) =>
-                            setAppelMontant(type.id, e.target.value)
-                          }
-                          className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
-                        />
-                      </Td>
-                      <Td className="px-3 py-2">
-                        <input
-                          type="date"
-                          value={toDateInput(a.dateEnvoiLr)}
-                          onChange={(e) =>
-                            setAppelDate(type.id, "dateEnvoiLr", e.target.value)
-                          }
-                          className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
-                        />
-                      </Td>
-                      <Td className="px-3 py-2">
-                        <input
-                          type="date"
-                          value={toDateInput(a.dateReceptionVirement)}
-                          onChange={(e) =>
-                            setAppelDate(
-                              type.id,
-                              "dateReceptionVirement",
-                              e.target.value,
-                            )
-                          }
-                          className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
-                        />
-                      </Td>
-                      <Td className="px-3 py-2 text-right">
-                        {debloque && (
-                          <span
-                            title={
-                              courrierBloque ??
-                              "Générer le courrier d'appel de fonds"
-                            }
-                          >
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              disabled={Boolean(courrierBloque)}
-                              onClick={() => ouvrirCourrierPdf(type.numero)}
+        <Card>
+          <CardHeader>
+            <CardTitle>Appels de fonds</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {courrierBloque && (
+              <Alert variant="warning">
+                Courrier d&apos;appel de fonds indisponible : {courrierBloque}
+              </Alert>
+            )}
+            <div className="rounded-lg border border-slate-200">
+              <Table>
+                <THead className="tracking-normal text-slate-500 normal-case">
+                  <Tr>
+                    <Th className="px-3 py-2 font-medium">Appel</Th>
+                    <Th className="px-3 py-2 text-right font-medium">%</Th>
+                    <Th className="px-3 py-2 text-right font-medium">
+                      Montant (€)
+                    </Th>
+                    <Th className="px-3 py-2 font-medium">Date envoi LR</Th>
+                    <Th className="px-3 py-2 font-medium">
+                      Date réception virement
+                    </Th>
+                    <Th className="px-3 py-2" />
+                  </Tr>
+                </THead>
+                <TBody>
+                  {programmeAppelTypes.map((type) => {
+                    const a = appelsById.get(type.id);
+                    if (!a) return null;
+                    const debloque = type.debloque;
+                    return (
+                      <Tr
+                        key={type.id}
+                        className={debloque ? undefined : "bg-slate-50/60"}
+                      >
+                        <Td className="px-3 py-2 text-slate-700">
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span
+                              className={
+                                debloque ? undefined : "text-slate-400"
+                              }
                             >
-                              Courrier PDF
-                            </Button>
+                              {type.label}
+                            </span>
+                            {!debloque && (
+                              <Badge variant="neutral" suppressHydrationWarning>
+                                À venir · {fmtMonth(type.datePrevue)}
+                              </Badge>
+                            )}
                           </span>
-                        )}
-                      </Td>
-                    </Tr>
-                  );
-                })}
-              </TBody>
-            </Table>
-          </div>
-        </section>
+                        </Td>
+                        <Td className="px-3 py-2 text-right text-slate-500 tabular-nums">
+                          {type.pourcentage}%
+                        </Td>
+                        <Td className="px-3 py-2 text-right">
+                          <input
+                            type="number"
+                            min={0}
+                            step={0.01}
+                            value={a.montant}
+                            onChange={(e) =>
+                              setAppelMontant(type.id, e.target.value)
+                            }
+                            className="focus:border-equatis-turquoise-400 w-36 rounded border border-slate-200 px-2 py-1 text-right text-sm tabular-nums focus:outline-none"
+                          />
+                        </Td>
+                        <Td className="px-3 py-2">
+                          <input
+                            type="date"
+                            value={toDateInput(a.dateEnvoiLr)}
+                            onChange={(e) =>
+                              setAppelDate(
+                                type.id,
+                                "dateEnvoiLr",
+                                e.target.value,
+                              )
+                            }
+                            className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
+                          />
+                        </Td>
+                        <Td className="px-3 py-2">
+                          <input
+                            type="date"
+                            value={toDateInput(a.dateReceptionVirement)}
+                            onChange={(e) =>
+                              setAppelDate(
+                                type.id,
+                                "dateReceptionVirement",
+                                e.target.value,
+                              )
+                            }
+                            className="focus:border-equatis-turquoise-400 rounded border border-slate-200 px-2 py-1 text-sm focus:outline-none"
+                          />
+                        </Td>
+                        <Td className="px-3 py-2 text-right">
+                          {debloque && (
+                            <span
+                              title={
+                                courrierBloque ??
+                                "Générer le courrier d'appel de fonds"
+                              }
+                            >
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={Boolean(courrierBloque)}
+                                onClick={() => ouvrirCourrierPdf(type.numero)}
+                              >
+                                Courrier PDF
+                              </Button>
+                            </span>
+                          )}
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </TBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">
-          Données financières
-        </h2>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          {FINANCIAL_FIELDS.map(({ key, label }) => (
-            <div key={key}>
-              <label className="mb-1 block text-xs text-slate-500">
-                {label}
-              </label>
-              <input
-                type="number"
-                step={0.01}
-                value={fields[key]}
-                onChange={(e) => setField(key, e.target.value)}
-                className="focus:border-equatis-turquoise-400 w-full rounded border border-slate-200 px-2 py-1.5 text-sm tabular-nums focus:outline-none"
-              />
-            </div>
-          ))}
-        </div>
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Données financières</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {FINANCIAL_FIELDS.map(({ key, label }) => (
+              <div key={key}>
+                <label className="mb-1 block text-xs text-slate-500">
+                  {label}
+                </label>
+                <input
+                  type="number"
+                  step={0.01}
+                  value={fields[key]}
+                  onChange={(e) => setField(key, e.target.value)}
+                  className="focus:border-equatis-turquoise-400 w-full rounded border border-slate-200 px-2 py-1.5 text-sm tabular-nums focus:outline-none"
+                />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
-      <section>
-        <h2 className="mb-3 text-sm font-semibold text-slate-700">
-          Commentaire
-        </h2>
-        <textarea
-          rows={3}
-          value={fields.notes}
-          onChange={(e) => setField("notes", e.target.value)}
-          className="focus:border-equatis-turquoise-400 w-full rounded border border-slate-200 px-3 py-2 text-sm focus:outline-none"
-        />
-      </section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Commentaire</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <textarea
+            rows={3}
+            value={fields.notes}
+            onChange={(e) => setField("notes", e.target.value)}
+            className="focus:border-equatis-turquoise-400 w-full rounded border border-slate-200 px-3 py-2 text-sm focus:outline-none"
+          />
+        </CardContent>
+      </Card>
 
       {error && <Alert variant="danger">{error}</Alert>}
       {saved && <Alert variant="success">Modifications enregistrées.</Alert>}

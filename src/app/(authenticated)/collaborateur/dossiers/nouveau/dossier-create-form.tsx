@@ -142,8 +142,8 @@ export function DossierCreateForm({
         htmlFor="clientId"
         hint={
           pendingClients.length === 0
-            ? "Aucun client en attente d'association — créez le dossier sans client puis associez-le plus tard."
-            : "Sélectionner un client inscrit en attente d'association."
+            ? "Aucun client disponible — créez le dossier sans client puis associez-le plus tard."
+            : "Sélectionner un client disponible (inscrit ou créé par l'équipe), non rattaché à un dossier."
         }
         error={form.formState.errors.clientId?.message}
       >

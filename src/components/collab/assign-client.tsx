@@ -29,8 +29,9 @@ export function AssignClientForm({ dossierId, pendingClients }: Props) {
   if (pendingClients.length === 0) {
     return (
       <p className="text-sm text-slate-500">
-        Aucun client en attente d&apos;association. Le client doit
-        s&apos;inscrire et confirmer son email.
+        Aucun client disponible à associer. Le client doit avoir un compte
+        (inscription confirmée ou compte créé par l&apos;équipe) et ne pas déjà
+        être rattaché à un dossier.
       </p>
     );
   }

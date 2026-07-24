@@ -142,7 +142,10 @@ export default async function DossierDetailPage({ params }: PageProps) {
       prisma.user.findMany({
         where: {
           role: "CLIENT",
-          status: "PENDING_ASSOCIATION",
+          // Tout client déjà utilisable et non rattaché à un dossier : les clients
+          // inscrits + confirmés (PENDING_ASSOCIATION) mais aussi ceux créés/importés
+          // par l'équipe (ACTIVE). `clientDossier: null` garantit qu'ils sont libres.
+          status: { in: ["PENDING_ASSOCIATION", "ACTIVE"] },
           deletedAt: null,
           clientDossier: null,
         },
