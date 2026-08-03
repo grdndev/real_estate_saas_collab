@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp } from "lucide-react";
 import { Th, THead, Tr } from "@/components/ui/table";
 import {
   AppelsFondsModal,
@@ -13,6 +15,10 @@ export type { AppelHeader };
 interface Props {
   programmeId: string;
   appelHeaders: AppelHeader[];
+  /** Sens du tri naturel sur la référence de lot (T13). */
+  sortDirection: "asc" | "desc";
+  /** Programme sélectionné, à préserver dans le lien de tri. */
+  programmeParam: string | null;
 }
 
 function fmtMonth(iso: string): string {
@@ -29,7 +35,12 @@ function fmtPct(p: number): string {
   return p % 1 === 0 ? Math.floor(p).toString() : p.toFixed(1);
 }
 
-export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
+export function FondsTableHeader({
+  programmeId,
+  appelHeaders,
+  sortDirection,
+  programmeParam,
+}: Props) {
   const [modalState, setModalState] = useState<AppelsModalInitialState | null>(
     null,
   );
@@ -40,7 +51,26 @@ export function FondsTableHeader({ programmeId, appelHeaders }: Props) {
     <>
       <THead>
         <Tr>
-          <Th className="sticky left-0 z-10 bg-slate-50 px-4 py-3">Lot</Th>
+          {/* Tri naturel sur la référence de lot, inversable au clic (T13). */}
+          <Th className="sticky left-0 z-10 bg-slate-50 px-4 py-3">
+            <Link
+              href={`?${new URLSearchParams({
+                ...(programmeParam ? { programme: programmeParam } : {}),
+                tri: sortDirection === "asc" ? "desc" : "asc",
+              }).toString()}`}
+              aria-label={`Trier par référence de lot, ordre ${
+                sortDirection === "asc" ? "décroissant" : "croissant"
+              }`}
+              className="hover:text-equatis-turquoise-700 inline-flex items-center gap-1"
+            >
+              Lot
+              {sortDirection === "asc" ? (
+                <ArrowUp className="size-3.5" aria-hidden />
+              ) : (
+                <ArrowDown className="size-3.5" aria-hidden />
+              )}
+            </Link>
+          </Th>
           <Th className="px-4 py-3">Acquéreur</Th>
           <Th className="px-4 py-3 text-right">Prix FAI</Th>
           <Th className="px-4 py-3">Date signature</Th>

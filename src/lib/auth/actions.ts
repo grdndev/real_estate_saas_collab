@@ -161,15 +161,22 @@ export async function signupClientAction(
   }
 
   const passwordHash = await hashPassword(data.password);
-  const phoneEnc = encrypt(data.phone);
-  const addressEnc = encrypt(
-    JSON.stringify({
-      line: data.addressLine,
-      postalCode: data.postalCode,
-      city: data.city,
-      country: data.country,
-    }),
+  // Téléphone et adresse sont facultatifs (T11) : rien n'est chiffré ni stocké
+  // quand ils ne sont pas renseignés.
+  const phoneEnc = data.phone?.trim() ? encrypt(data.phone.trim()) : null;
+  const hasAddress = Boolean(
+    data.addressLine || data.postalCode || data.city || data.country,
   );
+  const addressEnc = hasAddress
+    ? encrypt(
+        JSON.stringify({
+          line: data.addressLine ?? "",
+          postalCode: data.postalCode ?? "",
+          city: data.city ?? "",
+          country: data.country ?? "",
+        }),
+      )
+    : null;
 
   const user = await prisma.user.create({
     data: {
@@ -259,7 +266,7 @@ export async function verifyEmailAction(
       role: { in: ["SUPER_ADMIN", "COLLABORATOR"] },
       status: "ACTIVE",
     },
-    select: { id: true },
+    select: { id: true, role: true },
   });
   await Promise.all(
     staff.map((u) =>
@@ -268,7 +275,9 @@ export async function verifyEmailAction(
         kind: "NEW_LEAD",
         title: "Nouveau prospect",
         body: `${user.firstName} ${user.lastName} est en attente d'association.`,
-        link: "/collaborateur",
+        // Le lien doit rester dans le préfixe autorisé du destinataire :
+        // un admin envoyé sur /collaborateur serait redirigé par proxy.ts.
+        link: homePathFor(u.role),
       }),
     ),
   );

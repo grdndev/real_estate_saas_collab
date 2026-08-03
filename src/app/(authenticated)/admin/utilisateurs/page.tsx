@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { UserRowActions } from "@/components/admin/user-row-actions";
 import { prisma } from "@/lib/prisma";
+import { USER_STATUS_BADGE } from "@/lib/user/labels";
 import { requireRole } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Utilisateurs · Admin" };
@@ -26,20 +27,6 @@ const ROLE_LABEL = {
   NOTARY: "Notaire",
   CLIENT: "Client",
 } as const;
-
-const STATUS_BADGE = {
-  ACTIVE: { label: "Actif", variant: "success" as const },
-  PENDING_EMAIL: { label: "Email à confirmer", variant: "warning" as const },
-  PENDING_ASSOCIATION: {
-    label: "Attente association",
-    variant: "info" as const,
-  },
-  SUSPENDED: { label: "Désactivé", variant: "danger" as const },
-  DELETION_REQUESTED: {
-    label: "Suppression demandée",
-    variant: "danger" as const,
-  },
-};
 
 export default async function AdminUsersPage() {
   const me = await requireRole("SUPER_ADMIN");
@@ -102,7 +89,7 @@ export default async function AdminUsersPage() {
             </THead>
             <TBody>
               {users.map((u) => {
-                const badge = STATUS_BADGE[u.status];
+                const badge = USER_STATUS_BADGE[u.status];
                 return (
                   <Tr key={u.id}>
                     <Td className="font-medium">

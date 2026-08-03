@@ -2,7 +2,7 @@
 CREATE TYPE "UserRole" AS ENUM ('SUPER_ADMIN', 'COLLABORATOR', 'PROMOTER', 'NOTARY', 'CLIENT');
 
 -- CreateEnum
-CREATE TYPE "UserStatus" AS ENUM ('PENDING_EMAIL', 'PENDING_ASSOCIATION', 'ACTIVE', 'SUSPENDED', 'DELETION_REQUESTED');
+CREATE TYPE "UserStatus" AS ENUM ('PENDING_EMAIL', 'PENDING_ASSOCIATION', 'ACTIVE', 'SUSPENDED', 'DELETION_REQUESTED', 'NO_ACCOUNT');
 
 -- CreateEnum
 CREATE TYPE "ProgrammeStatus" AS ENUM ('DRAFT', 'ACTIVE', 'ARCHIVED');
@@ -175,6 +175,7 @@ CREATE TABLE "Lot" (
     "building" TEXT,
     "annexSurface" DECIMAL(8,2),
     "garden" DECIMAL(8,2),
+    "suv" DECIMAL(8,2),
     "priceNetVendeur" DECIMAL(12,2),
     "priceNetVendeurWithParking" DECIMAL(12,2),
     "commissionAgence" DECIMAL(12,2),
@@ -215,6 +216,8 @@ CREATE TABLE "Dossier" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "lastActivityAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "closedAt" TIMESTAMP(3),
+    "archivedAt" TIMESTAMP(3),
+    "archivedLotId" TEXT,
     "notaryId" TEXT,
     "notaryTransmittedAt" TIMESTAMP(3),
     "observation" TEXT,
@@ -583,9 +586,6 @@ CREATE UNIQUE INDEX "Lot_programmeId_reference_key" ON "Lot"("programmeId", "ref
 CREATE UNIQUE INDEX "TresoreriePrev_programmeId_month_key" ON "TresoreriePrev"("programmeId", "month");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Dossier_clientId_key" ON "Dossier"("clientId");
-
--- CreateIndex
 CREATE INDEX "Dossier_status_idx" ON "Dossier"("status");
 
 -- CreateIndex
@@ -602,6 +602,15 @@ CREATE INDEX "Dossier_contractStatus_idx" ON "Dossier"("contractStatus");
 
 -- CreateIndex
 CREATE INDEX "Dossier_optioned_idx" ON "Dossier"("optioned");
+
+-- CreateIndex
+CREATE INDEX "Dossier_clientId_idx" ON "Dossier"("clientId");
+
+-- CreateIndex
+CREATE INDEX "Dossier_archivedAt_idx" ON "Dossier"("archivedAt");
+
+-- CreateIndex
+CREATE INDEX "Dossier_archivedLotId_clientId_idx" ON "Dossier"("archivedLotId", "clientId");
 
 -- CreateIndex
 CREATE INDEX "DossierParticipant_userId_role_idx" ON "DossierParticipant"("userId", "role");
@@ -752,6 +761,9 @@ ALTER TABLE "Dossier" ADD CONSTRAINT "Dossier_programmeId_fkey" FOREIGN KEY ("pr
 
 -- AddForeignKey
 ALTER TABLE "Dossier" ADD CONSTRAINT "Dossier_clientId_fkey" FOREIGN KEY ("clientId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Dossier" ADD CONSTRAINT "Dossier_archivedLotId_fkey" FOREIGN KEY ("archivedLotId") REFERENCES "Lot"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "DossierParticipant" ADD CONSTRAINT "DossierParticipant_dossierId_fkey" FOREIGN KEY ("dossierId") REFERENCES "Dossier"("id") ON DELETE CASCADE ON UPDATE CASCADE;

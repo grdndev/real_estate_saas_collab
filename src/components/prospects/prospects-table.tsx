@@ -67,11 +67,14 @@ export function ProspectsTable({
   programmes,
   canDelete,
   currentUserId,
+  dossierBasePath,
 }: {
   prospects: ProspectRow[];
   programmes: ProgrammeLotOption[];
   canDelete: boolean;
   currentUserId: string;
+  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
+  dossierBasePath: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -237,7 +240,7 @@ export function ProspectsTable({
                         <>
                           {p.convertedDossierId && (
                             <Link
-                              href={`/collaborateur/dossiers/${p.convertedDossierId}`}
+                              href={`${dossierBasePath}/${p.convertedDossierId}`}
                               className="text-equatis-turquoise-700 text-xs hover:underline"
                             >
                               Voir le dossier

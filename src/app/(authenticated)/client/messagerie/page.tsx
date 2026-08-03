@@ -14,8 +14,8 @@ const THREAD_PAGE_SIZE = 200;
 export default async function ClientMessageriePage() {
   const me = await requireRole(["CLIENT"]);
 
-  const dossier = await prisma.dossier.findUnique({
-    where: { clientId: me.id },
+  const dossier = await prisma.dossier.findFirst({
+    where: { clientId: me.id, archivedAt: null },
     include: {
       participants: {
         where: { role: "COLLABORATOR_PRIMARY" },

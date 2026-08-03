@@ -17,6 +17,10 @@ import { encrypt } from "@/lib/crypto";
 import { generateOpaqueToken } from "@/lib/auth/tokens";
 import { invitationMail } from "@/lib/mail/admin-templates";
 import { isStorageConfigured, putObject } from "@/lib/storage/s3";
+import {
+  buildPlaceholderEmail,
+  canBeContactedByEmail,
+} from "@/lib/user/no-account";
 import { randomBytes, randomUUID } from "node:crypto";
 import {
   assignClientSchema,
@@ -39,6 +43,10 @@ import {
   type UpdateDossierStatusInput,
 } from "@/lib/dossier/schemas";
 import { notifyDossierParticipants } from "@/lib/notifications";
+import {
+  planClientAssignment,
+  type DossierContentCounts,
+} from "@/lib/dossier/archive-rules";
 import { CONTRACT_STATUS_LABEL } from "@/lib/dossier/labels";
 import type { ContractStatus, TimelineKind } from "@/generated/prisma/enums";
 import type { ActionResult } from "@/lib/auth/actions";
@@ -50,6 +58,13 @@ const CONTRACT_STATUS_TIMELINE_KIND: Partial<
   RESERVATION_SIGNED: "RESERVATION_SIGNED",
   NOTARY_ACT_PENDING: "NOTARY_ACT_PENDING",
 };
+
+/**
+ * Un dossier archivé est un historique en lecture seule (T10) : aucune
+ * mutation métier ne doit plus l'affecter.
+ */
+const ARCHIVED_DOSSIER_ERROR =
+  "Ce dossier est archivé (historique d'un client dissocié) : il est en lecture seule.";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
@@ -107,9 +122,10 @@ export async function createDossierAction(
     if (!client || client.role !== "CLIENT" || client.deletedAt) {
       return { ok: false, error: "Client invalide." };
     }
-    // Un client ne peut avoir qu'un seul dossier (schéma : Dossier.clientId @unique).
-    const existing = await prisma.dossier.findUnique({
-      where: { clientId: data.clientId },
+    // Un client ne peut avoir qu'un seul dossier ACTIF (les dossiers archivés
+    // constituent son historique et n'empêchent pas une nouvelle association).
+    const existing = await prisma.dossier.findFirst({
+      where: { clientId: data.clientId, archivedAt: null },
     });
     if (existing) {
       return { ok: false, error: "Ce client est déjà associé à un dossier." };
@@ -181,6 +197,85 @@ export async function createDossierAction(
 }
 
 // =====================================================
+// CRÉER LE DOSSIER D'UN LOT (T5 — un lot doit toujours être ouvrable)
+// =====================================================
+
+/**
+ * Crée le dossier d'un lot qui n'en a pas encore, sans client associé.
+ *
+ * Permet à l'admin comme au collaborateur d'ouvrir la fiche d'un lot en
+ * permanence : un lot importé sans acquéreur n'est jamais un cul-de-sac.
+ */
+export async function createDossierForLotAction(
+  lotId: string,
+): Promise<ActionResult<{ dossierId: string }>> {
+  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
+  if (!lotId) return { ok: false, error: "Identifiant de lot manquant." };
+  const ctx = await getRequestContext();
+
+  const lot = await prisma.lot.findUnique({
+    where: { id: lotId },
+    select: { id: true, programmeId: true, reference: true, dossierId: true },
+  });
+  if (!lot) return { ok: false, error: "Lot introuvable." };
+  if (lot.dossierId) {
+    return { ok: true, value: { dossierId: lot.dossierId } };
+  }
+
+  const dossier = await prisma.$transaction(async (tx) => {
+    const created = await tx.dossier.create({
+      data: {
+        programmeId: lot.programmeId,
+        clientId: null,
+        status: "NEW_LEAD",
+      },
+    });
+    // Le collaborateur référent est l'utilisateur courant lorsqu'il en est un ;
+    // un SUPER_ADMIN n'est pas un participant COLLABORATOR_PRIMARY valide.
+    if (me.role === "COLLABORATOR") {
+      await tx.dossierParticipant.create({
+        data: {
+          dossierId: created.id,
+          userId: me.id,
+          role: "COLLABORATOR_PRIMARY",
+        },
+      });
+    }
+    await tx.lot.update({
+      where: { id: lot.id },
+      data: { dossierId: created.id },
+    });
+    await tx.timelineEvent.create({
+      data: {
+        dossierId: created.id,
+        kind: "LEAD_CREATED",
+        title: "Dossier créé",
+        description: `Dossier ouvert sur le lot ${lot.reference}, sans client associé.`,
+        actorId: me.id,
+      },
+    });
+    return created;
+  });
+
+  await audit({
+    userId: me.id,
+    action: "DOSSIER_CREATED",
+    resourceType: "Dossier",
+    resourceId: dossier.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: `Dossier créé depuis le lot ${lot.reference}, sans client associé`,
+  });
+
+  revalidatePath("/admin/programmes");
+  revalidatePath(`/admin/programmes/${lot.programmeId}`);
+  revalidatePath("/collaborateur/programmes");
+  revalidatePath(`/collaborateur/programmes/${lot.programmeId}`);
+  revalidatePath("/collaborateur/dossiers");
+  return { ok: true, value: { dossierId: dossier.id } };
+}
+
+// =====================================================
 // UPDATE STATUS
 // =====================================================
 
@@ -203,6 +298,7 @@ export async function updateDossierStatusAction(
   if (!dossier) {
     return { ok: false, error: "Dossier introuvable ou accès refusé." };
   }
+  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
   if (dossier.status === data.status) {
     return { ok: false, error: "Le dossier a déjà ce statut." };
   }
@@ -265,6 +361,12 @@ export async function assignClientAction(
 
   const dossier = await findDossierForUser(data.dossierId, me.id, me.role);
   if (!dossier) return { ok: false, error: "Dossier introuvable" };
+  if (dossier.archivedAt) {
+    return {
+      ok: false,
+      error: "Ce dossier est archivé : il ne peut plus recevoir de client.",
+    };
+  }
   if (dossier.clientId) {
     return { ok: false, error: "Ce dossier a déjà un client associé." };
   }
@@ -275,31 +377,110 @@ export async function assignClientAction(
   if (!client || client.role !== "CLIENT" || client.deletedAt) {
     return { ok: false, error: "Client invalide." };
   }
-  const alreadyAssociated = await prisma.dossier.findUnique({
-    where: { clientId: data.clientId },
+  const alreadyAssociated = await prisma.dossier.findFirst({
+    where: { clientId: data.clientId, archivedAt: null },
   });
   if (alreadyAssociated) {
     return { ok: false, error: "Ce client est déjà sur un autre dossier." };
   }
 
+  // Lot porté par le dossier support : c'est lui qui identifie l'historique.
+  const lots = await prisma.lot.findMany({
+    where: { dossierId: dossier.id },
+    select: { id: true },
+  });
+  const lotIds = lots.map((l) => l.id);
+
+  // Historique : ce client avait-il déjà un dossier archivé sur ce lot ?
+  const archived =
+    lotIds.length > 0
+      ? await prisma.dossier.findFirst({
+          where: {
+            clientId: data.clientId,
+            archivedAt: { not: null },
+            archivedLotId: { in: lotIds },
+          },
+          orderBy: { archivedAt: "desc" },
+          select: { id: true },
+        })
+      : null;
+
+  const counts = await countDossierContent(dossier.id);
+  const plan = planClientAssignment({
+    archivedDossierId: archived?.id ?? null,
+    currentCounts: counts,
+  });
+
+  // Un client sans compte (T7) ne devient jamais ACTIVE : il n'a pas d'accès.
+  const clientStatus = client.status === "NO_ACCOUNT" ? "NO_ACCOUNT" : "ACTIVE";
+
+  /** Dossier finalement actif à l'issue de l'association. */
+  let activeDossierId = dossier.id;
+
   try {
     await prisma.$transaction(async (tx) => {
-      await tx.dossier.update({
-        where: { id: dossier.id },
-        data: { clientId: data.clientId, lastActivityAt: new Date() },
-      });
+      if (plan.kind === "reactivate") {
+        activeDossierId = plan.archivedDossierId;
+        // Le dossier support laisse la place au dossier historique du client.
+        if (plan.currentDossierDisposal === "delete") {
+          await tx.lot.updateMany({
+            where: { dossierId: dossier.id },
+            data: { dossierId: null },
+          });
+          await tx.dossier.delete({ where: { id: dossier.id } });
+        } else {
+          await tx.dossier.update({
+            where: { id: dossier.id },
+            data: {
+              archivedAt: new Date(),
+              archivedLotId: lotIds[0] ?? null,
+            },
+          });
+          await tx.lot.updateMany({
+            where: { dossierId: dossier.id },
+            data: { dossierId: null },
+          });
+        }
+        // Réactivation : messages, documents et timeline reviennent avec lui.
+        await tx.dossier.update({
+          where: { id: plan.archivedDossierId },
+          data: {
+            archivedAt: null,
+            archivedLotId: null,
+            lastActivityAt: new Date(),
+          },
+        });
+        await tx.lot.updateMany({
+          where: { id: { in: lotIds } },
+          data: { dossierId: plan.archivedDossierId },
+        });
+        await tx.timelineEvent.create({
+          data: {
+            dossierId: plan.archivedDossierId,
+            kind: "STATUS_CHANGE",
+            title: "Dossier réactivé",
+            description: `${client.firstName} ${client.lastName} — historique restitué`,
+            actorId: me.id,
+          },
+        });
+      } else {
+        await tx.dossier.update({
+          where: { id: dossier.id },
+          data: { clientId: data.clientId, lastActivityAt: new Date() },
+        });
+        await tx.timelineEvent.create({
+          data: {
+            dossierId: dossier.id,
+            kind: "STATUS_CHANGE",
+            title: "Client associé",
+            description: `${client.firstName} ${client.lastName}`,
+            actorId: me.id,
+          },
+        });
+      }
       await tx.user.update({
         where: { id: data.clientId },
-        data: { status: "ACTIVE" },
-      });
-      await tx.timelineEvent.create({
-        data: {
-          dossierId: dossier.id,
-          kind: "STATUS_CHANGE",
-          title: "Client associé",
-          description: `${client.firstName} ${client.lastName}`,
-          actorId: me.id,
-        },
+        data: { status: clientStatus },
       });
     });
   } catch (e) {
@@ -316,29 +497,79 @@ export async function assignClientAction(
     userId: me.id,
     action: "DOSSIER_UPDATED",
     resourceType: "Dossier",
-    resourceId: dossier.id,
+    resourceId: activeDossierId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Client ${data.clientId} associé au dossier`,
+    metadata:
+      plan.kind === "reactivate"
+        ? `Client ${data.clientId} réassocié — dossier archivé réactivé avec son historique`
+        : `Client ${data.clientId} associé au dossier`,
   });
 
-  // Notifier le client de l'association (déclencheur CDC §8.5)
-  await notify({
-    userId: data.clientId,
-    kind: "DOSSIER_ASSOCIATED",
-    title: "Votre dossier est prêt",
-    body: `Votre dossier a été créé. Vous pouvez maintenant suivre son avancement.`,
-    link: "/client",
-  });
-  // Email auto (CDC §8.5)
-  void getMailer()
-    .send(dossierAssociatedMail(client.email, client.firstName))
-    .catch((err) => {
-      console.error("[mail] dossierAssociated", err);
+  // Un client sans compte n'est ni notifié ni relancé par email (T7).
+  if (client.status !== "NO_ACCOUNT") {
+    // Notifier le client de l'association (déclencheur CDC §8.5)
+    await notify({
+      userId: data.clientId,
+      kind: "DOSSIER_ASSOCIATED",
+      title: "Votre dossier est prêt",
+      body: `Votre dossier a été créé. Vous pouvez maintenant suivre son avancement.`,
+      link: "/client",
     });
+    // Email auto (CDC §8.5)
+    void getMailer()
+      .send(dossierAssociatedMail(client.email, client.firstName))
+      .catch((err) => {
+        console.error("[mail] dossierAssociated", err);
+      });
+  }
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateDossierPaths(dossier.id, dossier.programmeId);
+  revalidateDossierPaths(activeDossierId, dossier.programmeId);
   return { ok: true, value: undefined };
+}
+
+/** Compte le contenu métier d'un dossier — base de la règle « dossier vide ». */
+async function countDossierContent(
+  dossierId: string,
+): Promise<DossierContentCounts> {
+  const dossier = await prisma.dossier.findUnique({
+    where: { id: dossierId },
+    select: {
+      _count: {
+        select: {
+          messages: true,
+          documents: true,
+          timelineEvents: true,
+          invoices: true,
+          signatures: true,
+          appointments: true,
+          notes: true,
+        },
+      },
+    },
+  });
+  return {
+    messages: dossier?._count.messages ?? 0,
+    documents: dossier?._count.documents ?? 0,
+    timelineEvents: dossier?._count.timelineEvents ?? 0,
+    invoices: dossier?._count.invoices ?? 0,
+    signatures: dossier?._count.signatures ?? 0,
+    appointments: dossier?._count.appointments ?? 0,
+    notes: dossier?._count.notes ?? 0,
+  };
+}
+
+/** Revalide les deux espaces qui exposent les dossiers (collaborateur, admin). */
+function revalidateDossierPaths(dossierId: string, programmeId?: string): void {
+  revalidatePath("/collaborateur/dossiers");
+  revalidatePath("/admin/dossiers");
+  revalidatePath(`/collaborateur/dossiers/${dossierId}`);
+  revalidatePath(`/admin/dossiers/${dossierId}`);
+  if (programmeId) {
+    revalidatePath(`/admin/programmes/${programmeId}`);
+    revalidatePath(`/collaborateur/programmes/${programmeId}`);
+  }
 }
 
 // =====================================================
@@ -361,6 +592,7 @@ export async function unassignClientAction(
     me.role,
   );
   if (!dossier) return { ok: false, error: "Dossier introuvable" };
+  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
   if (!dossier.clientId) {
     return { ok: false, error: "Ce dossier n'a pas de client associé." };
   }
@@ -368,34 +600,51 @@ export async function unassignClientAction(
   const clientId = dossier.clientId;
   const client = await prisma.user.findUnique({
     where: { id: clientId },
-    select: { firstName: true, lastName: true },
+    select: { firstName: true, lastName: true, status: true },
   });
   const clientName = client
     ? `${client.firstName} ${client.lastName}`
     : "Client inconnu";
 
+  const lots = await prisma.lot.findMany({
+    where: { dossierId: dossier.id },
+    select: { id: true },
+  });
+
+  // Le dossier n'est PAS vidé de son client : il est archivé tel quel, avec ses
+  // messages, documents, timeline, notes et factures. Le client suivant repart
+  // d'un dossier neuf, et une réassociation de ce client-ci le restituera (T10).
   await prisma.$transaction(async (tx) => {
+    await tx.timelineEvent.create({
+      data: {
+        dossierId: dossier.id,
+        kind: "STATUS_CHANGE",
+        title: "Client dissocié — dossier archivé",
+        description: clientName,
+        actorId: me.id,
+      },
+    });
     await tx.dossier.update({
       where: { id: dossier.id },
-      data: { clientId: null, lastActivityAt: new Date() },
+      data: {
+        archivedAt: new Date(),
+        archivedLotId: lots[0]?.id ?? null,
+        lastActivityAt: new Date(),
+      },
     });
-    // Le compte redevient associable via le formulaire d'association
-    // (qui ne liste que les clients PENDING_ASSOCIATION sans dossier).
-    if (client) {
+    // Le lot redevient libre : il pourra recevoir un nouveau dossier.
+    await tx.lot.updateMany({
+      where: { dossierId: dossier.id },
+      data: { dossierId: null },
+    });
+    // Le compte redevient associable, sauf s'il s'agit d'un client sans
+    // compte (T7) dont le statut NO_ACCOUNT doit être préservé.
+    if (client && client.status !== "NO_ACCOUNT") {
       await tx.user.update({
         where: { id: clientId },
         data: { status: "PENDING_ASSOCIATION" },
       });
     }
-    await tx.timelineEvent.create({
-      data: {
-        dossierId: dossier.id,
-        kind: "STATUS_CHANGE",
-        title: "Client dissocié",
-        description: clientName,
-        actorId: me.id,
-      },
-    });
   });
 
   await audit({
@@ -405,21 +654,16 @@ export async function unassignClientAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Client ${clientId} (${clientName}) dissocié du dossier`,
+    metadata: `Client ${clientId} (${clientName}) dissocié — dossier archivé, historique conservé`,
   });
 
-  const lots = await prisma.lot.findMany({
-    where: { dossierId: dossier.id },
-    select: { id: true },
-  });
-  revalidatePath("/collaborateur/dossiers");
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateDossierPaths(dossier.id, dossier.programmeId);
   revalidatePath("/collaborateur/fonds");
+  revalidatePath("/admin/fonds");
   for (const lot of lots) {
     revalidatePath(`/collaborateur/fonds/${lot.id}`);
+    revalidatePath(`/admin/fonds/${lot.id}`);
   }
-  revalidatePath("/admin/fonds");
-  revalidatePath(`/admin/programmes/${dossier.programmeId}`);
   return { ok: true, value: undefined };
 }
 
@@ -487,15 +731,28 @@ export async function createClientAndDossierAction(
   const data = parsed.data;
   const ctx = await getRequestContext();
 
-  const existing = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
-  if (existing) {
+  // Un client sans compte peut ne pas avoir d'email : on lui attribue alors une
+  // adresse technique, jamais affichée ni utilisée pour un envoi (T7).
+  const providedEmail = data.email?.trim() ? data.email.trim() : null;
+  if (!providedEmail && !data.noAccount) {
     return {
       ok: false,
-      error:
-        "Un compte existe déjà avec cet email. Utilisez plutôt « Associer un client existant ».",
+      error: "Un email est requis pour un client disposant d'un accès.",
     };
+  }
+  const email = providedEmail ?? buildPlaceholderEmail();
+
+  if (providedEmail) {
+    const existing = await prisma.user.findUnique({
+      where: { email: providedEmail },
+    });
+    if (existing) {
+      return {
+        ok: false,
+        error:
+          "Un compte existe déjà avec cet email. Utilisez plutôt « Associer un client existant ».",
+      };
+    }
   }
 
   const programme = await prisma.programme.findUnique({
@@ -558,13 +815,14 @@ export async function createClientAndDossierAction(
 
   const { dossier, user, token } = await prisma.$transaction(async (tx) => {
     const core = await createClientDossierCore(tx, {
-      email: data.email,
+      email,
       firstName: data.firstName,
       lastName: data.lastName,
       phone: data.phone || null,
       programmeId: data.programmeId,
       lotId: data.lotId ?? null,
       passwordHash: placeholderHash,
+      noAccount: data.noAccount,
       collaboratorId: me.id,
       actorId: me.id,
       timelineTitle: `Dossier créé par ${me.name ?? "le collaborateur"}`,
@@ -604,13 +862,15 @@ export async function createClientAndDossierAction(
     return core;
   });
 
-  // Envoi de l'email d'invitation au client (réutilise le template d'invitation)
-  try {
-    await getMailer().send(
-      invitationMail(user.email, user.firstName, "CLIENT", token),
-    );
-  } catch (err) {
-    console.error("[mail] createClient invitation", err);
+  // Un client sans compte n'est jamais invité : pas de jeton, pas d'email (T7).
+  if (token) {
+    try {
+      await getMailer().send(
+        invitationMail(user.email, user.firstName, "CLIENT", token),
+      );
+    } catch (err) {
+      console.error("[mail] createClient invitation", err);
+    }
   }
 
   await audit({
@@ -620,7 +880,9 @@ export async function createClientAndDossierAction(
     resourceId: user.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Compte client créé par un collaborateur (dossier ${dossier.id})`,
+    metadata: data.noAccount
+      ? `Client associé sans compte créé par un collaborateur (dossier ${dossier.id})`
+      : `Compte client créé par un collaborateur (dossier ${dossier.id})`,
   });
   await audit({
     userId: me.id,
@@ -844,6 +1106,7 @@ export async function relaunchClientAction(
     me.role,
   );
   if (!dossier) return { ok: false, error: "Dossier introuvable." };
+  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
   if (!dossier.clientId) {
     return { ok: false, error: "Aucun client associé à ce dossier." };
   }
@@ -873,6 +1136,14 @@ export async function relaunchClientAction(
     where: { id: dossier.clientId },
   });
   if (!client) return { ok: false, error: "Client introuvable." };
+  // Un client sans compte n'est jamais relancé par email (T7).
+  if (!canBeContactedByEmail(client)) {
+    return {
+      ok: false,
+      error:
+        "Ce client est un client associé sans compte : il ne reçoit ni email ni notification.",
+    };
+  }
 
   // Email
   const baseUrl = (
@@ -959,6 +1230,7 @@ export async function setDossierOptionAction(
   if (!dossier) {
     return { ok: false, error: "Dossier introuvable ou accès refusé." };
   }
+  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
 
   const expiresAt = data.optioned
     ? new Date(Date.now() + data.optionDelayMonths * 30 * 24 * 3600_000)
@@ -1090,6 +1362,7 @@ export async function updateContractStatusAction(
   if (!dossier) {
     return { ok: false, error: "Dossier introuvable ou accès refusé." };
   }
+  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
   if (dossier.contractStatus === data.contractStatus) {
     return { ok: false, error: "Le dossier a déjà ce statut contractuel." };
   }

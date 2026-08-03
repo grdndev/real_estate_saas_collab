@@ -1,138 +1,39 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { CreateLotForm } from "@/components/admin/lot-form";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
 import { requireRole } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
+import { loadProgrammeLots } from "@/lib/programme/access";
+import { parseSortDirection } from "@/lib/lot/sort";
+import { ProgrammeLotsView } from "@/components/views/programme/programme-lots-view";
 
 export const metadata: Metadata = { title: "Grille des lots" };
 
-const eur = new Intl.NumberFormat("fr-FR", {
-  style: "currency",
-  currency: "EUR",
-  maximumFractionDigits: 0,
-});
-
-const STATUS_BADGE = {
-  AVAILABLE: { label: "Disponible", variant: "success" as const },
-  OPTIONED: { label: "Optionné", variant: "warning" as const },
-  RESERVED: { label: "Réservé", variant: "warning" as const },
-  SOLD: { label: "Vendu", variant: "info" as const },
-  WITHDRAWN: { label: "Retiré", variant: "neutral" as const },
-};
-
 interface PageProps {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tri?: string }>;
 }
 
-export default async function ProgrammeLotsPage({ params }: PageProps) {
+export default async function ProgrammeLotsPage({
+  params,
+  searchParams,
+}: PageProps) {
   const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
   const { id } = await params;
+  const sortDirection = parseSortDirection((await searchParams).tri);
 
   const programme = await findProgrammeForRole(id, me.id, me.role);
   if (!programme) notFound();
 
-  const lots = await prisma.lot.findMany({
-    where: { programmeId: id },
-    orderBy: [{ floor: "asc" }, { reference: "asc" }],
-  });
+  const lots = await loadProgrammeLots(id);
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
-            Grille des lots
-          </h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {programme.name} — {lots.length} lot{lots.length > 1 ? "s" : ""}.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href={`/promoteur/${id}/lots/export-pdf`}
-            className="text-equatis-turquoise-700 inline-flex h-9 items-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
-            download
-          >
-            Exporter (PDF)
-          </a>
-          <a
-            href={`/promoteur/${id}/lots/export`}
-            className="text-equatis-turquoise-700 inline-flex h-9 items-center rounded-md border border-slate-300 px-4 text-sm font-medium hover:bg-slate-50"
-            download
-          >
-            Exporter (CSV)
-          </a>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ajouter un lot</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <CreateLotForm programmeId={id} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        {lots.length === 0 ? (
-          <EmptyState
-            title="Aucun lot"
-            description="Aucun lot n'est encore défini pour ce programme."
-          />
-        ) : (
-          <Table>
-            <THead>
-              <Tr>
-                <Th>Lot</Th>
-                <Th>Surface</Th>
-                <Th>Étage</Th>
-                <Th>Type</Th>
-                <Th className="text-right">Prix HT</Th>
-                <Th className="text-right">TVA</Th>
-                <Th className="text-right">Prix TTC</Th>
-                <Th>Statut</Th>
-              </Tr>
-            </THead>
-            <TBody>
-              {lots.map((lot) => {
-                const sb = STATUS_BADGE[lot.status];
-                return (
-                  <Tr key={lot.id}>
-                    <Td className="font-mono">{lot.reference}</Td>
-                    <Td>{lot.surface.toString()} m²</Td>
-                    <Td>{lot.floor ?? "—"}</Td>
-                    <Td>{lot.type}</Td>
-                    <Td className="text-right">
-                      {eur.format(Number(lot.priceHT))}
-                    </Td>
-                    <Td className="text-right">{lot.vatRate.toString()} %</Td>
-                    <Td className="text-right font-medium">
-                      {eur.format(Number(lot.priceTTC))}
-                    </Td>
-                    <Td>
-                      <Badge variant={sb.variant}>{sb.label}</Badge>
-                    </Td>
-                  </Tr>
-                );
-              })}
-            </TBody>
-          </Table>
-        )}
-      </Card>
-    </div>
+    <ProgrammeLotsView
+      programme={programme}
+      lots={lots}
+      basePath="/promoteur"
+      canCreateLot
+      sortDirection={sortDirection}
+    />
   );
 }

@@ -38,6 +38,10 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
   const dossiers = await prisma.dossier.findMany({
     where: {
       closedAt: null,
+      // Un dossier archivé (client dissocié, T10) ne déclenche aucune relance.
+      archivedAt: null,
+      // Un client sans compte ne reçoit aucun email automatique (T7).
+      client: { is: { status: { not: "NO_ACCOUNT" } } },
       lastActivityAt: { lt: threshold },
     },
     select: {

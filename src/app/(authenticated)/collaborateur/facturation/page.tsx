@@ -12,9 +12,10 @@ export const metadata: Metadata = { title: "Facturation" };
 export default async function FacturationPage() {
   await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
-  // Tout dossier rattaché à un client est facturable.
+  // Tout dossier actif rattaché à un client est facturable ; les dossiers
+  // archivés (client dissocié, T10) sont exclus.
   const dossiers = await prisma.dossier.findMany({
-    where: { clientId: { not: null } },
+    where: { clientId: { not: null }, archivedAt: null },
     orderBy: { updatedAt: "desc" },
     include: {
       client: { select: { firstName: true, lastName: true } },

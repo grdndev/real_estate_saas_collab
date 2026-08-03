@@ -1,9 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
 import { findProgrammeForRole } from "@/lib/promoter/access";
-import { csvResponse, rowsToCsv } from "@/lib/csv";
-import { slugify } from "@/lib/utils";
+import { treasuryCsvExport } from "@/lib/programme/exports";
 
 interface RouteContext {
   params: Promise<{ id: string }>;
@@ -15,23 +13,5 @@ export async function GET(_request: Request, ctx: RouteContext) {
   const programme = await findProgrammeForRole(id, me.id, me.role);
   if (!programme) notFound();
 
-  const entries = await prisma.tresoreriePrev.findMany({
-    where: { programmeId: id },
-    orderBy: { month: "asc" },
-  });
-
-  const csv = rowsToCsv(
-    ["Mois", "Entrées (€)", "Dépenses (€)", "Solde (€)"],
-    entries.map((e) => [
-      `${e.month.getUTCFullYear()}-${String(e.month.getUTCMonth() + 1).padStart(2, "0")}`,
-      e.income.toString(),
-      e.expense.toString(),
-      (Number(e.income) - Number(e.expense)).toFixed(2),
-    ]),
-  );
-
-  return csvResponse(
-    `equatis_tresorerie_${slugify(programme.name)}_${new Date().toISOString().slice(0, 10)}.csv`,
-    csv,
-  );
+  return treasuryCsvExport(id, programme.name);
 }

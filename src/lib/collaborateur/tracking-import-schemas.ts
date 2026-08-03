@@ -37,12 +37,17 @@ export const importTrackingLotsSchema = z.object({
       reference: z.string(),
       floor: z.number().nullable(),
       type: z.string(),
-      surface: z.number().positive(),
-      priceHT: z.number().positive(),
-      priceTTC: z.number().positive(),
+      // Valeurs neutres autorisées (T8) : une ligne du fichier de suivi dont la
+      // surface ou le prix FAI est absent doit pouvoir être importée quand même,
+      // à 0, puis complétée dans la fiche du lot. Aucune ligne référencée n'est
+      // perdue à l'import.
+      surface: z.number().min(0),
+      priceHT: z.number().min(0),
+      priceTTC: z.number().min(0),
       vatRate: z.number().default(8.5),
       notes: z.string().nullable(),
       annexSurface: z.number().nullable(),
+      suv: z.number().nullable(),
       garden: z.number().nullable(),
       priceNetVendeur: z.number().nullable(),
       priceNetVendeurWithParking: z.number().nullable(),

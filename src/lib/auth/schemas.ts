@@ -6,10 +6,18 @@ const passwordRule = z
   .regex(/[A-Z]/, "Au moins 1 majuscule")
   .regex(/\d/, "Au moins 1 chiffre");
 
-const phoneRule = z
+// Téléphone facultatif (T11) : seule la forme est contrôlée quand il est saisi.
+const optionalPhoneRule = z
   .string()
-  .min(8, "Numéro trop court")
-  .regex(/^[0-9 +().-]+$/, "Format de numéro invalide");
+  .trim()
+  .max(30, "Numéro trop long")
+  .regex(/^[0-9 +().-]*$/, "Format de numéro invalide")
+  .optional()
+  .or(z.literal(""));
+
+/** Champ texte facultatif, borné en longueur. */
+const optionalText = (max: number) =>
+  z.string().trim().max(max).optional().or(z.literal(""));
 
 export const loginSchema = z.object({
   email: z.email("Email invalide").toLowerCase(),
@@ -21,25 +29,16 @@ export type LoginInput = z.infer<typeof loginSchema>;
 
 export const signupSchema = z
   .object({
-    firstName: z
-      .string()
-      .min(2, "Prénom trop court")
-      .max(60, "Prénom trop long")
-      .trim(),
-    lastName: z
-      .string()
-      .min(2, "Nom trop court")
-      .max(60, "Nom trop long")
-      .trim(),
+    // Seuls prénom, nom et email sont obligatoires : l'email l'est ici car
+    // c'est l'identifiant de connexion du compte créé (T11).
+    firstName: z.string().trim().min(1, "Prénom requis").max(60),
+    lastName: z.string().trim().min(1, "Nom requis").max(60),
     email: z.email("Email invalide").toLowerCase(),
-    phone: phoneRule,
-    addressLine: z.string().min(3, "Adresse trop courte").max(200),
-    postalCode: z
-      .string()
-      .min(4, "Code postal invalide")
-      .max(10, "Code postal invalide"),
-    city: z.string().min(1, "Ville requise").max(80),
-    country: z.string().min(2, "Pays requis").max(60),
+    phone: optionalPhoneRule,
+    addressLine: optionalText(200),
+    postalCode: optionalText(10),
+    city: optionalText(80),
+    country: optionalText(60),
     password: passwordRule,
     passwordConfirmation: z.string(),
     acceptTerms: z.literal(true, {

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
+import { canBeContactedByEmail } from "@/lib/user/no-account";
 import { requireUser, requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
@@ -330,7 +331,7 @@ function messageRecipients(
 
 const dossierMessageActorsSelect = {
   clientId: true,
-  client: { select: { email: true, firstName: true } },
+  client: { select: { email: true, firstName: true, status: true } },
   participants: {
     select: {
       userId: true,
@@ -463,6 +464,14 @@ export async function sendMessageByEmailAction(
     return {
       ok: false,
       error: "Le dossier n'a pas de client avec e-mail — envoi impossible.",
+    };
+  }
+  // Un client associé sans compte n'a ni messagerie ni email (T7).
+  if (!canBeContactedByEmail(actors.client)) {
+    return {
+      ok: false,
+      error:
+        "Ce client est un client associé sans compte : la messagerie ne lui est pas accessible.",
     };
   }
 

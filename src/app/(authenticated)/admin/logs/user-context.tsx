@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { getUserContext } from "@/lib/admin/activity";
+import { USER_STATUS_BADGE } from "@/lib/user/labels";
 
 type UserContext = NonNullable<Awaited<ReturnType<typeof getUserContext>>>;
 
@@ -10,20 +11,6 @@ const ROLE_LABEL: Record<string, string> = {
   PROMOTER: "Promoteur",
   NOTARY: "Notaire",
   CLIENT: "Client",
-};
-
-const STATUS_BADGE = {
-  ACTIVE: { label: "Actif", variant: "success" as const },
-  PENDING_EMAIL: { label: "Email à confirmer", variant: "warning" as const },
-  PENDING_ASSOCIATION: {
-    label: "Attente association",
-    variant: "info" as const,
-  },
-  SUSPENDED: { label: "Désactivé", variant: "danger" as const },
-  DELETION_REQUESTED: {
-    label: "Suppression demandée",
-    variant: "danger" as const,
-  },
 };
 
 function Fact({
@@ -44,7 +31,7 @@ function Fact({
 }
 
 export function UserContextPanel({ user }: { user: UserContext }) {
-  const statusBadge = STATUS_BADGE[user.status];
+  const statusBadge = USER_STATUS_BADGE[user.status];
 
   return (
     <Card>

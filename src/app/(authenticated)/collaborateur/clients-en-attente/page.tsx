@@ -34,7 +34,7 @@ export default async function ClientsEnAttentePage() {
 
   const [dossiers, optionedProspects, prospects] = await Promise.all([
     prisma.dossier.findMany({
-      where: { optioned: true },
+      where: { optioned: true, archivedAt: null },
       orderBy: { optionExpiresAt: "asc" },
       include: {
         client: { select: { firstName: true, lastName: true } },

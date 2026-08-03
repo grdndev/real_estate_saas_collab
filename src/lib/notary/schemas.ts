@@ -12,6 +12,17 @@ export const transmitToNotarySchema = z.object({
 });
 export type TransmitToNotaryInput = z.input<typeof transmitToNotarySchema>;
 
+/**
+ * Rattachement simple d'un notaire à un dossier (T4) — sans transmission de
+ * documents ni changement de statut commercial. `notaryId` à `null` détache le
+ * notaire actuellement rattaché.
+ */
+export const attachNotarySchema = z.object({
+  dossierId: z.string().min(1),
+  notaryId: z.string().min(1).nullable(),
+});
+export type AttachNotaryInput = z.infer<typeof attachNotarySchema>;
+
 export const flagMissingPieceSchema = z.object({
   dossierId: z.string().min(1),
   label: z.string().min(2).max(120),

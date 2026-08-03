@@ -40,6 +40,7 @@ export function ClientCreateForm({
       firstName: "",
       lastName: "",
       email: "",
+      noAccount: false,
       phone: "",
       programmeId: "",
       lotId: null,
@@ -64,6 +65,7 @@ export function ClientCreateForm({
   // eslint-disable-next-line react-hooks/incompatible-library -- safe pattern for derived form state
   const programmeId = form.watch("programmeId");
   const programme = programmes.find((p) => p.id === programmeId);
+  const noAccount = form.watch("noAccount");
 
   function fileToBase64(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
@@ -125,10 +127,28 @@ export function ClientCreateForm({
       )}
 
       <Alert variant="info">
-        Un compte client sera créé. Un email d&apos;invitation Brevo sera envoyé
-        à l&apos;adresse renseignée avec un lien pour définir le mot de passe
-        (valable 7 jours).
+        {noAccount
+          ? "Un « client associé » sera créé : une simple fiche de contact, sans accès à la plateforme. Aucun email ne lui sera envoyé."
+          : "Un compte client sera créé. Un email d'invitation sera envoyé à l'adresse renseignée avec un lien pour définir le mot de passe (valable 7 jours)."}
       </Alert>
+
+      <label className="flex items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4"
+          {...form.register("noAccount")}
+        />
+        <span>
+          <span className="text-equatis-night-800 font-medium">
+            Client associé — sans compte
+          </span>
+          <span className="mt-0.5 block text-xs text-slate-500">
+            Le client n&apos;utilisera pas la plateforme : pas de connexion, pas
+            d&apos;invitation, pas d&apos;email de relance. L&apos;email devient
+            facultatif. Convertible plus tard en client avec accès.
+          </span>
+        </span>
+      </label>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <FormField
@@ -152,8 +172,12 @@ export function ClientCreateForm({
       <FormField
         label="Email"
         htmlFor="email"
-        required
-        hint="Le client recevra ses identifiants à cette adresse."
+        required={!noAccount}
+        hint={
+          noAccount
+            ? "Optionnel — simple coordonnée de contact, aucun envoi automatique."
+            : "Le client recevra ses identifiants à cette adresse."
+        }
         error={form.formState.errors.email?.message}
       >
         <Input type="email" {...form.register("email")} />

@@ -33,6 +33,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           where: { email },
         });
         if (!user || user.deletedAt) return null;
+        // Seul un compte ACTIVE peut se connecter. Cela exclut notamment les
+        // « clients associés » (statut NO_ACCOUNT, T7), qui n'ont pas d'accès.
         if (user.status !== "ACTIVE") return null;
         if (user.lockedUntil && user.lockedUntil > new Date()) return null;
 

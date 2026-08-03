@@ -233,7 +233,7 @@ export async function revokeUserSessionsAction(
 export async function createProgrammeAction(
   input: CreateProgrammeInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const me = await requireRole("SUPER_ADMIN");
+  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
   const parsed = createProgrammeSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -267,7 +267,7 @@ export async function createProgrammeAction(
       userAgent: ctx.userAgent,
       metadata: `Programme ${programme.name} créé`,
     });
-    revalidatePath("/admin/programmes");
+    revalidateProgrammePaths();
     return { ok: true, value: { id: programme.id } };
   } catch (e) {
     if (
@@ -286,7 +286,7 @@ export async function createProgrammeAction(
 export async function updateProgrammeAction(
   input: UpdateProgrammeInput,
 ): Promise<ActionResult> {
-  const me = await requireRole("SUPER_ADMIN");
+  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
   const parsed = updateProgrammeSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -330,8 +330,7 @@ export async function updateProgrammeAction(
     userAgent: ctx.userAgent,
     metadata: "Informations du programme mises à jour",
   });
-  revalidatePath("/admin/programmes");
-  revalidatePath(`/admin/programmes/${parsed.data.id}`);
+  revalidateProgrammePaths(parsed.data.id);
   return { ok: true, value: undefined };
 }
 
@@ -355,7 +354,7 @@ export async function archiveProgrammeAction(
     userAgent: ctx.userAgent,
     metadata: "Programme archivé",
   });
-  revalidatePath("/admin/programmes");
+  revalidateProgrammePaths(programmeId);
   return { ok: true, value: undefined };
 }
 
@@ -459,12 +458,36 @@ function computeTtc(priceHT: number, vatRate: number): Prisma.Decimal {
     .toDecimalPlaces(2);
 }
 
+/**
+ * Rôles autorisés à gérer les programmes et leurs lots.
+ * Le collaborateur dispose des mêmes droits que l'admin sur ce périmètre (T12) ;
+ * les sections utilisateurs, paramètres et logs restent réservées au SUPER_ADMIN.
+ */
+const PROGRAMME_MANAGER_ROLES = [
+  "SUPER_ADMIN",
+  "COLLABORATOR",
+  "PROMOTER",
+] as const;
+
+/** Chemins à revalider après une écriture sur un programme ou ses lots. */
+function revalidateProgrammePaths(programmeId?: string): void {
+  revalidatePath("/admin/programmes");
+  revalidatePath("/collaborateur/programmes");
+  if (programmeId) {
+    revalidatePath(`/admin/programmes/${programmeId}`);
+    revalidatePath(`/collaborateur/programmes/${programmeId}`);
+    revalidatePath(`/admin/suivi/${programmeId}/lots`);
+    revalidatePath(`/promoteur/${programmeId}/lots`);
+  }
+}
+
 async function ensureProgrammeAccess(
   programmeId: string,
   userId: string,
-  role: "SUPER_ADMIN" | "PROMOTER",
+  role: "SUPER_ADMIN" | "COLLABORATOR" | "PROMOTER",
 ): Promise<boolean> {
-  if (role === "SUPER_ADMIN") return true;
+  // L'équipe interne accède à tous les programmes (plateforme collaborative).
+  if (role === "SUPER_ADMIN" || role === "COLLABORATOR") return true;
 
   const programme = await prisma.programme.findUnique({
     where: { id: programmeId },
@@ -480,7 +503,7 @@ async function ensureProgrammeAccess(
 export async function createLotAction(
   input: LotInput,
 ): Promise<ActionResult<{ id: string }>> {
-  const me = await requireRole(["SUPER_ADMIN", "PROMOTER"]);
+  const me = await requireRole([...PROGRAMME_MANAGER_ROLES]);
   const parsed = lotSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -495,7 +518,7 @@ export async function createLotAction(
   const hasAccess = await ensureProgrammeAccess(
     data.programmeId,
     me.id,
-    me.role as "SUPER_ADMIN" | "PROMOTER",
+    me.role as "SUPER_ADMIN" | "COLLABORATOR" | "PROMOTER",
   );
   if (!hasAccess) {
     return { ok: false, error: "Accès refusé à ce programme." };
@@ -507,6 +530,11 @@ export async function createLotAction(
         programmeId: data.programmeId,
         reference: data.reference.toUpperCase(),
         surface: new Prisma.Decimal(data.surface),
+        annexSurface:
+          data.annexSurface != null
+            ? new Prisma.Decimal(data.annexSurface)
+            : null,
+        suv: data.suv != null ? new Prisma.Decimal(data.suv) : null,
         floor: data.floor ?? null,
         type: data.type,
         priceHT: new Prisma.Decimal(data.priceHT),
@@ -528,7 +556,7 @@ export async function createLotAction(
       userAgent: ctx.userAgent,
       metadata: `Lot créé avec le statut ${data.status} (programme ${data.programmeId})`,
     });
-    revalidatePath(`/admin/programmes/${data.programmeId}`);
+    revalidateProgrammePaths(data.programmeId);
     return { ok: true, value: { id: lot.id } };
   } catch (e) {
     if (
@@ -547,7 +575,7 @@ export async function createLotAction(
 export async function updateLotAction(
   input: UpdateLotInput,
 ): Promise<ActionResult> {
-  const me = await requireRole(["SUPER_ADMIN", "PROMOTER"]);
+  const me = await requireRole([...PROGRAMME_MANAGER_ROLES]);
   const parsed = updateLotSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -562,7 +590,7 @@ export async function updateLotAction(
   const hasAccess = await ensureProgrammeAccess(
     data.programmeId,
     me.id,
-    me.role as "SUPER_ADMIN" | "PROMOTER",
+    me.role as "SUPER_ADMIN" | "COLLABORATOR" | "PROMOTER",
   );
   if (!hasAccess) {
     return { ok: false, error: "Accès refusé à ce programme." };
@@ -573,6 +601,11 @@ export async function updateLotAction(
     data: {
       reference: data.reference.toUpperCase(),
       surface: new Prisma.Decimal(data.surface),
+      annexSurface:
+        data.annexSurface != null
+          ? new Prisma.Decimal(data.annexSurface)
+          : null,
+      suv: data.suv != null ? new Prisma.Decimal(data.suv) : null,
       floor: data.floor ?? null,
       type: data.type,
       priceHT: new Prisma.Decimal(data.priceHT),
@@ -590,12 +623,12 @@ export async function updateLotAction(
     userAgent: ctx.userAgent,
     metadata: `Lot mis à jour (programme ${data.programmeId})`,
   });
-  revalidatePath(`/admin/programmes/${data.programmeId}`);
+  revalidateProgrammePaths(data.programmeId);
   return { ok: true, value: undefined };
 }
 
 export async function deleteLotAction(lotId: string): Promise<ActionResult> {
-  const me = await requireRole(["SUPER_ADMIN", "PROMOTER"]);
+  const me = await requireRole([...PROGRAMME_MANAGER_ROLES]);
   if (!lotId) return { ok: false, error: "Identifiant manquant" };
   const ctx = await getRequestContext();
   const lot = await prisma.lot.findUnique({ where: { id: lotId } });
@@ -604,7 +637,7 @@ export async function deleteLotAction(lotId: string): Promise<ActionResult> {
   const hasAccess = await ensureProgrammeAccess(
     lot.programmeId,
     me.id,
-    me.role as "SUPER_ADMIN" | "PROMOTER",
+    me.role as "SUPER_ADMIN" | "COLLABORATOR" | "PROMOTER",
   );
   if (!hasAccess) {
     return { ok: false, error: "Accès refusé à ce programme." };
@@ -631,7 +664,7 @@ export async function deleteLotAction(lotId: string): Promise<ActionResult> {
     userAgent: ctx.userAgent,
     metadata: `Lot supprimé (programme ${lot.programmeId})`,
   });
-  revalidatePath(`/admin/programmes/${lot.programmeId}`);
+  revalidateProgrammePaths(lot.programmeId);
   return { ok: true, value: undefined };
 }
 

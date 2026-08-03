@@ -25,8 +25,8 @@ export default async function ClientDocumentsPage() {
   const me = await requireRole(["CLIENT", "SUPER_ADMIN"]);
   const storageReady = isStorageConfigured();
 
-  const dossier = await prisma.dossier.findUnique({
-    where: { clientId: me.id },
+  const dossier = await prisma.dossier.findFirst({
+    where: { clientId: me.id, archivedAt: null },
     include: {
       documentRequests: {
         orderBy: [{ required: "desc" }, { createdAt: "asc" }],

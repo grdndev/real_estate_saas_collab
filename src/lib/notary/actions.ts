@@ -17,9 +17,11 @@ import {
 import { readObject } from "@/lib/storage/s3";
 import { getRequestContext } from "@/lib/request-context";
 import {
+  attachNotarySchema,
   flagMissingPieceSchema,
   transmitToNotarySchema,
   MAX_NOTARY_ATTACHMENT_TOTAL_BYTES,
+  type AttachNotaryInput,
   type FlagMissingPieceInput,
   type TransmitToNotaryInput,
 } from "@/lib/notary/schemas";
@@ -37,6 +39,158 @@ async function dossierClientName(clientId: string | null): Promise<string> {
     select: { firstName: true, lastName: true },
   });
   return client ? `${client.firstName} ${client.lastName}` : "—";
+}
+
+// =====================================================
+// Côté Collaborateur — RATTACHEMENT D'UN NOTAIRE (T4)
+// =====================================================
+
+/**
+ * Attache, change ou détache le notaire d'un dossier — sans transmettre le
+ * moindre document et sans toucher au statut commercial.
+ *
+ * À distinguer de `transmitToNotaryAction`, qui envoie les pièces par email et
+ * fait basculer le dossier en `SIGNED_AT_NOTARY`. Ici, on se contente de
+ * désigner le notaire : il voit alors le dossier dans son espace.
+ */
+export async function attachNotaryAction(
+  input: AttachNotaryInput,
+): Promise<ActionResult> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const parsed = attachNotarySchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  const { dossierId, notaryId } = parsed.data;
+  const ctx = await getRequestContext();
+
+  const dossier = await findDossierForUser(dossierId, me.id, me.role);
+  if (!dossier) {
+    return { ok: false, error: "Dossier introuvable ou accès refusé." };
+  }
+  if (dossier.archivedAt) {
+    return {
+      ok: false,
+      error: "Ce dossier est archivé : il est en lecture seule.",
+    };
+  }
+
+  const previousNotaryId = dossier.notaryId;
+  if (previousNotaryId === notaryId) {
+    return {
+      ok: false,
+      error: notaryId
+        ? "Ce notaire est déjà rattaché au dossier."
+        : "Aucun notaire n'est rattaché à ce dossier.",
+    };
+  }
+
+  let notary: { id: string; firstName: string; lastName: string } | null = null;
+  if (notaryId) {
+    const found = await prisma.user.findUnique({
+      where: { id: notaryId },
+      select: {
+        id: true,
+        role: true,
+        status: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+    if (!found || found.role !== "NOTARY" || found.status !== "ACTIVE") {
+      return { ok: false, error: "Notaire invalide." };
+    }
+    notary = {
+      id: found.id,
+      firstName: found.firstName,
+      lastName: found.lastName,
+    };
+  }
+
+  const clientName = await dossierClientName(dossier.clientId);
+  const notaryName = notary ? `${notary.firstName} ${notary.lastName}` : null;
+
+  await prisma.$transaction(async (tx) => {
+    // Le statut commercial et `notaryTransmittedAt` ne bougent pas : aucun
+    // document n'a été transmis, seul le notaire responsable est désigné.
+    await tx.dossier.update({
+      where: { id: dossier.id },
+      data: { notaryId, lastActivityAt: new Date() },
+    });
+
+    // Le participant NOTARY de l'ancien notaire est retiré, celui du nouveau
+    // est créé : le notaire rattaché doit voir le dossier dans son espace.
+    if (previousNotaryId) {
+      await tx.dossierParticipant.deleteMany({
+        where: {
+          dossierId: dossier.id,
+          userId: previousNotaryId,
+          role: "NOTARY",
+        },
+      });
+    }
+    if (notary) {
+      await tx.dossierParticipant.upsert({
+        where: {
+          dossierId_userId_role: {
+            dossierId: dossier.id,
+            userId: notary.id,
+            role: "NOTARY",
+          },
+        },
+        create: { dossierId: dossier.id, userId: notary.id, role: "NOTARY" },
+        update: {},
+      });
+    }
+
+    await tx.timelineEvent.create({
+      data: {
+        dossierId: dossier.id,
+        kind: "STATUS_CHANGE",
+        title: notaryName
+          ? `Notaire rattaché — ${notaryName}`
+          : "Notaire détaché du dossier",
+        description: notaryName
+          ? "Rattachement simple, sans transmission de documents."
+          : null,
+        actorId: me.id,
+      },
+    });
+  });
+
+  await audit({
+    userId: me.id,
+    action: "DOSSIER_UPDATED",
+    resourceType: "Dossier",
+    resourceId: dossier.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: notaryName
+      ? `Notaire ${notaryId} rattaché au dossier (sans transmission de documents)`
+      : `Notaire ${previousNotaryId} détaché du dossier`,
+  });
+
+  // Notification in-app au notaire nouvellement rattaché.
+  if (notary) {
+    await notify({
+      userId: notary.id,
+      kind: "TRANSMITTED_TO_NOTARY",
+      title: "Nouveau dossier rattaché",
+      body: `Vous avez été désigné notaire du dossier ${clientName}.`,
+      link: `/notaire/${dossier.id}`,
+    });
+  }
+
+  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidatePath(`/admin/dossiers/${dossier.id}`);
+  revalidatePath("/collaborateur/dossiers");
+  revalidatePath("/admin/dossiers");
+  revalidatePath("/notaire");
+  return { ok: true, value: undefined };
 }
 
 // =====================================================

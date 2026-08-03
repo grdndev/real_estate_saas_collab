@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import ActivityExcerpt from "./activity-excerpt";
 
@@ -27,6 +28,9 @@ const STATUS_LABEL = {
 } as const;
 
 export default async function AdminDashboardPage() {
+  // Défense en profondeur : proxy.ts filtre déjà /admin, la garde revérifie ici.
+  await requireRole("SUPER_ADMIN");
+
   const [
     usersCountByRole,
     activeUsers,

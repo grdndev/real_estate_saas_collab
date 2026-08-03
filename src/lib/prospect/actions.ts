@@ -7,6 +7,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole, type SessionUser } from "@/lib/auth/guards";
 import { programmesForPromoter } from "@/lib/promoter/access";
+import { parseCsv } from "@/lib/prospect/csv";
 import { audit } from "@/lib/audit";
 import { getRequestContext } from "@/lib/request-context";
 import { hashPassword } from "@/lib/auth/password";
@@ -217,66 +218,6 @@ export async function updateProspectStatusAction(
   return { ok: true, value: undefined };
 }
 
-interface ImportRow {
-  firstName: string;
-  lastName: string;
-  email: string;
-  city?: string;
-  phone?: string;
-}
-
-function parseCsv(csv: string): ImportRow[] {
-  const lines = csv
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .filter(Boolean);
-  if (lines.length === 0) return [];
-
-  const headerLine = lines[0]!;
-  const header = headerLine
-    .split(/[,;]/)
-    .map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ""));
-
-  function findIdx(...names: string[]): number {
-    for (const n of names) {
-      const idx = header.indexOf(n);
-      if (idx !== -1) return idx;
-    }
-    return -1;
-  }
-
-  const idxFirst = findIdx("prénom", "prenom", "first name", "firstname");
-  const idxLast = findIdx("nom", "last name", "lastname");
-  const idxEmail = findIdx(
-    "email",
-    "adresse e-mail",
-    "adresse email",
-    "e-mail",
-  );
-  const idxCity = findIdx("commune", "ville", "city");
-  const idxPhone = findIdx("téléphone", "telephone", "phone", "tel");
-
-  if (idxFirst === -1 || idxLast === -1 || idxEmail === -1) return [];
-
-  const rows: ImportRow[] = [];
-  for (let i = 1; i < lines.length; i++) {
-    const line = lines[i]!;
-    const cells = line.split(/[,;]/).map((c) => c.trim().replace(/^"|"$/g, ""));
-    const firstName = cells[idxFirst];
-    const lastName = cells[idxLast];
-    const email = cells[idxEmail];
-    if (!firstName || !lastName || !email) continue;
-    rows.push({
-      firstName,
-      lastName,
-      email: email.toLowerCase(),
-      city: idxCity !== -1 ? cells[idxCity] : undefined,
-      phone: idxPhone !== -1 ? cells[idxPhone] : undefined,
-    });
-  }
-  return rows;
-}
-
 export async function importProspectsAction(
   input: ImportProspectsInput,
 ): Promise<ActionResult<{ imported: number; skipped: number }>> {
@@ -312,7 +253,7 @@ export async function importProspectsAction(
           lastName: row.lastName,
           email: row.email,
           phone: row.phone || null,
-          city: row.city || null,
+          // La commune n'est pas importée (T2) : elle se saisit manuellement.
           programmeId: parsed.data.programmeId || null,
           source: parsed.data.source || "google_forms",
           ownerId: me.role === "COLLABORATOR" ? me.id : null,
@@ -498,17 +439,20 @@ export async function convertProspectAction(
   }
 
   // Email d'invitation au client (hors transaction, best-effort).
-  try {
-    await getMailer().send(
-      invitationMail(
-        created.user.email,
-        created.user.firstName,
-        "CLIENT",
-        created.token,
-      ),
-    );
-  } catch (err) {
-    console.error("[mail] convertProspect invitation", err);
+  // `token` est null pour un client sans compte, qui n'est jamais invité (T7).
+  if (created.token) {
+    try {
+      await getMailer().send(
+        invitationMail(
+          created.user.email,
+          created.user.firstName,
+          "CLIENT",
+          created.token,
+        ),
+      );
+    } catch (err) {
+      console.error("[mail] convertProspect invitation", err);
+    }
   }
 
   await audit({

@@ -15,7 +15,7 @@ import {
   createTrackingDossierSchema,
 } from "@/lib/collaborateur/tracking-import-schemas";
 import { parseTrackingWorkbook } from "@/lib/collaborateur/tracking-import";
-import type { ParsedTrackingLot } from "@/lib/collaborateur/tracking-import-types";
+import type { TrackingParseResult } from "@/lib/collaborateur/tracking-import-types";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
@@ -33,7 +33,7 @@ function toDate(iso: string | null): Date | null {
 
 export async function parseTrackingFileAction(
   fileB64: string,
-): Promise<ActionResult<{ rows: ParsedTrackingLot[]; errors: string[] }>> {
+): Promise<ActionResult<TrackingParseResult>> {
   await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
 
   const parsed = parseTrackingFileSchema.safeParse({ fileB64 });
@@ -166,6 +166,7 @@ export async function importTrackingLotsAction(
     const extraFields = {
       building: lot.building,
       annexSurface: toDecimal(lot.annexSurface),
+      suv: toDecimal(lot.suv),
       garden: toDecimal(lot.garden),
       priceNetVendeur: toDecimal(lot.priceNetVendeur),
       priceNetVendeurWithParking: toDecimal(lot.priceNetVendeurWithParking),
@@ -265,8 +266,8 @@ export async function upsertTrackingDossierAction(
     if (!user || user.role !== "CLIENT") {
       return { ok: false, error: "Client introuvable ou rôle invalide." };
     }
-    const clientDossier = await prisma.dossier.findUnique({
-      where: { clientId },
+    const clientDossier = await prisma.dossier.findFirst({
+      where: { clientId, archivedAt: null },
     });
     if (clientDossier && clientDossier.id !== (existingDossier?.id ?? "")) {
       await prisma.lot.update({
@@ -554,9 +555,9 @@ export async function lookupClientByEmailAction(
     return { ok: true, value: { userId: null, hasDossier: false } };
   }
 
-  // Check if client already has a dossier
-  const existing = await prisma.dossier.findUnique({
-    where: { clientId: user.id },
+  // Check if client already has a dossier actif (les archivés ne comptent pas)
+  const existing = await prisma.dossier.findFirst({
+    where: { clientId: user.id, archivedAt: null },
     select: { id: true },
   });
 

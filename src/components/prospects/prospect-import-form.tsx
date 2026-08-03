@@ -101,9 +101,9 @@ export function ProspectImportForm({ programmes }: Props) {
         </Button>
         <p className="mt-2 text-xs text-slate-500">
           Colonnes attendues : <code>Prénom</code>, <code>Nom</code>,{" "}
-          <code>Email</code>, <code>Commune</code> (optionnel),{" "}
-          <code>Téléphone</code> (optionnel). Séparateur virgule ou
-          point-virgule.
+          <code>Email</code> et <code>Téléphone</code> (optionnel). Séparateur
+          virgule ou point-virgule. Les autres colonnes du fichier sont ignorées
+          — la commune se saisit ensuite sur la fiche du prospect.
         </p>
       </div>
     </form>

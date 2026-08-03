@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
-import { ProgrammeForm } from "../../nouveau/programme-form";
+import { ProgrammeForm } from "@/components/views/programmes/programme-form";
 
 export const metadata: Metadata = { title: "Modifier le programme" };
 
@@ -39,6 +39,7 @@ export default async function EditProgrammePage({ params }: PageProps) {
         </CardHeader>
         <CardContent>
           <ProgrammeForm
+            basePath="/admin/programmes"
             programme={{
               id: programme.id,
               name: programme.name,

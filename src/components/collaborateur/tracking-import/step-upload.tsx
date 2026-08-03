@@ -71,7 +71,7 @@ export function StepUpload({ onParsed }: Props) {
         setError(result.error);
         return;
       }
-      const { rows, errors } = result.value;
+      const { rows, errors, stats } = result.value;
       if (rows.length === 0) {
         setError(
           errors.length > 0
@@ -80,8 +80,18 @@ export function StepUpload({ onParsed }: Props) {
         );
         return;
       }
-      setWarnings(errors);
-      onParsed(b64, rows, errors);
+      // Rapport d'import explicite (T8) : aucune ligne référencée n'est perdue.
+      const report = [
+        `${stats.detected} ligne${stats.detected > 1 ? "s" : ""} détectée${stats.detected > 1 ? "s" : ""}`,
+        `${stats.kept} conservée${stats.kept > 1 ? "s" : ""}`,
+        ...(stats.incomplete > 0
+          ? [
+              `${stats.incomplete} à compléter avant import (surface ou prix FAI manquant)`,
+            ]
+          : []),
+      ].join(" · ");
+      setWarnings([report, ...errors]);
+      onParsed(b64, rows, [report, ...errors]);
     });
   }
 

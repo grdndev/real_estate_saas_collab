@@ -109,8 +109,7 @@ export function SignupForm() {
       <FormField
         label="Téléphone"
         htmlFor="phone"
-        required
-        hint="Numéro mobile pour suivi du dossier"
+        hint="Optionnel — numéro mobile pour le suivi de votre dossier"
         error={form.formState.errors.phone?.message}
       >
         <Input type="tel" autoComplete="tel" {...form.register("phone")} />
@@ -119,7 +118,7 @@ export function SignupForm() {
       <FormField
         label="Adresse postale"
         htmlFor="addressLine"
-        required
+        hint="Optionnel"
         error={form.formState.errors.addressLine?.message}
       >
         <Input
@@ -132,7 +131,6 @@ export function SignupForm() {
         <FormField
           label="Code postal"
           htmlFor="postalCode"
-          required
           error={form.formState.errors.postalCode?.message}
         >
           <Input autoComplete="postal-code" {...form.register("postalCode")} />
@@ -140,7 +138,6 @@ export function SignupForm() {
         <FormField
           label="Ville"
           htmlFor="city"
-          required
           className="sm:col-span-2"
           error={form.formState.errors.city?.message}
         >
@@ -151,7 +148,6 @@ export function SignupForm() {
       <FormField
         label="Pays"
         htmlFor="country"
-        required
         error={form.formState.errors.country?.message}
       >
         <Input autoComplete="country-name" {...form.register("country")} />

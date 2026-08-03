@@ -42,6 +42,9 @@ export const lotSchema = z.object({
     .max(20)
     .regex(/^[A-Z0-9_-]+$/i, "Caractères alphanumériques uniquement"),
   surface: z.number().positive("Surface > 0").max(100_000),
+  // Surfaces complémentaires, facultatives (T6).
+  annexSurface: z.number().min(0).max(100_000).optional().nullable(),
+  suv: z.number().min(0).max(100_000).optional().nullable(),
   floor: z.number().int().min(-5).max(50).optional().nullable(),
   type: z.string().min(1).max(20),
   priceHT: z.number().positive("Prix > 0").max(99_999_999),

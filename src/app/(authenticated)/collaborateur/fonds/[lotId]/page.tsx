@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
-import { decodeAddress, decodePhone, decodeText } from "@/lib/profile";
-import { LotFondsForm } from "@/components/collaborateur/fonds/lot-fonds-form";
-import { ClientContactCard } from "@/components/collaborateur/fonds/client-contact-card";
+import { loadLotFondsDetail } from "@/lib/fonds/access";
+import { FondsDetailView } from "@/components/views/fonds/fonds-detail-view";
 
 interface PageProps {
   params: Promise<{ lotId: string }>;
@@ -16,132 +15,36 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
   await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const { lotId } = await params;
 
-  const lot = await prisma.lot.findUnique({
-    where: { id: lotId },
-    include: {
-      programme: { select: { name: true } },
-      dossier: {
-        include: {
-          client: {
-            select: {
-              firstName: true,
-              lastName: true,
-              email: true,
-              phoneEnc: true,
-              addressEnc: true,
-              additionalEmailsEnc: true,
-            },
-          },
-          timelineEvents: {
-            where: { kind: "ACT_SIGNED" },
-            orderBy: { occurredAt: "desc" },
-            take: 1,
-            select: { occurredAt: true },
-          },
-          prospect: { select: { id: true } },
-          signatures: {
-            where: { status: { in: ["CREATED", "SENT", "OPENED"] } },
-            take: 1,
-            select: { id: true },
-          },
-        },
-      },
-      fondsSuivi: {
-        include: { fondsAppeles: true },
-      },
-    },
-  });
-
+  const lot = await loadLotFondsDetail(lotId);
   if (!lot) notFound();
 
-  const programmeAppelTypes = await prisma.appelFonds.findMany({
-    where: { programmeId: lot.programmeId },
-    orderBy: { numero: "asc" },
+  const notaries = await prisma.user.findMany({
+    where: { role: "NOTARY", status: "ACTIVE", deletedAt: null },
+    orderBy: { lastName: "asc" },
+    select: { id: true, firstName: true, lastName: true, email: true },
   });
 
   const now = new Date();
-
-  const actSignedDate =
-    lot.dossier?.timelineEvents?.[0]?.occurredAt?.toISOString() ?? null;
-  const client = lot.dossier?.client ?? null;
-  const clientName = client
-    ? `${client.firstName} ${client.lastName}`.trim()
-    : null;
-
-  const clientContact = client
-    ? {
-        email: client.email,
-        additionalEmails: decodeText(client.additionalEmailsEnc),
-        phone: decodePhone(client.phoneEnc),
-        address: decodeAddress(client.addressEnc),
-      }
-    : null;
-
-  const fondsSuivi = lot.fondsSuivi
-    ? {
-        commission:
-          lot.fondsSuivi.commission != null
-            ? Number(lot.fondsSuivi.commission)
-            : null,
-        fraisMainLevee:
-          lot.fondsSuivi.fraisMainLevee != null
-            ? Number(lot.fondsSuivi.fraisMainLevee)
-            : null,
-        rbstEdd:
-          lot.fondsSuivi.rbstEdd != null
-            ? Number(lot.fondsSuivi.rbstEdd)
-            : null,
-        soldeVendeur:
-          lot.fondsSuivi.soldeVendeur != null
-            ? Number(lot.fondsSuivi.soldeVendeur)
-            : null,
-        fondsAppeles: lot.fondsSuivi.fondsAppeles.map((fa) => ({
-          appelFondsId: fa.appelFondsId,
-          montant: Number(fa.montant),
-          dateEnvoiLr: fa.dateEnvoiLr?.toISOString() ?? null,
-          dateReceptionVirement:
-            fa.dateReceptionVirement?.toISOString() ?? null,
-        })),
-      }
-    : null;
+  const programmeAppelTypes = (
+    await prisma.appelFonds.findMany({
+      where: { programmeId: lot.programmeId },
+      orderBy: { numero: "asc" },
+    })
+  ).map((a) => ({
+    id: a.id,
+    numero: a.numero,
+    label: a.label,
+    pourcentage: Number(a.pourcentage),
+    datePrevue: a.datePrevue.toISOString(),
+    debloque: a.datePrevue <= now,
+  }));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
-          Lot {lot.reference}
-        </h1>
-        <p className="mt-1 text-sm text-slate-500">{lot.programme.name}</p>
-      </div>
-
-      <ClientContactCard
-        lotId={lot.id}
-        dossierId={lot.dossier?.id ?? null}
-        clientName={clientName}
-        contact={clientContact}
-        convertedProspect={Boolean(lot.dossier?.prospect)}
-        pendingSignature={(lot.dossier?.signatures.length ?? 0) > 0}
-      />
-
-      <LotFondsForm
-        lotId={lot.id}
-        programmeName={lot.programme.name}
-        clientName={clientName}
-        priceTTC={Number(lot.priceTTC)}
-        actSignedDate={actSignedDate}
-        notes={lot.notes ?? null}
-        hasClient={Boolean(client)}
-        hasClientAddress={Boolean(clientContact?.address)}
-        fondsSuivi={fondsSuivi}
-        programmeAppelTypes={programmeAppelTypes.map((a) => ({
-          id: a.id,
-          numero: a.numero,
-          label: a.label,
-          pourcentage: Number(a.pourcentage),
-          datePrevue: a.datePrevue.toISOString(),
-          debloque: a.datePrevue <= now,
-        }))}
-      />
-    </div>
+    <FondsDetailView
+      lot={lot}
+      dossierBasePath="/collaborateur/dossiers"
+      notaries={notaries}
+      programmeAppelTypes={programmeAppelTypes}
+    />
   );
 }

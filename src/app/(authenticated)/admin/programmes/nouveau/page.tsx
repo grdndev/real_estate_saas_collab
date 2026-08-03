@@ -2,11 +2,14 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProgrammeForm } from "./programme-form";
+import { requireRole } from "@/lib/auth/guards";
+import { ProgrammeForm } from "@/components/views/programmes/programme-form";
 
 export const metadata: Metadata = { title: "Nouveau programme" };
 
-export default function NewProgrammePage() {
+export default async function NewProgrammePage() {
+  await requireRole("SUPER_ADMIN");
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -25,7 +28,7 @@ export default function NewProgrammePage() {
           <CardTitle>Informations générales</CardTitle>
         </CardHeader>
         <CardContent>
-          <ProgrammeForm />
+          <ProgrammeForm basePath="/admin/programmes" />
         </CardContent>
       </Card>
     </div>

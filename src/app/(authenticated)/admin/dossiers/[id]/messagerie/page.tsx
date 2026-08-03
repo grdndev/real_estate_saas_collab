@@ -1,0 +1,29 @@
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
+
+import { DossierMessagerieView } from "@/components/views/dossiers/dossier-messagerie-view";
+import { requireRole } from "@/lib/auth/guards";
+import { findDossierForUser } from "@/lib/dossier/access";
+
+export const metadata: Metadata = { title: "Messagerie dossier" };
+
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
+
+export default async function DossierMessageriePage({ params }: PageProps) {
+  const me = await requireRole("SUPER_ADMIN");
+  const { id } = await params;
+
+  // Contrôle d'accès dans la route : la vue ne décide d'aucun filtrage.
+  const accessible = await findDossierForUser(id, me.id, me.role);
+  if (!accessible) notFound();
+
+  return (
+    <DossierMessagerieView
+      dossierId={id}
+      currentUserId={me.id}
+      basePath="/admin/dossiers"
+    />
+  );
+}

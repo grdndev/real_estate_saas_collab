@@ -39,8 +39,8 @@ async function main() {
     );
 
   // Skip si client déjà associé.
-  const existing = await prisma.dossier.findUnique({
-    where: { clientId: client.id },
+  const existing = await prisma.dossier.findFirst({
+    where: { clientId: client.id, archivedAt: null },
   });
   if (existing) {
     console.log("  ↻ Dossier existant pour le client démo — skip");

@@ -9,8 +9,11 @@ import { archiveProgrammeAction } from "@/lib/admin/actions";
 
 export function ArchiveProgrammeButton({
   programmeId,
+  basePath,
 }: {
   programmeId: string;
+  /** Racine « programmes » de l'espace appelant, ex. « /admin/programmes ». */
+  basePath: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -33,7 +36,7 @@ export function ArchiveProgrammeButton({
           startTransition(async () => {
             await archiveProgrammeAction(programmeId);
             setOpen(false);
-            router.replace("/admin/programmes");
+            router.replace(basePath);
             router.refresh();
           })
         }

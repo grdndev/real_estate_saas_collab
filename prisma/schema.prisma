@@ -29,6 +29,7 @@ enum UserStatus {
   ACTIVE
   SUSPENDED
   DELETION_REQUESTED // demande RGPD en cours, soft-deleted
+  NO_ACCOUNT // « client associé » : fiche de contact sans accès plateforme (pas de connexion, pas d'email automatique)
 }
 
 enum ProgrammeStatus {
@@ -217,7 +218,8 @@ model User {
   passwordResets     PasswordReset[]
   emailVerifications EmailVerification[]
   dossierLinks       DossierParticipant[]
-  clientDossier      Dossier?             @relation("DossierClient")
+  // Un client peut avoir un dossier actif et plusieurs dossiers archivés (historique).
+  clientDossiers     Dossier[]            @relation("DossierClient")
   promoterProgrammes ProgrammePromoter[]
   uploadedDocs       Document[]
   notifications      Notification[]
@@ -355,6 +357,8 @@ model Lot {
   building     String?
   annexSurface Decimal? @db.Decimal(8, 2)
   garden       Decimal? @db.Decimal(8, 2)
+  // Surface utile SUV — valeur saisie/importée telle quelle (aucun recalcul).
+  suv          Decimal? @db.Decimal(8, 2)
 
   // Champs financiers additionnels (tracking import)
   priceNetVendeur            Decimal? @db.Decimal(12, 2)
@@ -371,6 +375,8 @@ model Lot {
 
   programme   Programme      @relation(fields: [programmeId], references: [id], onDelete: Cascade)
   dossier     Dossier?       @relation(fields: [dossierId], references: [id])
+  // Dossiers archivés du lot : historique des clients précédents.
+  archivedDossiers Dossier[] @relation("DossierArchivedLot")
   fondsSuivi  LotFondsSuivi?
 
   @@unique([programmeId, reference])
@@ -401,7 +407,9 @@ model TresoreriePrev {
 model Dossier {
   id          String        @id @default(cuid())
   programmeId String
-  clientId    String?       @unique
+  // Plusieurs dossiers possibles par client : un seul actif (archivedAt = null),
+  // les autres archivés (historique conservé après dissociation).
+  clientId    String?
   status      DossierStatus @default(NEW_LEAD)
   // Axe contractuel parallèle (null tant que le dossier n'est pas en phase contrat).
   contractStatus ContractStatus?
@@ -415,6 +423,13 @@ model Dossier {
   // Mis à jour automatiquement par triggers applicatifs : base des relances auto.
   lastActivityAt      DateTime  @default(now())
   closedAt            DateTime?
+  // Dossier archivé à la dissociation du client : messages, documents et timeline
+  // sont conservés et restitués si le même client est réassocié au même lot.
+  archivedAt          DateTime?
+  // Lot concerné par un dossier archivé. `Lot.dossierId` ne désigne que le dossier
+  // ACTIF : sans cette trace, le couple (lot, client) serait perdu à la dissociation
+  // et l'historique du client ne pourrait plus être restitué.
+  archivedLotId       String?
   notaryId            String?
   notaryTransmittedAt DateTime?
 
@@ -435,6 +450,7 @@ model Dossier {
 
   programme        Programme            @relation(fields: [programmeId], references: [id])
   lots             Lot[]
+  archivedLot      Lot?                 @relation("DossierArchivedLot", fields: [archivedLotId], references: [id], onDelete: SetNull)
   client           User?                @relation("DossierClient", fields: [clientId], references: [id])
   participants     DossierParticipant[]
   documents        Document[]
@@ -453,6 +469,9 @@ model Dossier {
   @@index([notaryId, status])
   @@index([contractStatus])
   @@index([optioned])
+  @@index([clientId])
+  @@index([archivedAt])
+  @@index([archivedLotId, clientId])
 }
 
 // Lien M2M : un user peut être collaborateur principal/secondaire ou notaire d'un dossier.

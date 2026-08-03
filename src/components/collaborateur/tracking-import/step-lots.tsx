@@ -18,6 +18,7 @@ interface EditableLot {
   vatRate: number;
   notes: string | null;
   annexSurface: number | null;
+  suv: number | null;
   garden: number | null;
   priceNetVendeur: number | null;
   priceNetVendeurWithParking: number | null;
@@ -27,6 +28,10 @@ interface EditableLot {
   creditImpot35: number | null;
   priceRevientCrdImp: number | null;
   additionalParking: boolean | null;
+  /** Numéro de ligne dans le fichier Excel — repère pour la correction. */
+  sourceRow: number;
+  /** Champs obligatoires absents du fichier, à compléter ici (T8). */
+  incompleteFields: string[];
 }
 
 interface Props {
@@ -50,7 +55,10 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
       priceTTC: r.priceTTC,
       vatRate: r.vatRate,
       notes: r.lotNotes,
+      sourceRow: r.sourceRow,
+      incompleteFields: r.incompleteFields,
       annexSurface: r.annexSurface,
+      suv: r.suv,
       garden: r.garden,
       priceNetVendeur: r.priceNetVendeur,
       priceNetVendeurWithParking: r.priceNetVendeurWithParking,
@@ -87,12 +95,40 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
     });
   }
 
+  // Une ligne reste « à compléter » tant que la valeur manquante vaut 0.
+  const incomplete = lots.filter(
+    (lot) =>
+      lot.incompleteFields.length > 0 &&
+      ((lot.incompleteFields.includes("surface") && lot.surface <= 0) ||
+        (lot.incompleteFields.includes("prix FAI") && lot.priceTTC <= 0)),
+  );
+
   return (
     <div className="flex flex-col gap-4">
       <p className="text-sm text-slate-600">
         {lots.length} lot(s) détecté(s). Vérifiez et corrigez avant
         d&apos;importer.
       </p>
+
+      {/* Aucune ligne référencée n'est ignorée : celles dont une valeur
+          obligatoire manque sont signalées ici pour correction (T8). */}
+      {incomplete.length > 0 && (
+        <Alert variant="warning" role="status">
+          <p className="font-medium">
+            {incomplete.length} ligne(s) à compléter — valeur absente du fichier
+            (remplacée par 0) :
+          </p>
+          <ul className="mt-1 list-inside list-disc text-xs">
+            {incomplete.map((lot) => (
+              <li key={`${lot.sourceRow}-${lot.reference}`}>
+                Ligne {lot.sourceRow} — lot{" "}
+                <span className="font-mono">{lot.reference}</span> :{" "}
+                {lot.incompleteFields.join(", ")}
+              </li>
+            ))}
+          </ul>
+        </Alert>
+      )}
 
       <div className="overflow-x-auto rounded-md border border-slate-200">
         <Table className="text-xs">
@@ -105,6 +141,7 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 "Type",
                 "Surface (m²)",
                 "Surface annexes (m²)",
+                "Surface utile SUV (m²)",
                 "Jardin (m²)",
                 "Prix TTC (€)",
                 "TVA (%)",
@@ -179,6 +216,10 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 <NumberCell
                   value={lot.annexSurface}
                   onChange={(v) => update(i, "annexSurface", v)}
+                />
+                <NumberCell
+                  value={lot.suv}
+                  onChange={(v) => update(i, "suv", v)}
                 />
                 <NumberCell
                   value={lot.garden}

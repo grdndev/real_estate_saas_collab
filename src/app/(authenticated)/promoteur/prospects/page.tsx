@@ -1,152 +1,35 @@
 import type { Metadata } from "next";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ProspectCreateForm } from "@/components/prospects/prospect-create-form";
-import { ProspectImportForm } from "@/components/prospects/prospect-import-form";
-import {
-  ProspectsTable,
-  type ProspectRow,
-} from "@/components/prospects/prospects-table";
 import { requireRole } from "@/lib/auth/guards";
-import { prisma } from "@/lib/prisma";
 import { programmesForPromoter } from "@/lib/promoter/access";
-import { dossierHasActivity } from "@/lib/prospect/dossier-activity";
+import { loadProspects, loadProspectProgrammes } from "@/lib/prospect/access";
+import { ProspectsView } from "@/components/views/prospects/prospects-view";
 
 export const metadata: Metadata = { title: "Prospects" };
 
 export default async function PromoteurProspectsPage() {
   const me = await requireRole(["PROMOTER", "SUPER_ADMIN"]);
 
-  const programmeIds =
-    me.role === "PROMOTER" ? await programmesForPromoter(me.id) : null;
-
-  const where =
-    programmeIds !== null ? { programmeId: { in: programmeIds } } : {};
-
+  // Périmètre résolu ici : le promoteur ne voit que ses programmes.
+  const scope = {
+    programmeIds:
+      me.role === "PROMOTER" ? await programmesForPromoter(me.id) : null,
+  };
   const [prospects, programmes] = await Promise.all([
-    prisma.prospect.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      take: 200,
-      include: {
-        programme: { select: { name: true } },
-        convertedDossier: {
-          select: {
-            id: true,
-            timelineEvents: { select: { kind: true } },
-            _count: {
-              select: {
-                documents: true,
-                signatures: true,
-                messages: true,
-                invoices: true,
-              },
-            },
-          },
-        },
-        sharedNotes: {
-          orderBy: { createdAt: "desc" },
-          include: {
-            author: { select: { id: true, firstName: true, lastName: true } },
-          },
-        },
-      },
-    }),
-    me.role === "PROMOTER"
-      ? prisma.programme.findMany({
-          where: { id: { in: programmeIds ?? [] } },
-          orderBy: { name: "asc" },
-          select: {
-            id: true,
-            name: true,
-            lots: {
-              where: { status: "AVAILABLE" },
-              orderBy: { reference: "asc" },
-              select: { id: true, reference: true, type: true },
-            },
-          },
-        })
-      : prisma.programme.findMany({
-          where: { status: "ACTIVE" },
-          orderBy: { name: "asc" },
-          select: {
-            id: true,
-            name: true,
-            lots: {
-              where: { status: "AVAILABLE" },
-              orderBy: { reference: "asc" },
-              select: { id: true, reference: true, type: true },
-            },
-          },
-        }),
+    loadProspects(scope),
+    loadProspectProgrammes(scope),
   ]);
 
-  const rows: ProspectRow[] = prospects.map((p) => ({
-    id: p.id,
-    firstName: p.firstName,
-    lastName: p.lastName,
-    email: p.email,
-    city: p.city,
-    phone: p.phone,
-    programmeId: p.programmeId,
-    programmeName: p.programme?.name ?? null,
-    source: p.source,
-    status: p.status,
-    convertedDossierId: p.convertedDossier?.id ?? null,
-    dossierHasActivity: dossierHasActivity(p.convertedDossier),
-    createdAt: p.createdAt,
-    notes: p.sharedNotes.map((n) => ({
-      id: n.id,
-      body: n.body,
-      authorId: n.authorId,
-      authorName: `${n.author.firstName} ${n.author.lastName}`,
-      createdAt: n.createdAt.toISOString(),
-    })),
-  }));
-
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
-          Prospects
-        </h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Leads de vos programmes — visibilité limitée aux programmes auxquels
-          vous êtes assigné.
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Importer depuis Google Forms (CSV)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProspectImportForm programmes={programmes} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Ajouter un prospect</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProspectCreateForm programmes={programmes} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Liste des prospects ({rows.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ProspectsTable
-            prospects={rows}
-            programmes={programmes}
-            canDelete
-            currentUserId={me.id}
-          />
-        </CardContent>
-      </Card>
-    </div>
+    <ProspectsView
+      prospects={prospects}
+      programmes={programmes}
+      currentUserId={me.id}
+      canDelete
+      subtitle="Leads de vos programmes — visibilité limitée aux programmes auxquels vous êtes assigné."
+      sectioned={false}
+      // Le promoteur n'accède pas au détail des dossiers.
+      dossierBasePath="/promoteur"
+    />
   );
 }

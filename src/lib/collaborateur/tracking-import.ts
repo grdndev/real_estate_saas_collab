@@ -49,6 +49,7 @@ type MappedField =
   | "priceTTC"
   | "vatRate"
   | "annexSurface"
+  | "suv"
   | "garden"
   | "priceNetVendeur"
   | "priceNetVendeurWithParking"
@@ -86,6 +87,8 @@ const COLUMN_ALIASES: Record<MappedField, string[]> = {
   priceTTC: ["prixfai", "fai", "prixttc", "ttc"],
   vatRate: ["tva", "tauxtva"],
   annexSurface: ["surfacedesannexes", "annexes"],
+  // Surface utile SUV — valeur importée telle quelle, aucun recalcul (T6).
+  suv: ["suv", "suvtotal", "surfaceutilesuv", "surfaceutile"],
   garden: ["jardin"],
   priceNetVendeur: ["prixnetvendeur"],
   priceNetVendeurWithParking: ["nvavecplaceparking"],
@@ -228,6 +231,9 @@ function parseLoanObtained(value: ExcelJS.CellValue): string | null {
   return raw;
 }
 
+/** Rapport vide, utilisé quand le fichier n'a pas pu être lu du tout. */
+const EMPTY_STATS = { detected: 0, kept: 0, incomplete: 0 } as const;
+
 export async function parseTrackingWorkbook(
   buffer: Buffer,
 ): Promise<TrackingParseResult> {
@@ -237,13 +243,18 @@ export async function parseTrackingWorkbook(
   try {
     await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
   } catch {
-    return { rows: [], errors: ["Fichier Excel illisible ou corrompu."] };
+    return {
+      rows: [],
+      stats: EMPTY_STATS,
+      errors: ["Fichier Excel illisible ou corrompu."],
+    };
   }
 
   const sheet = workbook.worksheets[0];
   if (!sheet || sheet.rowCount === 0) {
     return {
       rows: [],
+      stats: EMPTY_STATS,
       errors: ["Le fichier ne contient aucune feuille de données."],
     };
   }
@@ -265,6 +276,7 @@ export async function parseTrackingWorkbook(
   if (headerRowIdx === -1) {
     return {
       rows: [],
+      stats: EMPTY_STATS,
       errors: ["Aucune ligne d'en-tête détectée dans le fichier."],
     };
   }
@@ -318,14 +330,15 @@ export async function parseTrackingWorkbook(
     const reference = getText("reference");
     if (!reference) continue;
 
-    const surface = parseNumber(getText("surface"));
+    // Toute ligne possédant une référence est conservée (T8). Une valeur
+    // obligatoire absente est remplacée par une valeur neutre et signalée :
+    // la ligne reste corrigeable à l'étape de vérification.
+    const incompleteFields: string[] = [];
 
-    if (surface == null || surface <= 0) {
-      errors.push(
-        `Ligne ${i} (${reference}) : surface invalide — ligne ignorée.`,
-      );
-      continue;
-    }
+    const parsedSurface = parseNumber(getText("surface"));
+    const surface =
+      parsedSurface != null && parsedSurface > 0 ? parsedSurface : 0;
+    if (surface === 0) incompleteFields.push("surface");
 
     // TVA résolue d'abord : elle sert à déduire le HT depuis le TTC.
     const vatRaw = getText("vatRate");
@@ -334,13 +347,10 @@ export async function parseTrackingWorkbook(
       : DEFAULT_VAT_RATE;
 
     // Le prix vient uniquement de la colonne "Prix FAI" (TTC) ; le HT en est déduit.
-    const priceTTC = parseNumber(getText("priceTTC"));
-    if (priceTTC == null || priceTTC <= 0) {
-      errors.push(
-        `Ligne ${i} (${reference}) : prix FAI (TTC) invalide — ligne ignorée.`,
-      );
-      continue;
-    }
+    const parsedPriceTTC = parseNumber(getText("priceTTC"));
+    const priceTTC =
+      parsedPriceTTC != null && parsedPriceTTC > 0 ? parsedPriceTTC : 0;
+    if (priceTTC === 0) incompleteFields.push("prix FAI");
     const priceHT = Number((priceTTC / (1 + vatRate / 100)).toFixed(2));
 
     const optionDate = parseDate(getCell("optionDate"));
@@ -371,6 +381,7 @@ export async function parseTrackingWorkbook(
       lotStatus,
       lotNotes: null,
       annexSurface: parseNumber(getText("annexSurface")),
+      suv: parseNumber(getText("suv")),
       garden: parseNumber(getText("garden")),
       priceNetVendeur: parseNumber(getText("priceNetVendeur")),
       priceNetVendeurWithParking: parseNumber(
@@ -404,6 +415,8 @@ export async function parseTrackingWorkbook(
       rarSentByNotaryAt: parseDate(getCell("rarSentByNotaryAt")),
       loanFiledAt: parseDate(loanFiledCell),
       loanObtainedAt: parseDate(loanObtainedCell),
+      sourceRow: i,
+      incompleteFields,
     });
   }
 
@@ -411,5 +424,11 @@ export async function parseTrackingWorkbook(
     errors.push("Aucune ligne valide n'a pu être extraite du fichier.");
   }
 
-  return { rows, errors };
+  const incomplete = rows.filter((r) => r.incompleteFields.length > 0).length;
+
+  return {
+    rows,
+    errors,
+    stats: { detected: rows.length, kept: rows.length, incomplete },
+  };
 }

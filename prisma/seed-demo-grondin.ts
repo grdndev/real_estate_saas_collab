@@ -97,11 +97,13 @@ async function main() {
     where: { email: CLIENT_EMAIL },
   });
   if (existingClient) {
-    const oldDossier = await prisma.dossier.findUnique({
+    const oldDossiers = await prisma.dossier.findMany({
       where: { clientId: existingClient.id },
+      select: { id: true },
     });
-    if (oldDossier)
+    for (const oldDossier of oldDossiers) {
       await prisma.dossier.delete({ where: { id: oldDossier.id } });
+    }
     await prisma.clientProfile.deleteMany({
       where: { userId: existingClient.id },
     });

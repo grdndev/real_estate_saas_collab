@@ -32,8 +32,11 @@ export interface ProgrammeFormInitial {
 
 export function ProgrammeForm({
   programme,
+  basePath,
 }: {
   programme?: ProgrammeFormInitial;
+  /** Racine « programmes » de l'espace appelant, ex. « /admin/programmes ». */
+  basePath: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -75,7 +78,7 @@ export function ProgrammeForm({
       const targetId = programme
         ? programme.id
         : (result.value as { id: string }).id;
-      router.replace(`/admin/programmes/${targetId}`);
+      router.replace(`${basePath}/${targetId}`);
       router.refresh();
     });
   }

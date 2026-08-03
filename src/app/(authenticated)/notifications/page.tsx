@@ -3,8 +3,10 @@ import type { Metadata } from "next";
 import { Card, CardContent } from "@/components/ui/card";
 import { MarkAllReadButton } from "@/components/notifications/mark-all-read-button";
 import { NotificationRow } from "@/components/notifications/notification-row";
+import { ReadNotificationsList } from "@/components/notifications/read-notifications-list";
 import { requireUser } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
+import { loadReadNotificationsPage } from "@/lib/notifications/list";
 
 export const metadata: Metadata = { title: "Notifications" };
 
@@ -28,14 +30,20 @@ const KIND_LABEL: Record<string, string> = {
 export default async function NotificationsPage() {
   const me = await requireUser();
 
-  const notifications = await prisma.notification.findMany({
-    where: { userId: me.id },
-    orderBy: [{ readAt: "asc" }, { createdAt: "desc" }],
-    take: 100,
-  });
+  // Les non-lues sont toutes chargées (nombre borné, compteur exact) ; les
+  // lues arrivent par pages au scroll — plus de `take: 100` (T14).
+  const [unread, readPage, readTotal] = await Promise.all([
+    prisma.notification.findMany({
+      where: { userId: me.id, readAt: null },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    }),
+    loadReadNotificationsPage(me.id, null),
+    prisma.notification.count({
+      where: { userId: me.id, readAt: { not: null } },
+    }),
+  ]);
 
-  const unread = notifications.filter((n) => !n.readAt);
-  const read = notifications.filter((n) => n.readAt);
+  const total = unread.length + readTotal;
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
@@ -46,8 +54,8 @@ export default async function NotificationsPage() {
           </h1>
           <p className="mt-1 text-sm text-slate-600">
             {unread.length > 0
-              ? `${unread.length} notification${unread.length > 1 ? "s" : ""} non lue${unread.length > 1 ? "s" : ""} sur ${notifications.length}`
-              : `${notifications.length} notification${notifications.length > 1 ? "s" : ""} — tout est à jour`}
+              ? `${unread.length} notification${unread.length > 1 ? "s" : ""} non lue${unread.length > 1 ? "s" : ""} sur ${total}`
+              : `${total} notification${total > 1 ? "s" : ""} — tout est à jour`}
           </p>
         </div>
         <MarkAllReadButton count={unread.length} />
@@ -55,12 +63,12 @@ export default async function NotificationsPage() {
 
       {/* Bandeau de synthèse */}
       <div className="mt-5 grid grid-cols-3 gap-3">
-        <SummaryTile label="Total" value={notifications.length} tone="night" />
+        <SummaryTile label="Total" value={total} tone="night" />
         <SummaryTile label="Non lues" value={unread.length} tone="accent" />
-        <SummaryTile label="Lues" value={read.length} tone="muted" />
+        <SummaryTile label="Lues" value={readTotal} tone="muted" />
       </div>
 
-      {notifications.length === 0 ? (
+      {total === 0 ? (
         <Card className="mt-6">
           <CardContent>
             <p className="py-12 text-center text-sm text-slate-500">
@@ -96,30 +104,11 @@ export default async function NotificationsPage() {
             </section>
           )}
 
-          {read.length > 0 && (
-            <section>
-              <h2 className="mb-2 text-xs font-semibold tracking-widest text-slate-500 uppercase">
-                Plus anciennes
-              </h2>
-              <Card>
-                <ul className="divide-y divide-slate-100">
-                  {read.map((n) => (
-                    <NotificationRow
-                      key={n.id}
-                      id={n.id}
-                      title={n.title}
-                      body={n.body}
-                      link={n.link}
-                      read
-                      createdAt={n.createdAt}
-                      kind={n.kind}
-                      kindLabel={KIND_LABEL[n.kind] ?? n.kind}
-                    />
-                  ))}
-                </ul>
-              </Card>
-            </section>
-          )}
+          <ReadNotificationsList
+            initialRows={readPage.rows}
+            initialCursor={readPage.nextCursor}
+            kindLabels={KIND_LABEL}
+          />
         </div>
       )}
     </div>

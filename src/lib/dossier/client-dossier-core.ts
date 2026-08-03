@@ -31,6 +31,11 @@ export interface CreateClientDossierCoreParams {
   /** Hash de mot de passe placeholder (calculé hors transaction). */
   passwordHash: string;
   /**
+   * « Client associé » sans accès à la plateforme (T7) : statut NO_ACCOUNT,
+   * aucun jeton d'invitation généré, aucun email envoyé.
+   */
+  noAccount?: boolean;
+  /**
    * Collaborateur référent du dossier (participant COLLABORATOR_PRIMARY).
    * `null` si aucun collaborateur n'est déterminable (ex. conversion par un
    * promoteur sur un prospect sans owner) — il pourra être assigné plus tard.
@@ -45,8 +50,11 @@ export interface CreateClientDossierCoreParams {
 export interface CreateClientDossierCoreResult {
   dossier: { id: string };
   user: { id: string; email: string; firstName: string };
-  /** Token brut d'invitation (à envoyer par email hors transaction). */
-  token: string;
+  /**
+   * Token brut d'invitation (à envoyer par email hors transaction).
+   * `null` pour un client sans compte : il n'est jamais invité.
+   */
+  token: string | null;
 }
 
 /**
@@ -59,6 +67,7 @@ export async function createClientDossierCore(
   tx: Prisma.TransactionClient,
   params: CreateClientDossierCoreParams,
 ): Promise<CreateClientDossierCoreResult> {
+  const noAccount = params.noAccount === true;
   const createdUser = await tx.user.create({
     data: {
       email: params.email,
@@ -66,8 +75,9 @@ export async function createClientDossierCore(
       lastName: params.lastName,
       role: "CLIENT",
       passwordHash: params.passwordHash,
-      emailVerifiedAt: new Date(),
-      status: "ACTIVE",
+      // Un client sans compte n'a pas d'email vérifié : il n'en utilise pas.
+      emailVerifiedAt: noAccount ? null : new Date(),
+      status: noAccount ? "NO_ACCOUNT" : "ACTIVE",
       phoneEnc: params.phone ? encrypt(params.phone) : null,
     },
   });
@@ -115,14 +125,19 @@ export async function createClientDossierCore(
     })),
   });
 
-  const { token: rawToken, hash } = generateOpaqueToken();
-  await tx.passwordReset.create({
-    data: {
-      userId: createdUser.id,
-      tokenHash: hash,
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
-    },
-  });
+  // Aucun jeton d'accès pour un client sans compte : il ne se connectera pas.
+  let rawToken: string | null = null;
+  if (!noAccount) {
+    const generated = generateOpaqueToken();
+    rawToken = generated.token;
+    await tx.passwordReset.create({
+      data: {
+        userId: createdUser.id,
+        tokenHash: generated.hash,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60_000),
+      },
+    });
+  }
 
   return {
     dossier: { id: createdDossier.id },

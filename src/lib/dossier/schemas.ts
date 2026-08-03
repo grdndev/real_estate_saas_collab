@@ -78,45 +78,61 @@ export type AssignCollaboratorInput = z.infer<typeof assignCollaboratorSchema>;
 const optionalText = (max: number) =>
   z.string().trim().max(max).optional().or(z.literal(""));
 
-export const createClientAndDossierSchema = z.object({
-  firstName: z.string().min(2, "Prénom trop court").max(60).trim(),
-  lastName: z.string().min(2, "Nom trop court").max(60).trim(),
-  email: z.email("Email invalide").toLowerCase(),
-  phone: z
-    .string()
-    .min(8, "Numéro trop court")
-    .regex(/^[0-9 +().-]+$/, "Format invalide")
-    .optional()
-    .or(z.literal("")),
-  programmeId: z.string().min(1, "Programme requis"),
-  lotId: z.string().optional().nullable(),
-  initialNote: z.string().max(500).optional(),
-  // Fiche client étendue — tous optionnels à la création.
-  birthName: optionalText(80),
-  birthDate: optionalText(10),
-  birthPlace: optionalText(120),
-  profession: optionalText(120),
-  nationality: optionalText(80),
-  addressLine: optionalText(200),
-  postalCode: optionalText(10),
-  city: optionalText(80),
-  country: optionalText(60),
-  familyStatus: z.string().optional(),
-  marriageDate: optionalText(10),
-  marriagePlace: optionalText(120),
-  marriageContract: optionalText(200),
-  // Pièces déposées dès la création (PDF base64, optionnel).
-  cniFileB64: z.string().max(8_000_000).optional().or(z.literal("")),
-  cniFileName: z.string().max(255).optional().or(z.literal("")),
-  marriageContractFileB64: z
-    .string()
-    .max(8_000_000)
-    .optional()
-    .or(z.literal("")),
-  marriageContractFileName: z.string().max(255).optional().or(z.literal("")),
-  // RDV notaire déjà fixé (date/heure ISO, optionnel).
-  notaryAppointmentAt: optionalText(40),
-});
+export const createClientAndDossierSchema = z
+  .object({
+    // Seuls le nom et le prénom sont obligatoires (T11). L'email n'est requis
+    // que pour un client disposant d'un accès à la plateforme.
+    firstName: z.string().min(1, "Prénom requis").max(60).trim(),
+    lastName: z.string().min(1, "Nom requis").max(60).trim(),
+    email: z
+      .union([z.email("Email invalide").toLowerCase(), z.literal("")])
+      .optional(),
+    /**
+     * « Client associé » sans accès à la plateforme (T7) : ni connexion, ni
+     * invitation, ni email de relance. L'email devient facultatif.
+     */
+    noAccount: z.boolean(),
+    phone: z
+      .string()
+      .regex(/^[0-9 +().-]*$/, "Format invalide")
+      .max(30)
+      .optional()
+      .or(z.literal("")),
+    programmeId: z.string().min(1, "Programme requis"),
+    lotId: z.string().optional().nullable(),
+    initialNote: z.string().max(500).optional(),
+    // Fiche client étendue — tous optionnels à la création.
+    birthName: optionalText(80),
+    birthDate: optionalText(10),
+    birthPlace: optionalText(120),
+    profession: optionalText(120),
+    nationality: optionalText(80),
+    addressLine: optionalText(200),
+    postalCode: optionalText(10),
+    city: optionalText(80),
+    country: optionalText(60),
+    familyStatus: z.string().optional(),
+    marriageDate: optionalText(10),
+    marriagePlace: optionalText(120),
+    marriageContract: optionalText(200),
+    // Pièces déposées dès la création (PDF base64, optionnel).
+    cniFileB64: z.string().max(8_000_000).optional().or(z.literal("")),
+    cniFileName: z.string().max(255).optional().or(z.literal("")),
+    marriageContractFileB64: z
+      .string()
+      .max(8_000_000)
+      .optional()
+      .or(z.literal("")),
+    marriageContractFileName: z.string().max(255).optional().or(z.literal("")),
+    // RDV notaire déjà fixé (date/heure ISO, optionnel).
+    notaryAppointmentAt: optionalText(40),
+  })
+  // Un client avec accès a forcément une adresse email : c'est son identifiant
+  // de connexion. Un client sans compte peut s'en passer.
+  .refine((v) => v.noAccount || Boolean(v.email), {
+    message: "Email requis pour un client disposant d'un accès à la plateforme",
+    path: ["email"],
+  });
 export type CreateClientAndDossierInput = z.infer<
   typeof createClientAndDossierSchema
 >;
@@ -132,5 +148,16 @@ export const dossierFiltersSchema = z.object({
   programmeId: z.string().optional(),
   search: z.string().max(100).optional(),
   page: z.coerce.number().int().min(1).default(1),
+  // Historique : inclut les dossiers archivés (clients dissociés, T10).
+  // Exclus par défaut ; réservé à l'équipe interne côté `dossierWhereForUser`.
+  archives: z
+    .union([z.literal("1"), z.literal("0")])
+    .optional()
+    .transform((v) => v === "1"),
+  // Sens du tri naturel sur la référence de lot (T13), croissant par défaut.
+  tri: z
+    .union([z.literal("asc"), z.literal("desc")])
+    .optional()
+    .transform((v) => v ?? "asc"),
 });
 export type DossierFiltersInput = z.infer<typeof dossierFiltersSchema>;

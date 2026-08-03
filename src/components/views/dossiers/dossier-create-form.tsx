@@ -34,6 +34,8 @@ interface Props {
   collaborators: UserOption[];
   pendingClients: UserOption[];
   defaultCollaboratorId: string;
+  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
+  basePath: string;
 }
 
 export function DossierCreateForm({
@@ -41,6 +43,7 @@ export function DossierCreateForm({
   collaborators,
   pendingClients,
   defaultCollaboratorId,
+  basePath,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -83,7 +86,7 @@ export function DossierCreateForm({
         setGlobalError(result.error);
         return;
       }
-      router.replace(`/collaborateur/dossiers/${result.value.id}`);
+      router.replace(`${basePath}/${result.value.id}`);
       router.refresh();
     });
   }

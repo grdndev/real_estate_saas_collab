@@ -30,6 +30,8 @@ interface Props {
   contact: ClientContactData | null;
   convertedProspect?: boolean;
   pendingSignature?: boolean;
+  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
+  dossierBasePath: string;
 }
 
 export function ClientContactCard({
@@ -39,6 +41,7 @@ export function ClientContactCard({
   contact,
   convertedProspect = false,
   pendingSignature = false,
+  dossierBasePath,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -118,7 +121,7 @@ export function ClientContactCard({
         <CardTitle>Client</CardTitle>
         {dossierId && (
           <Link
-            href={`/collaborateur/dossiers/${dossierId}`}
+            href={`${dossierBasePath}/${dossierId}`}
             className="text-equatis-turquoise-700 text-sm hover:underline"
           >
             Voir le dossier →

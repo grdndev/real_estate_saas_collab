@@ -24,6 +24,8 @@ export function CreateLotForm({ programmeId }: { programmeId: string }) {
       programmeId,
       reference: "",
       surface: 0,
+      annexSurface: null,
+      suv: null,
       floor: 0,
       type: "T2",
       priceHT: 0,
@@ -52,6 +54,8 @@ export function CreateLotForm({ programmeId }: { programmeId: string }) {
         programmeId,
         reference: "",
         surface: 0,
+        annexSurface: null,
+        suv: null,
         floor: 0,
         type: "T2",
         priceHT: 0,
@@ -82,7 +86,7 @@ export function CreateLotForm({ programmeId }: { programmeId: string }) {
         />
       </FormField>
       <FormField
-        label="Surface (m²)"
+        label="Surface habitable (m²)"
         htmlFor="lot-surface"
         required
         error={form.formState.errors.surface?.message}
@@ -91,6 +95,34 @@ export function CreateLotForm({ programmeId }: { programmeId: string }) {
           type="number"
           step="0.01"
           {...form.register("surface", { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField
+        label="Surface annexe (m²)"
+        htmlFor="lot-annexSurface"
+        hint="Optionnel"
+        error={form.formState.errors.annexSurface?.message}
+      >
+        <Input
+          type="number"
+          step="0.01"
+          {...form.register("annexSurface", {
+            setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+          })}
+        />
+      </FormField>
+      <FormField
+        label="Surface utile SUV (m²)"
+        htmlFor="lot-suv"
+        hint="Optionnel — valeur saisie telle quelle, aucun recalcul"
+        error={form.formState.errors.suv?.message}
+      >
+        <Input
+          type="number"
+          step="0.01"
+          {...form.register("suv", {
+            setValueAs: (v) => (v === "" || v == null ? null : Number(v)),
+          })}
         />
       </FormField>
       <FormField

@@ -55,40 +55,42 @@ describe("nombreEnLettres", () => {
   });
 });
 
+// `montantEnLettres` met le résultat en capitales : convention des actes et
+// factures d'honoraires, où le montant en lettres est écrit en majuscules.
 describe("montantEnLettres", () => {
   it("écrit les montants entiers", () => {
-    expect(montantEnLettres(0)).toBe("zéro euro");
-    expect(montantEnLettres(1)).toBe("un euro");
-    expect(montantEnLettres(21)).toBe("vingt et un euros");
-    expect(montantEnLettres(80)).toBe("quatre-vingts euros");
-    expect(montantEnLettres(100)).toBe("cent euros");
-    expect(montantEnLettres(200)).toBe("deux cents euros");
-    expect(montantEnLettres(1_000)).toBe("mille euros");
-    expect(montantEnLettres(80_000)).toBe("quatre-vingt mille euros");
-    expect(montantEnLettres(200_000)).toBe("deux cent mille euros");
+    expect(montantEnLettres(0)).toBe("ZÉRO EURO");
+    expect(montantEnLettres(1)).toBe("UN EURO");
+    expect(montantEnLettres(21)).toBe("VINGT ET UN EUROS");
+    expect(montantEnLettres(80)).toBe("QUATRE-VINGTS EUROS");
+    expect(montantEnLettres(100)).toBe("CENT EUROS");
+    expect(montantEnLettres(200)).toBe("DEUX CENTS EUROS");
+    expect(montantEnLettres(1_000)).toBe("MILLE EUROS");
+    expect(montantEnLettres(80_000)).toBe("QUATRE-VINGT MILLE EUROS");
+    expect(montantEnLettres(200_000)).toBe("DEUX CENT MILLE EUROS");
   });
 
   it("écrit les centimes", () => {
     expect(montantEnLettres(14_250.5)).toBe(
-      "quatorze mille deux cent cinquante euros et cinquante centimes",
+      "QUATORZE MILLE DEUX CENT CINQUANTE EUROS ET CINQUANTE CENTIMES",
     );
-    expect(montantEnLettres(0.01)).toBe("zéro euro et un centime");
-    expect(montantEnLettres(1.05)).toBe("un euro et cinq centimes");
+    expect(montantEnLettres(0.01)).toBe("ZÉRO EURO ET UN CENTIME");
+    expect(montantEnLettres(1.05)).toBe("UN EURO ET CINQ CENTIMES");
     expect(montantEnLettres(19.99)).toBe(
-      "dix-neuf euros et quatre-vingt-dix-neuf centimes",
+      "DIX-NEUF EUROS ET QUATRE-VINGT-DIX-NEUF CENTIMES",
     );
   });
 
   it("arrondit proprement les flottants", () => {
     // 19.90 est représenté 19.900000000000002 en flottant.
     expect(montantEnLettres(19.9)).toBe(
-      "dix-neuf euros et quatre-vingt-dix centimes",
+      "DIX-NEUF EUROS ET QUATRE-VINGT-DIX CENTIMES",
     );
   });
 
   it("utilise « d'euros » après million", () => {
-    expect(montantEnLettres(1_000_000)).toBe("un million d'euros");
-    expect(montantEnLettres(2_000_000)).toBe("deux millions d'euros");
+    expect(montantEnLettres(1_000_000)).toBe("UN MILLION D'EUROS");
+    expect(montantEnLettres(2_000_000)).toBe("DEUX MILLIONS D'EUROS");
   });
 
   it("rejette les montants négatifs", () => {

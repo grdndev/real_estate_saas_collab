@@ -19,7 +19,9 @@ interface Props {
   onDone: () => void;
 }
 
-type RowCase = "A" | "B" | "C" | "SKIP";
+// Chaque ligne donne lieu à un dossier : A = client existant,
+// B = nouvel acquéreur à créer, C = dossier sans client.
+type RowCase = "A" | "B" | "C";
 
 interface RowMeta {
   row: ParsedTrackingLot;
@@ -74,26 +76,14 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
       for (const row of rows) {
         if (cancelled) return;
         if (!row.buyerEmail) {
-          if (
-            row.lotStatus === "AVAILABLE" &&
-            !row.optionDate &&
-            !row.reservationSignedAt &&
-            !row.actSignedAt
-          ) {
-            result.push({
-              row,
-              case: "SKIP",
-              existingUserId: null,
-              hasDossier: false,
-            });
-          } else {
-            result.push({
-              row,
-              case: "C",
-              existingUserId: null,
-              hasDossier: false,
-            });
-          }
+          // Un dossier est créé pour CHAQUE lot importé, même sans acquéreur
+          // ni date de process (T8) : il démarre en NEW_LEAD, sans client.
+          result.push({
+            row,
+            case: "C",
+            existingUserId: null,
+            hasDossier: false,
+          });
           continue;
         }
         const lookup = await lookupClientByEmailAction(row.buyerEmail);
@@ -174,9 +164,8 @@ export function StepDossiers({ rows, programmeId, lotIds, onDone }: Props) {
   }, [metas]);
 
   const caseBRows = metas?.filter((m) => m.case === "B") ?? [];
-  const total = metas
-    ? metas.filter((m) => m.case !== "SKIP").length
-    : rows.length;
+  // Chaque ligne importée donne un dossier : le compteur porte sur toutes.
+  const total = metas ? metas.length : rows.length;
 
   if (!metas) {
     return (

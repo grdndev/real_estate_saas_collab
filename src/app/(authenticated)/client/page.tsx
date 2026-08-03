@@ -42,8 +42,8 @@ const eur = new Intl.NumberFormat("fr-FR", {
 export default async function ClientDashboardPage() {
   const me = await requireRole(["CLIENT", "SUPER_ADMIN"]);
 
-  const dossier = await prisma.dossier.findUnique({
-    where: { clientId: me.id },
+  const dossier = await prisma.dossier.findFirst({
+    where: { clientId: me.id, archivedAt: null },
     include: {
       programme: { select: { name: true, city: true } },
       lots: true,

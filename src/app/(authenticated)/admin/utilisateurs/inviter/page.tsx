@@ -2,11 +2,15 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { requireRole } from "@/lib/auth/guards";
 import { InviteUserForm } from "./invite-form";
 
 export const metadata: Metadata = { title: "Inviter un utilisateur" };
 
-export default function InviteUserPage() {
+export default async function InviteUserPage() {
+  // Défense en profondeur : proxy.ts filtre déjà /admin, la garde revérifie ici.
+  await requireRole("SUPER_ADMIN");
+
   return (
     <div className="flex flex-col gap-6">
       <div>

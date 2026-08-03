@@ -24,15 +24,17 @@ export async function findDossierForUser(
     return prisma.dossier.findUnique({ where: { id: dossierId } });
   }
 
+  // Notaire et client n'ont accès qu'aux dossiers actifs : un dossier archivé
+  // est un historique interne (T10).
   if (role === "NOTARY") {
     return prisma.dossier.findFirst({
-      where: { id: dossierId, notaryId: userId },
+      where: { id: dossierId, notaryId: userId, archivedAt: null },
     });
   }
 
   if (role === "CLIENT") {
     return prisma.dossier.findFirst({
-      where: { id: dossierId, clientId: userId },
+      where: { id: dossierId, clientId: userId, archivedAt: null },
     });
   }
 
@@ -42,13 +44,22 @@ export async function findDossierForUser(
 /**
  * Construit la clause `where` Prisma pour la liste de dossiers visibles par un user.
  * Collaboratrices : accès partagé à tous les dossiers du cabinet.
+ *
+ * Les dossiers archivés (historique d'un client dissocié, T10) sont exclus par
+ * défaut de toutes les listes. `includeArchived` n'est ouvert qu'à l'équipe
+ * interne, pour consulter explicitement l'historique.
  */
 export function dossierWhereForUser(
   userId: string,
   role: UserRole,
+  options: { includeArchived?: boolean } = {},
 ): Prisma.DossierWhereInput {
-  if (role === "SUPER_ADMIN" || role === "COLLABORATOR") return {};
-  if (role === "NOTARY") return { notaryId: userId };
-  if (role === "CLIENT") return { clientId: userId };
+  const isStaff = role === "SUPER_ADMIN" || role === "COLLABORATOR";
+  const archiveScope: Prisma.DossierWhereInput =
+    options.includeArchived && isStaff ? {} : { archivedAt: null };
+
+  if (isStaff) return archiveScope;
+  if (role === "NOTARY") return { ...archiveScope, notaryId: userId };
+  if (role === "CLIENT") return { ...archiveScope, clientId: userId };
   return { id: "__never__" };
 }

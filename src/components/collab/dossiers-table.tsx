@@ -17,6 +17,10 @@ type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
 export interface DossierRow {
   id: string;
+  /** Dossier archivé (client dissocié, T10) — historique en lecture. */
+  archived: boolean;
+  /** Client associé sans accès à la plateforme (T7). */
+  clientHasNoAccount: boolean;
   clientName: string | null;
   clientPhone: string | null;
   clientEmail: string | null;
@@ -82,13 +86,27 @@ interface ColumnDef {
 }
 
 const COLUMNS: ColumnDef[] = [
-  { key: "client", label: "Client", render: (r) => r.clientName ?? "—" },
+  {
+    key: "client",
+    label: "Client",
+    render: (r) => (
+      <span className="inline-flex items-center gap-1.5">
+        {r.clientName ?? "—"}
+        {r.clientHasNoAccount && <Badge variant="neutral">Sans compte</Badge>}
+      </span>
+    ),
+  },
   { key: "programme", label: "Programme", render: (r) => r.programmeName },
   { key: "lot", label: "Lot", render: (r) => r.reference ?? "—" },
   {
     key: "statut",
     label: "Statut",
-    render: (r) => <Badge variant={r.statusVariant}>{r.statusLabel}</Badge>,
+    render: (r) => (
+      <span className="inline-flex items-center gap-1.5">
+        <Badge variant={r.statusVariant}>{r.statusLabel}</Badge>
+        {r.archived && <Badge variant="neutral">Archivé</Badge>}
+      </span>
+    ),
   },
   {
     key: "responsable",
@@ -284,7 +302,14 @@ function setVisible(next: Set<string>) {
   listeners.forEach((l) => l());
 }
 
-export function DossiersTable({ rows }: { rows: DossierRow[] }) {
+export function DossiersTable({
+  rows,
+  basePath,
+}: {
+  rows: DossierRow[];
+  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
+  basePath: string;
+}) {
   const visible = useSyncExternalStore(
     subscribe,
     getSnapshot,
@@ -375,7 +400,7 @@ export function DossiersTable({ rows }: { rows: DossierRow[] }) {
                   ))}
                   <Td className="text-right">
                     <Link
-                      href={`/collaborateur/dossiers/${row.id}`}
+                      href={`${basePath}/${row.id}`}
                       className="text-equatis-turquoise-700 text-sm hover:underline"
                     >
                       Ouvrir →
