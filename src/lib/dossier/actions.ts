@@ -965,7 +965,7 @@ export async function setDossierOptionAction(
   if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
 
   const expiresAt = data.optioned
-    ? new Date(Date.now() + data.optionDelayMonths * 30 * 24 * 3600_000)
+    ? new Date(Date.now() + data.optionDelayDays * 24 * 3600_000)
     : null;
 
   await prisma.$transaction(async (tx) => {
@@ -982,7 +982,7 @@ export async function setDossierOptionAction(
         dossierId: dossier.id,
         kind: "OPTION_TAKEN",
         title: data.optioned
-          ? `Dossier optionné — délai ${data.optionDelayMonths} mois`
+          ? `Dossier optionné — délai ${data.optionDelayDays} jours`
           : "Option levée",
         description: expiresAt
           ? `Échéance le ${expiresAt.toLocaleDateString("fr-FR")}`

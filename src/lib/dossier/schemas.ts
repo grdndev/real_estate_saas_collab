@@ -43,8 +43,8 @@ export type UpdateContractStatusInput = z.infer<
 export const setDossierOptionSchema = z.object({
   dossierId: z.string().min(1),
   optioned: z.boolean(),
-  // Délai de l'option en mois (ex. 3 mois). Ignoré si optioned = false.
-  optionDelayMonths: z.coerce.number().int().min(1).max(24).default(3),
+  // Délai de l'option en jours (ex. 12 jours). Ignoré si optioned = false.
+  optionDelayDays: z.coerce.number().int().min(7).max(365).default(12),
 });
 export type SetDossierOptionInput = z.infer<typeof setDossierOptionSchema>;
 

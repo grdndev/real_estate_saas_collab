@@ -23,7 +23,7 @@ function expiryBadge(date: Date | null) {
   if (days < 0) {
     return <Badge variant="danger">Expirée depuis {-days} j</Badge>;
   }
-  if (days <= 14) {
+  if (days < 7) {
     return <Badge variant="warning">Échéance dans {days} j</Badge>;
   }
   return <Badge variant="info">Échéance dans {days} j</Badge>;

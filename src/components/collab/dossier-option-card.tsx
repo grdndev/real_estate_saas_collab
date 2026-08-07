@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import {
   setDossierOptionAction,
   recordOptionReminderAction,
 } from "@/lib/dossier/actions";
+
+const MIN_DAYS = 7;
+const MAX_DAYS = 365;
 
 interface Props {
   dossierId: string;
@@ -26,18 +29,39 @@ export function DossierOptionCard({
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const [months, setMonths] = useState("3");
+  const [days, setDays] = useState("12");
   const [error, setError] = useState<string | null>(null);
 
   const expiry = optionExpiresAt ? new Date(optionExpiresAt) : null;
 
+  // Le délai n'est lu par l'action que lorsqu'on pose l'option : on ne le
+  // valide donc qu'à la pose, pas à la levée. Bornes alignées sur
+  // `setDossierOptionSchema`.
+  function validateDays(): string | null {
+    const value = Number(days);
+    if (!days.trim() || !Number.isInteger(value)) {
+      return "Le délai doit être un nombre entier de jours.";
+    }
+    if (value < MIN_DAYS || value > MAX_DAYS) {
+      return `Le délai doit être compris entre ${MIN_DAYS} et ${MAX_DAYS} jours.`;
+    }
+    return null;
+  }
+
   function setOption(value: boolean) {
     setError(null);
+    if (value) {
+      const invalid = validateDays();
+      if (invalid) {
+        setError(invalid);
+        return;
+      }
+    }
     startTransition(async () => {
       const result = await setDossierOptionAction({
         dossierId,
         optioned: value,
-        optionDelayMonths: Number(months),
+        optionDelayDays: Number(days),
       });
       if (!result.ok) {
         setError(result.error);
@@ -111,17 +135,18 @@ export function DossierOptionCard({
           <div className="flex items-end gap-2">
             <label className="text-sm">
               <span className="mb-1 block text-xs text-slate-500">
-                Délai de l&apos;option
+                Délai de l&apos;option (jours)
               </span>
-              <Select
-                value={months}
-                onChange={(e) => setMonths(e.target.value)}
-              >
-                <option value="1">1 mois</option>
-                <option value="2">2 mois</option>
-                <option value="3">3 mois</option>
-                <option value="6">6 mois</option>
-              </Select>
+              <Input
+                type="number"
+                min={MIN_DAYS}
+                max={MAX_DAYS}
+                step={1}
+                value={days}
+                onChange={(e) => setDays(e.target.value)}
+                aria-invalid={error !== null}
+                className="w-28"
+              />
             </label>
             <Button
               type="button"
