@@ -60,7 +60,7 @@ export interface LotListResult {
  * dont le compte est inutilisable (email non confirmé, supprimé) sont écartés.
  */
 export async function loadAssignableClients() {
-  return prisma.user.findMany({
+  const clients = await prisma.user.findMany({
     where: {
       role: "CLIENT",
       status: { in: ["PENDING_ASSOCIATION", "ACTIVE", "NO_ACCOUNT"] },
@@ -69,6 +69,8 @@ export async function loadAssignableClients() {
     orderBy: { createdAt: "desc" },
     select: { id: true, firstName: true, lastName: true, email: true },
   });
+  // L'adresse technique d'un client sans compte n'est jamais affichée (T7).
+  return clients.map((c) => ({ ...c, email: displayableEmail(c.email) }));
 }
 
 export async function loadLotList(

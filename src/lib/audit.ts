@@ -7,6 +7,7 @@ export type AuditAction =
   | "USER_LOCKED"
   | "USER_CREATED"
   | "USER_UPDATED"
+  | "USER_DELETED"
   | "USER_PASSWORD_CHANGED"
   | "DOSSIER_CREATED"
   | "DOSSIER_UPDATED"

@@ -8,6 +8,7 @@ import { RequestSignatureBlock } from "@/components/collab/request-signature";
 import { StatusTransition } from "@/components/collab/status-transition";
 import { TransmitNotaryForm } from "@/components/collab/transmit-notary-form";
 import { prisma } from "@/lib/prisma";
+import { displayableEmail } from "@/lib/user/no-account";
 
 const eur = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -275,7 +276,9 @@ export async function DossierSidePanel({ dossierId }: { dossierId: string }) {
                 label: `Client — ${client.firstName} ${client.lastName}`,
                 firstName: client.firstName,
                 lastName: client.lastName,
-                email: client.email,
+                // Client sans compte (T7) : l'adresse technique n'est jamais
+                // pré-remplie — le collaborateur doit saisir une vraie adresse.
+                email: displayableEmail(client.email) ?? "",
               },
               ...(notaryParticipant
                 ? [

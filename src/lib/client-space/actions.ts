@@ -158,7 +158,11 @@ export async function refuseDocumentAction({
   const document = await prisma.document.findUnique({
     where: { id: documentId },
     include: {
-      dossier: { select: { client: { select: { id: true, email: true } } } },
+      dossier: {
+        select: {
+          client: { select: { id: true, email: true, status: true } },
+        },
+      },
     },
   });
   if (!document || document.deletedAt) {
@@ -192,13 +196,17 @@ export async function refuseDocumentAction({
       link: `/client/${document.dossierId}/documents`,
     });
 
-    getMailer().send(
-      documentDeclinedMail(
-        document.dossier.client.email,
-        document.fileName,
-        trimmed,
-      ),
-    );
+    // Un client sans compte (T7) n'a pas d'adresse exploitable : seule la
+    // notification in-app est conservée.
+    if (canBeContactedByEmail(document.dossier.client)) {
+      getMailer().send(
+        documentDeclinedMail(
+          document.dossier.client.email,
+          document.fileName,
+          trimmed,
+        ),
+      );
+    }
   }
 
   if (document.dossierId) {

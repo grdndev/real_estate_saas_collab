@@ -6,6 +6,7 @@ import { ClientProfileForm } from "@/components/collab/client-profile-form";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { decodeAddress } from "@/lib/profile";
+import { displayableEmail } from "@/lib/user/no-account";
 
 function safeDecrypt(value: string | null): string {
   if (!value) return "";
@@ -87,7 +88,7 @@ export async function LotFicheClientView({ lotId, basePath }: Props) {
           {dossier && client ? (
             <ClientProfileForm
               dossierId={dossier.id}
-              email={client.email}
+              email={displayableEmail(client.email)}
               initial={{
                 firstName: client.firstName,
                 lastName: client.lastName,

@@ -26,6 +26,10 @@ import { slugify } from "@/lib/utils";
 import { isStorageConfigured, putObject, readObject } from "@/lib/storage/s3";
 import { randomUUID } from "node:crypto";
 import { getRequestContext } from "@/lib/request-context";
+import {
+  canBeContactedByEmail,
+  isPlaceholderEmail,
+} from "@/lib/user/no-account";
 import type { ActionResult } from "@/lib/auth/actions";
 
 const requestSchema = z.object({
@@ -58,6 +62,15 @@ export async function requestSignatureAction(
       ok: false,
       error:
         "Yousign non configuré. Renseignez YOUSIGN_API_KEY et YOUSIGN_API_URL.",
+    };
+  }
+  // Adresse technique d'un client sans compte (T7) : Yousign enverrait la
+  // demande dans le vide.
+  if (isPlaceholderEmail(parsed.data.signerEmail)) {
+    return {
+      ok: false,
+      error:
+        "Ce client sans compte n'a pas d'adresse email : renseignez-en une avant de demander une signature.",
     };
   }
 
@@ -242,7 +255,12 @@ export async function notifySignatureUpdate(
             },
           },
           client: {
-            select: { email: true, firstName: true, lastName: true },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              status: true,
+            },
           },
         },
       },
@@ -293,20 +311,24 @@ export async function notifySignatureUpdate(
         body: "Votre document a été signé électroniquement.",
         link: "/client",
       });
-      mailer
-        .send(
-          signatureCompletedClientMail(
-            signature.dossier.client.email,
-            signature.dossier.client.firstName,
-          ),
-        )
-        .catch((err) =>
-          console.error(
-            "[mail] signatureCompleted client",
-            signature.dossier.client!.email,
-            err,
-          ),
-        );
+      // Un client sans compte (T7) n'a pas d'adresse exploitable : seule la
+      // notification in-app est conservée.
+      if (canBeContactedByEmail(signature.dossier.client)) {
+        mailer
+          .send(
+            signatureCompletedClientMail(
+              signature.dossier.client.email,
+              signature.dossier.client.firstName,
+            ),
+          )
+          .catch((err) =>
+            console.error(
+              "[mail] signatureCompleted client",
+              signature.dossier.client!.email,
+              err,
+            ),
+          );
+      }
     }
 
     // Récupération du PDF signé depuis Yousign et réintégration sur le dossier.

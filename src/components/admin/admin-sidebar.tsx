@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Users,
   Users2,
+  UserRoundX,
   Building2,
   Activity,
   Settings,
@@ -26,6 +27,11 @@ const NAV = [
   { href: "/admin/programmes", label: "Programmes", icon: Building2 },
   { href: "/admin/fonds", label: "Suivi de fonds", icon: Banknote },
   { href: "/admin/prospects", label: "Prospects", icon: Users2 },
+  {
+    href: "/admin/clients/associes",
+    label: "Clients sans compte",
+    icon: UserRoundX,
+  },
   {
     href: "/messagerie-interne",
     label: "Messagerie interne",

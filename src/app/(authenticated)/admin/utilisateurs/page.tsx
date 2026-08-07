@@ -16,6 +16,7 @@ import {
 import { UserRowActions } from "@/components/admin/user-row-actions";
 import { prisma } from "@/lib/prisma";
 import { USER_STATUS_BADGE } from "@/lib/user/labels";
+import { displayableEmail } from "@/lib/user/no-account";
 import { requireRole } from "@/lib/auth/guards";
 
 export const metadata: Metadata = { title: "Utilisateurs · Admin" };
@@ -95,7 +96,9 @@ export default async function AdminUsersPage() {
                     <Td className="font-medium">
                       {u.firstName} {u.lastName}
                     </Td>
-                    <Td className="text-slate-600">{u.email}</Td>
+                    <Td className="text-slate-600">
+                      {displayableEmail(u.email) ?? "—"}
+                    </Td>
                     <Td>
                       <Badge variant="primary">{ROLE_LABEL[u.role]}</Badge>
                     </Td>

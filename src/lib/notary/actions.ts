@@ -17,6 +17,7 @@ import {
 } from "@/lib/mail/auto-templates";
 import { readObject } from "@/lib/storage/s3";
 import { getRequestContext } from "@/lib/request-context";
+import { canBeContactedByEmail } from "@/lib/user/no-account";
 import {
   attachNotarySchema,
   flagMissingPieceSchema,
@@ -534,7 +535,7 @@ export async function notaryUpdateStatusAction(
       const dossierWithRel = await prisma.dossier.findUnique({
         where: { id: dossier.id },
         include: {
-          client: { select: { email: true, firstName: true } },
+          client: { select: { email: true, firstName: true, status: true } },
           participants: {
             where: {
               role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
@@ -547,7 +548,11 @@ export async function notaryUpdateStatusAction(
       });
       if (!dossierWithRel) return;
       const mailer = getMailer();
-      if (dossierWithRel.client) {
+      // Un client sans compte (T7) n'a pas d'adresse exploitable.
+      if (
+        dossierWithRel.client &&
+        canBeContactedByEmail(dossierWithRel.client)
+      ) {
         await mailer.send(
           actReadyMail(
             dossierWithRel.client.email,

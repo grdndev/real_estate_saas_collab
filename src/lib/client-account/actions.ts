@@ -70,6 +70,19 @@ function encodeAddress(data: CreateAssociatedClientInput): string | null {
   );
 }
 
+/**
+ * Écrans impactés par toute écriture sur un client associé : les deux listes
+ * cloisonnées (collaborateur / admin) et les grilles de lots qui affichent son
+ * nom. Fonction locale — un module `"use server"` ne peut exporter que des
+ * fonctions asynchrones.
+ */
+function revalidateAssociatedClientPaths(): void {
+  revalidatePath("/collaborateur/clients/associes");
+  revalidatePath("/admin/clients/associes");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
+}
+
 // =====================================================
 // CRÉATION D'UN CLIENT ASSOCIÉ (sans compte)
 // =====================================================
@@ -128,8 +141,7 @@ export async function createAssociatedClientAction(
     metadata: "Client associé sans compte créé",
   });
 
-  revalidatePath("/collaborateur/lots");
-  revalidatePath("/admin/lots");
+  revalidateAssociatedClientPaths();
   return { ok: true, value: { clientId: client.id } };
 }
 
@@ -213,9 +225,90 @@ export async function updateAssociatedClientAction(
     metadata: "Fiche d'un client associé sans compte mise à jour",
   });
 
-  revalidatePath("/collaborateur/lots");
-  revalidatePath("/admin/lots");
+  revalidateAssociatedClientPaths();
   return { ok: true, value: undefined };
+}
+
+// =====================================================
+// SUPPRESSION D'UN CLIENT ASSOCIÉ
+// =====================================================
+
+/**
+ * Supprime la fiche d'un client sans compte.
+ *
+ * Trois cas, dans cet ordre :
+ * - dossier ACTIF → refus : il faut d'abord dissocier le client de son lot,
+ *   pour que la libération du lot reste une décision explicite ;
+ * - dossiers uniquement archivés → soft-delete (`deletedAt`), afin de conserver
+ *   l'historique (documents, timeline, factures) exigé par la piste d'audit ;
+ * - aucun dossier → suppression définitive, la fiche n'a rien produit.
+ */
+export async function deleteAssociatedClientAction(
+  clientId: string,
+): Promise<ActionResult<{ mode: "soft" | "hard" }>> {
+  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
+  if (!clientId) return { ok: false, error: "Identifiant manquant." };
+  const ctx = await getRequestContext();
+
+  const client = await prisma.user.findUnique({
+    where: { id: clientId },
+    select: {
+      id: true,
+      role: true,
+      status: true,
+      firstName: true,
+      lastName: true,
+      deletedAt: true,
+    },
+  });
+  if (!client || client.role !== "CLIENT" || client.deletedAt) {
+    return { ok: false, error: "Client introuvable." };
+  }
+  if (client.status !== "NO_ACCOUNT") {
+    return {
+      ok: false,
+      error:
+        "Ce client dispose d'un compte : sa suppression relève d'une demande RGPD.",
+    };
+  }
+
+  const [activeDossiers, totalDossiers] = await Promise.all([
+    prisma.dossier.count({ where: { clientId, archivedAt: null } }),
+    prisma.dossier.count({ where: { clientId } }),
+  ]);
+  if (activeDossiers > 0) {
+    return {
+      ok: false,
+      error:
+        "Ce client suit encore un dossier actif. Dissociez-le de son lot depuis la fiche du lot avant de le supprimer.",
+    };
+  }
+
+  const mode: "soft" | "hard" = totalDossiers > 0 ? "soft" : "hard";
+  if (mode === "soft") {
+    await prisma.user.update({
+      where: { id: clientId },
+      data: { deletedAt: new Date() },
+    });
+  } else {
+    await prisma.user.delete({ where: { id: clientId } });
+  }
+
+  await audit({
+    userId: me.id,
+    action: "USER_DELETED",
+    resourceType: "User",
+    resourceId: clientId,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata:
+      mode === "soft"
+        ? `Client associé sans compte « ${client.firstName} ${client.lastName} » supprimé (soft-delete — ${totalDossiers} dossier(s) archivé(s) conservé(s))`
+        : `Client associé sans compte « ${client.firstName} ${client.lastName} » supprimé définitivement (aucun dossier)`,
+  });
+
+  revalidateAssociatedClientPaths();
+  return { ok: true, value: { mode } };
 }
 
 // =====================================================
@@ -325,7 +418,6 @@ export async function convertToAccountClientAction(
       "Client associé converti en client avec compte — invitation envoyée",
   });
 
-  revalidatePath("/collaborateur/lots");
-  revalidatePath("/admin/lots");
+  revalidateAssociatedClientPaths();
   return { ok: true, value: undefined };
 }

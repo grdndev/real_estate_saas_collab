@@ -32,7 +32,8 @@ export interface ClientProfileValues {
 
 interface Props {
   dossierId: string;
-  email: string;
+  /** `null` pour un client sans compte dépourvu d'adresse réelle (T7). */
+  email: string | null;
   initial: ClientProfileValues;
 }
 
@@ -130,7 +131,12 @@ export function ClientProfileForm({ dossierId, email, initial }: Props) {
           Coordonnées
         </legend>
         <FormField label="Adresse email" htmlFor="cp-email">
-          <Input id="cp-email" value={email} disabled />
+          <Input
+            id="cp-email"
+            value={email ?? ""}
+            placeholder="Aucune adresse renseignée"
+            disabled
+          />
         </FormField>
         <FormField label="Téléphone" htmlFor="cp-phone">
           <Input

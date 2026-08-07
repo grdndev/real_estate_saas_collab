@@ -29,6 +29,7 @@ import {
   type PrepareUploadInput,
 } from "@/lib/storage/schemas";
 import { getRequestContext } from "@/lib/request-context";
+import { canBeContactedByEmail } from "@/lib/user/no-account";
 import type { ActionResult } from "@/lib/auth/actions";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
@@ -190,7 +191,14 @@ export async function confirmUploadAction(
       const dossierWithRel = await prisma.dossier.findUnique({
         where: { id: document.dossierId! },
         include: {
-          client: { select: { email: true, firstName: true, lastName: true } },
+          client: {
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              status: true,
+            },
+          },
           participants: {
             where: {
               role: { in: ["COLLABORATOR_PRIMARY", "COLLABORATOR_SECONDARY"] },
@@ -220,7 +228,9 @@ export async function confirmUploadAction(
         }
       } else if (
         document.source === "COLLABORATOR_UPLOAD" &&
-        dossierWithRel.client
+        dossierWithRel.client &&
+        // Un client sans compte (T7) n'a pas d'adresse exploitable.
+        canBeContactedByEmail(dossierWithRel.client)
       ) {
         await mailer.send(
           newDocumentMail(

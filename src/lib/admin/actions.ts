@@ -11,6 +11,7 @@ import { generateOpaqueToken } from "@/lib/auth/tokens";
 import { getMailer } from "@/lib/mail";
 import { invitationMail } from "@/lib/mail/admin-templates";
 import { getRequestContext } from "@/lib/request-context";
+import { canBeContactedByEmail } from "@/lib/user/no-account";
 import {
   invalidateCompanyLogoCache,
   invalidateSettingsCache,
@@ -123,6 +124,21 @@ export async function setUserStatusAction(
   }
   const ctx = await getRequestContext();
 
+  // Un « client associé » sans compte (T7) n'a ni identifiants ni adresse
+  // réelle : le basculer en ACTIVE casserait l'invariant du statut.
+  const target = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { status: true },
+  });
+  if (!target) return { ok: false, error: "Utilisateur introuvable" };
+  if (target.status === "NO_ACCOUNT") {
+    return {
+      ok: false,
+      error:
+        "Ce client n'a pas de compte. Utilisez « Créer un accès » depuis son dossier pour lui en ouvrir un.",
+    };
+  }
+
   const user = await prisma.user.update({
     where: { id: userId },
     data: { status: active ? "ACTIVE" : "SUSPENDED" },
@@ -164,6 +180,14 @@ export async function forceResetUserPasswordAction(
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) return { ok: false, error: "Utilisateur introuvable" };
+  // Sans compte ni adresse réelle (T7), l'invitation partirait dans le vide.
+  if (!canBeContactedByEmail(user)) {
+    return {
+      ok: false,
+      error:
+        "Ce client n'a pas de compte ni d'adresse email : aucune invitation ne peut lui être envoyée.",
+    };
+  }
 
   // Révocation des sessions actives.
   await prisma.session.updateMany({

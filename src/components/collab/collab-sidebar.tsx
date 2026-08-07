@@ -11,6 +11,7 @@ import {
   MessagesSquare,
   Receipt,
   User,
+  UserRoundX,
   Users2,
   ChartLine,
 } from "lucide-react";
@@ -25,6 +26,11 @@ const NAV = [
     href: "/collaborateur/clients-en-attente",
     label: "Clients en attente",
     icon: Hourglass,
+  },
+  {
+    href: "/collaborateur/clients/associes",
+    label: "Clients sans compte",
+    icon: UserRoundX,
   },
   { href: "/collaborateur/facturation", label: "Facturation", icon: Receipt },
   { href: "/collaborateur/fonds", label: "Suivi des fonds", icon: ChartLine },

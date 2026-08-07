@@ -12,7 +12,8 @@ interface ClientOption {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  /** `null` pour un client sans compte dépourvu d'adresse réelle (T7). */
+  email: string | null;
 }
 
 interface Props {
@@ -63,7 +64,8 @@ export function AssignClientForm({ lotId, pendingClients }: Props) {
         <option value="">Sélectionner un client…</option>
         {pendingClients.map((c) => (
           <option key={c.id} value={c.id}>
-            {c.firstName} {c.lastName} ({c.email})
+            {c.firstName} {c.lastName}
+            {c.email ? ` (${c.email})` : " (sans compte)"}
           </option>
         ))}
       </Select>
