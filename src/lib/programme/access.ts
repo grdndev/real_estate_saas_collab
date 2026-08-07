@@ -16,16 +16,29 @@ export interface ClientIdentityOption {
 
 /** Liste des programmes (section « Programmes » admin et collaborateur). */
 export async function loadProgrammesList() {
-  return prisma.programme.findMany({
+  const programmes = await prisma.programme.findMany({
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     select: {
       id: true,
       name: true,
       city: true,
       status: true,
-      _count: { select: { lots: true, dossiers: true, promoters: true } },
+      _count: { select: { lots: true, promoters: true } },
     },
   });
+  // Dossiers actifs = lots du programme portant un client (`Lot.dossierId`).
+  const active = await prisma.lot.groupBy({
+    by: ["programmeId"],
+    where: { dossierId: { not: null } },
+    _count: { _all: true },
+  });
+  const activeByProgramme = new Map(
+    active.map((a) => [a.programmeId, a._count._all]),
+  );
+  return programmes.map((p) => ({
+    ...p,
+    activeDossiers: activeByProgramme.get(p.id) ?? 0,
+  }));
 }
 
 /** Détail d'un programme : lots, dossiers rattachés et promoteurs assignés. */
@@ -147,7 +160,8 @@ export interface ProgrammeSalesRow {
   createdAt: Date;
   lastActivityAt: Date;
   closedAt: Date | null;
-  lots: { reference: string; type: string }[];
+  lotId: string;
+  lot: { reference: string; type: string };
   /** `null` quand l'identité client est masquée (promoteur) ou absente. */
   clientName: string | null;
 }
@@ -157,7 +171,7 @@ export async function loadProgrammeSales(
   programmeId: string,
   { withClientIdentity }: ClientIdentityOption,
 ): Promise<ProgrammeSalesRow[]> {
-  const where = { programmeId, archivedAt: null };
+  const where = { lot: { programmeId }, archivedAt: null };
   const orderBy = { createdAt: "desc" } as const;
 
   // Deux requêtes distinctes : quand l'identité est masquée, aucune donnée
@@ -168,11 +182,12 @@ export async function loadProgrammeSales(
       orderBy,
       select: {
         id: true,
+        lotId: true,
         status: true,
         createdAt: true,
         lastActivityAt: true,
         closedAt: true,
-        lots: { select: { reference: true, type: true } },
+        lot: { select: { reference: true, type: true } },
       },
     });
     return rows.map((d) => ({ ...d, clientName: null }));
@@ -183,11 +198,12 @@ export async function loadProgrammeSales(
     orderBy,
     select: {
       id: true,
+      lotId: true,
       status: true,
       createdAt: true,
       lastActivityAt: true,
       closedAt: true,
-      lots: { select: { reference: true, type: true } },
+      lot: { select: { reference: true, type: true } },
       client: { select: { firstName: true, lastName: true } },
     },
   });
@@ -199,8 +215,9 @@ export async function loadProgrammeSales(
 
 export interface ProgrammeContractRow {
   id: string;
+  lotId: string;
   contractStatus: ContractStatus | null;
-  lots: { reference: string; type: string }[];
+  lot: { reference: string; type: string };
   signedAt: Date | null;
   hasSignature: boolean;
   nextAppointmentAt: Date | null;
@@ -213,14 +230,15 @@ export async function loadProgrammeContracts(
   programmeId: string,
   { withClientIdentity }: ClientIdentityOption,
 ): Promise<ProgrammeContractRow[]> {
-  const where = { programmeId, archivedAt: null };
+  const where = { lot: { programmeId }, archivedAt: null };
   const orderBy = { updatedAt: "desc" } as const;
 
   const toRow = (
     d: {
       id: string;
+      lotId: string;
       contractStatus: ProgrammeContractRow["contractStatus"];
-      lots: { reference: string; type: string }[];
+      lot: { reference: string; type: string };
       signatures: { status: string; signedAt: Date | null }[];
       appointments: { scheduledAt: Date }[];
     },
@@ -229,8 +247,9 @@ export async function loadProgrammeContracts(
     const signed = d.signatures.find((s) => s.status === "SIGNED");
     return {
       id: d.id,
+      lotId: d.lotId,
       contractStatus: d.contractStatus,
-      lots: d.lots,
+      lot: d.lot,
       signedAt: signed?.signedAt ?? null,
       hasSignature: Boolean(signed),
       nextAppointmentAt: d.appointments[0]?.scheduledAt ?? null,
@@ -246,8 +265,9 @@ export async function loadProgrammeContracts(
       orderBy,
       select: {
         id: true,
+        lotId: true,
         contractStatus: true,
-        lots: { select: { reference: true, type: true } },
+        lot: { select: { reference: true, type: true } },
         signatures: { select: { status: true, signedAt: true } },
         appointments: {
           where: { status: { in: ["SCHEDULED", "CONFIRMED"] } },
@@ -265,8 +285,9 @@ export async function loadProgrammeContracts(
     orderBy,
     select: {
       id: true,
+      lotId: true,
       contractStatus: true,
-      lots: { select: { reference: true, type: true } },
+      lot: { select: { reference: true, type: true } },
       signatures: { select: { status: true, signedAt: true } },
       appointments: {
         where: { status: { in: ["SCHEDULED", "CONFIRMED"] } },

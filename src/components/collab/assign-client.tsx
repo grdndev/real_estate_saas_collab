@@ -16,11 +16,11 @@ interface ClientOption {
 }
 
 interface Props {
-  dossierId: string;
+  lotId: string;
   pendingClients: ClientOption[];
 }
 
-export function AssignClientForm({ dossierId, pendingClients }: Props) {
+export function AssignClientForm({ lotId, pendingClients }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [clientId, setClientId] = useState("");
@@ -30,8 +30,7 @@ export function AssignClientForm({ dossierId, pendingClients }: Props) {
     return (
       <p className="text-sm text-slate-500">
         Aucun client disponible à associer. Le client doit avoir un compte
-        (inscription confirmée ou compte créé par l&apos;équipe) et ne pas déjà
-        être rattaché à un dossier.
+        (inscription confirmée ou compte créé par l&apos;équipe).
       </p>
     );
   }
@@ -40,7 +39,7 @@ export function AssignClientForm({ dossierId, pendingClients }: Props) {
     if (!clientId) return;
     setError(null);
     startTransition(async () => {
-      const result = await assignClientAction({ dossierId, clientId });
+      const result = await assignClientAction({ lotId, clientId });
       if (!result.ok) {
         setError(result.error);
         return;

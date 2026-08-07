@@ -44,11 +44,18 @@ function fileToBase64(file: File): Promise<string> {
 
 interface Props {
   dossierId: string;
+  /** Lot du dossier — cible de la génération du PDF d'honoraires. */
+  lotId: string;
   hasNotary: boolean;
   invoices: InvoiceItem[];
 }
 
-export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
+export function InvoiceManager({
+  dossierId,
+  lotId,
+  hasNotary,
+  invoices,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [number, setNumber] = useState("");
@@ -244,7 +251,7 @@ export function InvoiceManager({ dossierId, hasNotary, invoices }: Props) {
         <label className="text-sm sm:col-span-4">
           <div className="border-t border-slate-100 pt-3">
             <HonorairesPdfDialog
-              dossierId={dossierId}
+              lotId={lotId}
               facture={number}
               montantHt={amountHT}
               tauxTva={vatRate}

@@ -1,14 +1,5 @@
 import { z } from "zod";
 
-export const createDossierSchema = z.object({
-  programmeId: z.string().min(1, "Programme requis"),
-  lotId: z.string().min(1).optional().nullable(),
-  clientId: z.string().min(1).optional().nullable(),
-  collaboratorId: z.string().min(1, "Collaborateur référent requis"),
-  initialNote: z.string().max(500).optional(),
-});
-export type CreateDossierInput = z.infer<typeof createDossierSchema>;
-
 export const dossierStatusEnum = z.enum([
   "NEW_LEAD",
   "RESERVATION_SENT",
@@ -58,13 +49,14 @@ export const setDossierOptionSchema = z.object({
 export type SetDossierOptionInput = z.infer<typeof setDossierOptionSchema>;
 
 export const assignClientSchema = z.object({
-  dossierId: z.string().min(1),
+  lotId: z.string().min(1),
   clientId: z.string().min(1),
 });
 export type AssignClientInput = z.infer<typeof assignClientSchema>;
 
+// La dissociation se pilote depuis le lot : elle retire `Lot.dossierId`.
 export const unassignClientSchema = z.object({
-  dossierId: z.string().min(1),
+  lotId: z.string().min(1),
 });
 export type UnassignClientInput = z.infer<typeof unassignClientSchema>;
 
@@ -99,7 +91,8 @@ export const createClientAndDossierSchema = z
       .optional()
       .or(z.literal("")),
     programmeId: z.string().min(1, "Programme requis"),
-    lotId: z.string().optional().nullable(),
+    // Un dossier porte toujours un lot : il matérialise l'achat de CE lot.
+    lotId: z.string().min(1, "Lot requis"),
     initialNote: z.string().max(500).optional(),
     // Fiche client étendue — tous optionnels à la création.
     birthName: optionalText(80),
@@ -142,22 +135,3 @@ export const relaunchClientSchema = z.object({
   comment: z.string().max(500).optional(),
 });
 export type RelaunchClientInput = z.infer<typeof relaunchClientSchema>;
-
-export const dossierFiltersSchema = z.object({
-  status: dossierStatusEnum.optional(),
-  programmeId: z.string().optional(),
-  search: z.string().max(100).optional(),
-  page: z.coerce.number().int().min(1).default(1),
-  // Historique : inclut les dossiers archivés (clients dissociés, T10).
-  // Exclus par défaut ; réservé à l'équipe interne côté `dossierWhereForUser`.
-  archives: z
-    .union([z.literal("1"), z.literal("0")])
-    .optional()
-    .transform((v) => v === "1"),
-  // Sens du tri naturel sur la référence de lot (T13), croissant par défaut.
-  tri: z
-    .union([z.literal("asc"), z.literal("desc")])
-    .optional()
-    .transform((v) => v ?? "asc"),
-});
-export type DossierFiltersInput = z.infer<typeof dossierFiltersSchema>;

@@ -26,8 +26,8 @@ interface Props {
    * L'équipe interne pilote la conversion ; le promoteur voit une liste simple.
    */
   sectioned: boolean;
-  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
-  dossierBasePath: string;
+  /** Racine « lots » de l'espace appelant ; `null` si l'espace n'y donne pas accès. */
+  lotBasePath: string | null;
 }
 
 export function ProspectsView({
@@ -37,7 +37,7 @@ export function ProspectsView({
   canDelete,
   subtitle,
   sectioned,
-  dossierBasePath,
+  lotBasePath,
 }: Props) {
   // Les listes dérivées conservent l'ordre d'entrée (createdAt desc, id desc).
   const optioned = prospects.filter((p) => p.status === "OPTIONED");
@@ -90,7 +90,7 @@ export function ProspectsView({
                 programmes={programmes}
                 canDelete={canDelete}
                 currentUserId={currentUserId}
-                dossierBasePath={dossierBasePath}
+                lotBasePath={lotBasePath}
               />
             </CardContent>
           </Card>
@@ -109,7 +109,7 @@ export function ProspectsView({
                 programmes={programmes}
                 canDelete={canDelete}
                 currentUserId={currentUserId}
-                dossierBasePath={dossierBasePath}
+                lotBasePath={lotBasePath}
               />
             </CardContent>
           </Card>
@@ -126,7 +126,7 @@ export function ProspectsView({
             programmes={programmes}
             canDelete={canDelete}
             currentUserId={currentUserId}
-            dossierBasePath={dossierBasePath}
+            lotBasePath={lotBasePath}
           />
         </CardContent>
       </Card>

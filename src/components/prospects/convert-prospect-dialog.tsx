@@ -45,7 +45,7 @@ export function ConvertProspectDialog({
       const r = await convertProspectAction({
         prospectId: prospect.id,
         programmeId,
-        lotId: lotId || null,
+        lotId,
       });
       if (!r.ok) {
         setServerError(r.error);
@@ -62,8 +62,14 @@ export function ConvertProspectDialog({
       title="Convertir en client"
       confirmLabel="Convertir"
       pending={pending}
-      // Bloque la confirmation tant qu'aucun programme n'est choisi.
-      error={!programmeId ? "Sélectionnez un programme." : undefined}
+      // Le dossier créé porte un lot : programme ET lot sont obligatoires.
+      error={
+        !programmeId
+          ? "Sélectionnez un programme."
+          : !lotId
+            ? "Sélectionnez le lot acheté."
+            : undefined
+      }
       onConfirm={confirm}
       onCancel={onClose}
       description={
@@ -73,8 +79,8 @@ export function ConvertProspectDialog({
             <strong>
               {prospect.firstName} {prospect.lastName}
             </strong>{" "}
-            avec un dossier associé, et un email d&apos;invitation lui sera
-            envoyé.
+            et le dossier du lot choisi, puis un email d&apos;invitation lui
+            sera envoyé.
           </p>
 
           {serverError && <p className="text-sm text-red-600">{serverError}</p>}
@@ -100,14 +106,15 @@ export function ConvertProspectDialog({
           <FormField
             label="Lot"
             htmlFor="convert-lot"
-            hint="Optionnel — peut être attribué plus tard"
+            required
+            hint="Le dossier matérialise l'achat de ce lot"
           >
             <Select
               value={lotId}
               onChange={(e) => setLotId(e.target.value)}
               disabled={pending || !programme || programme.lots.length === 0}
             >
-              <option value="">— Aucun lot pour le moment —</option>
+              <option value="">— Sélectionnez un lot libre —</option>
               {programme?.lots.map((lot) => (
                 <option key={lot.id} value={lot.id}>
                   {lot.reference} ({lot.type})

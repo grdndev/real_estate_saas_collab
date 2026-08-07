@@ -43,7 +43,7 @@ export function ClientCreateForm({
       noAccount: false,
       phone: "",
       programmeId: "",
-      lotId: null,
+      lotId: "",
       initialNote: "",
       birthName: "",
       birthDate: "",
@@ -86,7 +86,6 @@ export function ClientCreateForm({
       const contratFile = contratRef.current?.files?.[0];
       const result = await createClientAndDossierAction({
         ...values,
-        lotId: values.lotId || null,
         phone: values.phone || undefined,
         cniFileB64: cniFile ? await fileToBase64(cniFile) : "",
         cniFileName: cniFile?.name ?? "",
@@ -109,7 +108,7 @@ export function ClientCreateForm({
         setGlobalError(result.error);
         return;
       }
-      router.replace(`/collaborateur/dossiers/${result.value.dossierId}`);
+      router.replace(`/collaborateur/lots/${result.value.lotId}`);
       router.refresh();
     });
   }
@@ -211,16 +210,15 @@ export function ClientCreateForm({
       <FormField
         label="Lot"
         htmlFor="lotId"
-        hint="Optionnel — peut être attribué plus tard"
+        required
+        hint="Le dossier matérialise l'achat de ce lot"
         error={form.formState.errors.lotId?.message}
       >
         <Select
-          {...form.register("lotId", {
-            setValueAs: (v) => (v === "" ? null : v),
-          })}
+          {...form.register("lotId")}
           disabled={!programme || programme.lots.length === 0}
         >
-          <option value="">— Aucun lot pour le moment —</option>
+          <option value="">— Sélectionnez un lot libre —</option>
           {programme?.lots.map((lot) => (
             <option key={lot.id} value={lot.id}>
               {lot.reference} ({lot.type})

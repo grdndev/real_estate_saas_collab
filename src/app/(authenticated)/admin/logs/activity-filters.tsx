@@ -22,8 +22,8 @@ interface ActivityFiltersProps {
   programmes: { id: string; name: string }[];
   dossiers: {
     id: string;
-    client: { firstName: string; lastName: string } | null;
-    programme: { name: string };
+    client: { firstName: string; lastName: string };
+    lot: { programme: { name: string } };
   }[];
 }
 
@@ -131,10 +131,8 @@ export function ActivityFilters({
             <option value="">— Choisir un dossier —</option>
             {dossiers.map((d) => (
               <option key={d.id} value={d.id}>
-                {d.client
-                  ? `${d.client.firstName} ${d.client.lastName}`
-                  : "Sans client"}{" "}
-                ({d.programme.name})
+                {d.client.firstName} {d.client.lastName} ({d.lot.programme.name}
+                )
               </option>
             ))}
           </Select>

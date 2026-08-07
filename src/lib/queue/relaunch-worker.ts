@@ -48,7 +48,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
       id: true,
       lastActivityAt: true,
       client: { select: { firstName: true, lastName: true } },
-      programme: { select: { name: true } },
+      lot: { select: { id: true, programme: { select: { name: true } } } },
       participants: {
         include: {
           user: { select: { id: true, email: true, firstName: true } },
@@ -76,7 +76,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
           kind: "DOSSIER_INACTIVE",
           title: `Dossier inactif : ${clientName}`,
           body: `${days} jours sans activité.`,
-          link: `/notaire/dossiers/${d.id}`,
+          link: `/notaire/${d.id}`,
         });
         // Email
         if (settings.AUTO_EMAILS_ENABLED) {
@@ -86,7 +86,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
                 n.user.email,
                 n.user.firstName,
                 clientName,
-                d.programme.name,
+                d.lot.programme.name,
                 days,
               ),
             );
@@ -106,7 +106,7 @@ export async function runRelaunchPass(): Promise<{ relaunched: number }> {
         kind: "DOSSIER_INACTIVE",
         title: `Dossier inactif : ${clientName}`,
         body: `${days} jours sans activité.`,
-        link: `/collaborateur/dossiers/${d.id}`,
+        link: `/collaborateur/lots/${d.lot.id}`,
       });
       // Email
       if (settings.AUTO_EMAILS_ENABLED) {

@@ -26,7 +26,7 @@ export default async function ProgrammeSalesPage({ params }: PageProps) {
       programme={programme}
       dossiers={dossiers}
       showClientIdentity={false}
-      dossierBasePath={null}
+      lotBasePath={null}
     />
   );
 }

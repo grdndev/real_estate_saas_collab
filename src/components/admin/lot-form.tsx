@@ -13,7 +13,14 @@ import { Select } from "@/components/ui/select";
 import { createLotAction } from "@/lib/admin/actions";
 import { lotSchema, type LotInput } from "@/lib/admin/schemas";
 
-export function CreateLotForm({ programmeId }: { programmeId: string }) {
+export function CreateLotForm({
+  programmeId,
+  /** Où rediriger après création — par défaut on reste sur place (grille). */
+  redirectBasePath,
+}: {
+  programmeId: string;
+  redirectBasePath?: string;
+}) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [globalError, setGlobalError] = useState<string | null>(null);
@@ -48,6 +55,10 @@ export function CreateLotForm({ programmeId }: { programmeId: string }) {
           }
         }
         setGlobalError(result.error);
+        return;
+      }
+      if (redirectBasePath) {
+        router.push(`${redirectBasePath}/${result.value.id}`);
         return;
       }
       form.reset({

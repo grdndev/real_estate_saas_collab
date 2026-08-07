@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateLotPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -310,8 +311,8 @@ export async function updateFondsClientContactAction(
 
   revalidatePath(`/collaborateur/fonds/${lotId}`);
   revalidatePath(`/admin/fonds/${lotId}`);
-  revalidatePath(`/collaborateur/dossiers/${lot.dossier.id}`);
-  revalidatePath(`/collaborateur/dossiers/${lot.dossier.id}/fiche-client`);
+  revalidateLotPaths(lotId);
+  revalidateLotPaths(lotId, "/fiche-client");
   revalidatePath("/profil");
 
   return { ok: true, value: undefined };

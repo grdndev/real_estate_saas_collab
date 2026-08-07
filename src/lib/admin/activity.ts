@@ -100,7 +100,7 @@ export async function getDossierActivity(
       appointments: { select: { id: true } },
       invoices: { select: { id: true } },
       notes: { select: { id: true } },
-      lots: { select: { id: true } },
+      lot: { select: { id: true } },
       prospect: { select: { id: true } },
       client: { select: { clientProfile: { select: { id: true } } } },
     },
@@ -123,7 +123,7 @@ export async function getDossierActivity(
   push("Appointment", ids(dossier.appointments));
   push("Invoice", ids(dossier.invoices));
   push("Note", ids(dossier.notes));
-  push("Lot", ids(dossier.lots));
+  push("Lot", [dossier.lot.id]);
   if (dossier.prospect) push("Prospect", [dossier.prospect.id]);
   if (dossier.client?.clientProfile) {
     push("ClientProfile", [dossier.client.clientProfile.id]);
@@ -145,10 +145,10 @@ export async function getProgrammeActivity(
   const programme = await prisma.programme.findUnique({
     where: { id: programmeId },
     select: {
-      lots: { select: { id: true } },
+      // Les dossiers d'un programme passent désormais par ses lots.
+      lots: { select: { id: true, dossiers: { select: { id: true } } } },
       documents: { select: { id: true } },
       prospects: { select: { id: true } },
-      dossiers: { select: { id: true } },
       lotFondsSuivis: { select: { id: true } },
       appelsFonds: { select: { id: true } },
     },
@@ -167,7 +167,10 @@ export async function getProgrammeActivity(
   push("Lot", ids(programme.lots));
   push("ProgrammeDocument", ids(programme.documents));
   push("Prospect", ids(programme.prospects));
-  push("Dossier", ids(programme.dossiers));
+  push(
+    "Dossier",
+    programme.lots.flatMap((l) => ids(l.dossiers)),
+  );
   push("LotFondsSuivi", ids(programme.lotFondsSuivis));
   push("AppelFonds", ids(programme.appelsFonds));
 
@@ -205,9 +208,15 @@ export async function getDossierContext(dossierId: string) {
       lastActivityAt: true,
       notaryTransmittedAt: true,
       closedAt: true,
-      programme: { select: { id: true, name: true } },
       client: { select: { firstName: true, lastName: true, email: true } },
-      lots: { select: { id: true, reference: true, status: true } },
+      lot: {
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          programme: { select: { id: true, name: true } },
+        },
+      },
       participants: {
         select: {
           role: true,
@@ -269,8 +278,9 @@ export async function getProgrammeContext(programmeId: string) {
       promoters: {
         select: { promoter: { select: { firstName: true, lastName: true } } },
       },
-      lots: { select: { status: true } },
-      dossiers: { select: { status: true } },
+      lots: {
+        select: { status: true, dossier: { select: { status: true } } },
+      },
     },
   });
   if (!programme) return null;
@@ -284,7 +294,12 @@ export async function getProgrammeContext(programmeId: string) {
   return {
     ...programme,
     lotCounts: countBy(programme.lots.map((l) => l.status)),
-    dossierCounts: countBy(programme.dossiers.map((d) => d.status)),
+    // Dossiers ACTIFS du programme : un par lot associé.
+    dossierCounts: countBy(
+      programme.lots
+        .map((l) => l.dossier?.status)
+        .filter((s): s is NonNullable<typeof s> => s != null),
+    ),
   };
 }
 
@@ -305,7 +320,7 @@ export async function getActivityEntities() {
       select: {
         id: true,
         client: { select: { firstName: true, lastName: true } },
-        programme: { select: { name: true } },
+        lot: { select: { programme: { select: { name: true } } } },
       },
     }),
   ]);

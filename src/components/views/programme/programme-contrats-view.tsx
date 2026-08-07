@@ -29,14 +29,14 @@ interface Props {
   dossiers: ProgrammeContractRow[];
   showClientIdentity: boolean;
   /** Lien vers la fiche dossier, ou `null` si l'espace n'en propose pas. */
-  dossierBasePath: string | null;
+  lotBasePath: string | null;
 }
 
 export function ProgrammeContratsView({
   programme,
   dossiers,
   showClientIdentity,
-  dossierBasePath,
+  lotBasePath,
 }: Props) {
   const withContract = dossiers.filter((d) => d.contractStatus != null);
   const signedCount = dossiers.filter((d) => d.hasSignature).length;
@@ -105,7 +105,7 @@ export function ProgrammeContratsView({
                 <Th>Statut contractuel</Th>
                 <Th>Signature</Th>
                 <Th>Prochain RDV notaire</Th>
-                {dossierBasePath && <Th />}
+                {lotBasePath && <Th />}
               </Tr>
             </THead>
             <TBody>
@@ -116,13 +116,7 @@ export function ProgrammeContratsView({
                       {d.clientName ?? "— Client non associé"}
                     </Td>
                   )}
-                  <Td>
-                    {d.lots.length > 0
-                      ? d.lots
-                          .map((l) => `${l.reference} · ${l.type}`)
-                          .join(", ")
-                      : "—"}
-                  </Td>
+                  <Td>{`${d.lot.reference} · ${d.lot.type}`}</Td>
                   <Td>
                     {d.contractStatus ? (
                       <Badge variant={CONTRACT_STATUS_BADGE[d.contractStatus]}>
@@ -153,10 +147,10 @@ export function ProgrammeContratsView({
                       <span className="text-slate-400">—</span>
                     )}
                   </Td>
-                  {dossierBasePath && (
+                  {lotBasePath && (
                     <Td className="text-right">
                       <Link
-                        href={`${dossierBasePath}/${d.id}`}
+                        href={`${lotBasePath}/${d.lotId}`}
                         className="text-equatis-turquoise-700 text-sm hover:underline"
                       >
                         Ouvrir →

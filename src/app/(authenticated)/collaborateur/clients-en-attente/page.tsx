@@ -38,8 +38,13 @@ export default async function ClientsEnAttentePage() {
       orderBy: { optionExpiresAt: "asc" },
       include: {
         client: { select: { firstName: true, lastName: true } },
-        programme: { select: { name: true } },
-        lots: { select: { reference: true } },
+        lot: {
+          select: {
+            id: true,
+            reference: true,
+            programme: { select: { name: true } },
+          },
+        },
       },
     }),
     prisma.prospect.findMany({
@@ -90,15 +95,13 @@ export default async function ClientsEnAttentePage() {
               {dossiers.map((d) => (
                 <Tr key={d.id}>
                   <Td>
-                    {d.client
-                      ? `${d.client.firstName} ${d.client.lastName}`
-                      : "—"}
+                    {d.client.firstName} {d.client.lastName}
                   </Td>
-                  <Td>{d.programme.name}</Td>
+                  <Td>{d.lot.programme.name}</Td>
                   <Td>{expiryBadge(d.optionExpiresAt)}</Td>
                   <Td>
                     <Link
-                      href={`/collaborateur/dossiers/${d.id}`}
+                      href={`/collaborateur/lots/${d.lot.id}`}
                       className="text-equatis-turquoise-700 text-xs hover:underline"
                     >
                       Ouvrir

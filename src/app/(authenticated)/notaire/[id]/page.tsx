@@ -47,8 +47,7 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
   const dossier = await prisma.dossier.findUnique({
     where: { id },
     include: {
-      programme: true,
-      lots: true,
+      lot: { include: { programme: true } },
       client: { select: { firstName: true, lastName: true, email: true } },
       timelineEvents: { orderBy: { occurredAt: "desc" } },
       documents: {
@@ -113,17 +112,13 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
           ← Retour aux dossiers
         </Link>
         <p className="text-equatis-night-700 mt-2 text-xs uppercase">
-          {dossier.client
-            ? `${dossier.client.firstName} ${dossier.client.lastName}`
-            : "Dossier sans client"}
+          {dossier.client.firstName} {dossier.client.lastName}
         </p>
         <h1 className="text-equatis-night-800 mt-1 text-2xl font-semibold tracking-tight">
-          {dossier.programme.name}
-          {dossier.lots.length > 0 && (
-            <span className="ml-2 text-base font-normal text-slate-500">
-              · Lot {dossier.lots.map((l) => l.reference).join(", ")}
-            </span>
-          )}
+          {dossier.lot.programme.name}
+          <span className="ml-2 text-base font-normal text-slate-500">
+            · Lot {dossier.lot.reference}
+          </span>
         </h1>
       </div>
 
@@ -136,47 +131,26 @@ export default async function NotaireDossierDetailPage({ params }: PageProps) {
             <CardContent className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-xs text-slate-500">Programme</p>
-                <p>{dossier.programme.name}</p>
+                <p>{dossier.lot.programme.name}</p>
               </div>
-              {dossier.lots.length > 0 && (
-                <>
-                  <div>
-                    <p className="text-xs text-slate-500">Surface</p>
-                    <p>
-                      {dossier.lots.reduce(
-                        (acc, l) => acc + Number(l.surface),
-                        0,
-                      )}{" "}
-                      m²
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Prix TTC</p>
-                    <p>
-                      {eur.format(
-                        dossier.lots.reduce(
-                          (acc, l) => acc + Number(l.priceTTC),
-                          0,
-                        ),
-                      )}
-                    </p>
-                  </div>
-                </>
-              )}
-              {dossier.client && (
-                <>
-                  <div>
-                    <p className="text-xs text-slate-500">Acquéreur</p>
-                    <p>
-                      {dossier.client.firstName} {dossier.client.lastName}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500">Email</p>
-                    <p>{dossier.client.email}</p>
-                  </div>
-                </>
-              )}
+              <div>
+                <p className="text-xs text-slate-500">Surface</p>
+                <p>{Number(dossier.lot.surface)} m²</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Prix TTC</p>
+                <p>{eur.format(Number(dossier.lot.priceTTC))}</p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Acquéreur</p>
+                <p>
+                  {dossier.client.firstName} {dossier.client.lastName}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">Email</p>
+                <p>{dossier.client.email}</p>
+              </div>
               <div>
                 <p className="text-xs text-slate-500">Reçu le</p>
                 <p>

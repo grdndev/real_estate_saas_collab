@@ -30,7 +30,7 @@ export default async function AdminProgrammeContractsPage({
       programme={programme}
       dossiers={dossiers}
       showClientIdentity
-      dossierBasePath="/admin/dossiers"
+      lotBasePath="/admin/lots"
     />
   );
 }

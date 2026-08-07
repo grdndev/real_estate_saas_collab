@@ -44,7 +44,8 @@ export type ImportProspectsInput = z.infer<typeof importProspectsSchema>;
 export const convertProspectSchema = z.object({
   prospectId: z.string().min(1),
   programmeId: z.string().min(1, "Programme requis"),
-  lotId: z.string().optional().nullable(),
+  // Un dossier porte toujours un lot : la conversion exige donc un lot.
+  lotId: z.string().min(1, "Lot requis"),
 });
 export type ConvertProspectInput = z.infer<typeof convertProspectSchema>;
 

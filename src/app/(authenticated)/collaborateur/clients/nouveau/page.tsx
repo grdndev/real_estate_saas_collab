@@ -18,7 +18,8 @@ export default async function NewClientPage() {
       id: true,
       name: true,
       lots: {
-        where: { status: "AVAILABLE" },
+        // Un lot déjà associé à un client ne peut pas recevoir un second dossier.
+        where: { dossierId: null },
         orderBy: { reference: "asc" },
         select: { id: true, reference: true, type: true },
       },
@@ -29,10 +30,10 @@ export default async function NewClientPage() {
     <div className="flex flex-col gap-6">
       <div>
         <Link
-          href="/collaborateur/dossiers"
+          href="/collaborateur/lots"
           className="text-equatis-turquoise-700 text-sm hover:underline"
         >
-          ← Retour aux dossiers
+          ← Retour aux lots
         </Link>
         <h1 className="text-equatis-night-800 mt-2 text-2xl font-semibold tracking-tight">
           Créer un client &amp; son dossier

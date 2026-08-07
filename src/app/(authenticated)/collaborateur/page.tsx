@@ -88,8 +88,13 @@ export default async function CollaborateurDashboardPage() {
       take: 5,
       orderBy: { lastActivityAt: "desc" },
       include: {
-        programme: { select: { name: true } },
-        lots: { select: { reference: true } },
+        lot: {
+          select: {
+            id: true,
+            reference: true,
+            programme: { select: { name: true } },
+          },
+        },
         client: { select: { firstName: true, lastName: true } },
       },
     }),
@@ -117,8 +122,8 @@ export default async function CollaborateurDashboardPage() {
           <Link href="/collaborateur/clients/nouveau">
             <Button variant="accent">+ Nouveau client</Button>
           </Link>
-          <Link href="/collaborateur/dossiers/nouveau">
-            <Button variant="outline">Nouveau dossier vide</Button>
+          <Link href="/collaborateur/lots/nouveau">
+            <Button variant="outline">Nouveau lot</Button>
           </Link>
           <TrackingImportButton programmes={activeProgrammes} />
         </div>
@@ -180,10 +185,10 @@ export default async function CollaborateurDashboardPage() {
         {recent.length === 0 ? (
           <EmptyState
             title="Aucun dossier actif"
-            description="Créez votre premier dossier pour commencer."
+            description="Associez un client à un lot pour ouvrir votre premier dossier."
             action={
-              <Link href="/collaborateur/dossiers/nouveau">
-                <Button>Nouveau dossier</Button>
+              <Link href="/collaborateur/lots">
+                <Button>Voir les lots</Button>
               </Link>
             }
           />
@@ -205,12 +210,10 @@ export default async function CollaborateurDashboardPage() {
                 return (
                   <Tr key={d.id}>
                     <Td className="text-xs text-slate-600">
-                      {d.client
-                        ? `${d.client.firstName} ${d.client.lastName}`
-                        : "—"}
+                      {`${d.client.firstName} ${d.client.lastName}`}
                     </Td>
-                    <Td>{d.programme.name}</Td>
-                    <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
+                    <Td>{d.lot.programme.name}</Td>
+                    <Td>{d.lot.reference}</Td>
                     <Td>
                       <Badge variant={sb.variant}>{sb.label}</Badge>
                     </Td>
@@ -219,7 +222,7 @@ export default async function CollaborateurDashboardPage() {
                     </Td>
                     <Td className="text-right">
                       <Link
-                        href={`/collaborateur/dossiers/${d.id}`}
+                        href={`/collaborateur/lots/${d.lot.id}`}
                         className="text-equatis-turquoise-700 text-sm hover:underline"
                       >
                         Ouvrir →

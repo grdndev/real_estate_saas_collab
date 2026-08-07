@@ -26,7 +26,6 @@ import {
   assignClientSchema,
   assignCollaboratorSchema,
   createClientAndDossierSchema,
-  createDossierSchema,
   relaunchClientSchema,
   setDossierOptionSchema,
   unassignClientSchema,
@@ -39,14 +38,11 @@ import {
   type SetDossierOptionInput,
   type UpdateContractStatusInput,
   type AssignCollaboratorInput,
-  type CreateDossierInput,
   type UpdateDossierStatusInput,
 } from "@/lib/dossier/schemas";
 import { notifyDossierParticipants } from "@/lib/notifications";
-import {
-  planClientAssignment,
-  type DossierContentCounts,
-} from "@/lib/dossier/archive-rules";
+import { DEFAULT_DOCUMENT_REQUESTS } from "@/lib/dossier/client-dossier-core";
+import { revalidateLotPaths } from "@/lib/lot/revalidate";
 import { CONTRACT_STATUS_LABEL } from "@/lib/dossier/labels";
 import type { ContractStatus, TimelineKind } from "@/generated/prisma/enums";
 import type { ActionResult } from "@/lib/auth/actions";
@@ -80,199 +76,10 @@ const STATUS_TIMELINE_KIND = {
   BLOCKED: "STATUS_CHANGE",
 } as const;
 
-// =====================================================
-// CREATE DOSSIER (CDC §4.4)
-// =====================================================
-
-export async function createDossierAction(
-  input: CreateDossierInput,
-): Promise<ActionResult<{ id: string }>> {
-  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
-  const parsed = createDossierSchema.safeParse(input);
-  if (!parsed.success) {
-    return {
-      ok: false,
-      error: "Saisie invalide",
-      fieldErrors: flatten(parsed.error),
-    };
-  }
-  const data = parsed.data;
-  const ctx = await getRequestContext();
-
-  // Vérifs métier
-  const programme = await prisma.programme.findUnique({
-    where: { id: data.programmeId },
-  });
-  if (!programme || programme.status !== "ACTIVE") {
-    return { ok: false, error: "Programme inactif ou introuvable." };
-  }
-  if (data.lotId) {
-    const lot = await prisma.lot.findUnique({ where: { id: data.lotId } });
-    if (!lot || lot.programmeId !== programme.id) {
-      return { ok: false, error: "Lot incompatible avec ce programme." };
-    }
-    if (lot.status !== "AVAILABLE") {
-      return { ok: false, error: "Ce lot n'est plus disponible." };
-    }
-  }
-  if (data.clientId) {
-    const client = await prisma.user.findUnique({
-      where: { id: data.clientId },
-    });
-    if (!client || client.role !== "CLIENT" || client.deletedAt) {
-      return { ok: false, error: "Client invalide." };
-    }
-    // Un client ne peut avoir qu'un seul dossier ACTIF (les dossiers archivés
-    // constituent son historique et n'empêchent pas une nouvelle association).
-    const existing = await prisma.dossier.findFirst({
-      where: { clientId: data.clientId, archivedAt: null },
-    });
-    if (existing) {
-      return { ok: false, error: "Ce client est déjà associé à un dossier." };
-    }
-  }
-  const collaborator = await prisma.user.findUnique({
-    where: { id: data.collaboratorId },
-  });
-  if (
-    !collaborator ||
-    collaborator.role !== "COLLABORATOR" ||
-    collaborator.status !== "ACTIVE"
-  ) {
-    return { ok: false, error: "Collaborateur invalide." };
-  }
-
-  const dossier = await prisma.$transaction(async (tx) => {
-    const created = await tx.dossier.create({
-      data: {
-        programmeId: data.programmeId,
-        clientId: data.clientId ?? null,
-        status: "NEW_LEAD",
-      },
-    });
-    await tx.dossierParticipant.create({
-      data: {
-        dossierId: created.id,
-        userId: data.collaboratorId,
-        role: "COLLABORATOR_PRIMARY",
-      },
-    });
-    if (data.lotId) {
-      await tx.lot.update({
-        where: { id: data.lotId },
-        data: { dossierId: created.id, status: "RESERVED" },
-      });
-    }
-    if (data.clientId) {
-      await tx.user.update({
-        where: { id: data.clientId },
-        data: { status: "ACTIVE" },
-      });
-    }
-    await tx.timelineEvent.create({
-      data: {
-        dossierId: created.id,
-        kind: "LEAD_CREATED",
-        title: "Dossier créé",
-        description: data.initialNote ?? null,
-        actorId: me.id,
-      },
-    });
-    return created;
-  });
-
-  await audit({
-    userId: me.id,
-    action: "DOSSIER_CREATED",
-    resourceType: "Dossier",
-    resourceId: dossier.id,
-    ip: ctx.ip,
-    userAgent: ctx.userAgent,
-    metadata: `Dossier créé (programme ${data.programmeId}${data.clientId ? ", avec client associé" : ""})`,
-  });
-
-  revalidatePath("/collaborateur");
-  revalidatePath("/collaborateur/dossiers");
-  return { ok: true, value: { id: dossier.id } };
-}
-
-// =====================================================
-// CRÉER LE DOSSIER D'UN LOT (T5 — un lot doit toujours être ouvrable)
-// =====================================================
-
-/**
- * Crée le dossier d'un lot qui n'en a pas encore, sans client associé.
- *
- * Permet à l'admin comme au collaborateur d'ouvrir la fiche d'un lot en
- * permanence : un lot importé sans acquéreur n'est jamais un cul-de-sac.
- */
-export async function createDossierForLotAction(
-  lotId: string,
-): Promise<ActionResult<{ dossierId: string }>> {
-  const me = await requireRole(["SUPER_ADMIN", "COLLABORATOR"]);
-  if (!lotId) return { ok: false, error: "Identifiant de lot manquant." };
-  const ctx = await getRequestContext();
-
-  const lot = await prisma.lot.findUnique({
-    where: { id: lotId },
-    select: { id: true, programmeId: true, reference: true, dossierId: true },
-  });
-  if (!lot) return { ok: false, error: "Lot introuvable." };
-  if (lot.dossierId) {
-    return { ok: true, value: { dossierId: lot.dossierId } };
-  }
-
-  const dossier = await prisma.$transaction(async (tx) => {
-    const created = await tx.dossier.create({
-      data: {
-        programmeId: lot.programmeId,
-        clientId: null,
-        status: "NEW_LEAD",
-      },
-    });
-    // Le collaborateur référent est l'utilisateur courant lorsqu'il en est un ;
-    // un SUPER_ADMIN n'est pas un participant COLLABORATOR_PRIMARY valide.
-    if (me.role === "COLLABORATOR") {
-      await tx.dossierParticipant.create({
-        data: {
-          dossierId: created.id,
-          userId: me.id,
-          role: "COLLABORATOR_PRIMARY",
-        },
-      });
-    }
-    await tx.lot.update({
-      where: { id: lot.id },
-      data: { dossierId: created.id },
-    });
-    await tx.timelineEvent.create({
-      data: {
-        dossierId: created.id,
-        kind: "LEAD_CREATED",
-        title: "Dossier créé",
-        description: `Dossier ouvert sur le lot ${lot.reference}, sans client associé.`,
-        actorId: me.id,
-      },
-    });
-    return created;
-  });
-
-  await audit({
-    userId: me.id,
-    action: "DOSSIER_CREATED",
-    resourceType: "Dossier",
-    resourceId: dossier.id,
-    ip: ctx.ip,
-    userAgent: ctx.userAgent,
-    metadata: `Dossier créé depuis le lot ${lot.reference}, sans client associé`,
-  });
-
-  revalidatePath("/admin/programmes");
-  revalidatePath(`/admin/programmes/${lot.programmeId}`);
-  revalidatePath("/collaborateur/programmes");
-  revalidatePath(`/collaborateur/programmes/${lot.programmeId}`);
-  revalidatePath("/collaborateur/dossiers");
-  return { ok: true, value: { dossierId: dossier.id } };
+/** La grille du programme affiche l'état de ses lots : elle suit l'association. */
+function revalidateProgrammePaths(programmeId: string): void {
+  revalidatePath(`/admin/programmes/${programmeId}`);
+  revalidatePath(`/collaborateur/programmes/${programmeId}`);
 }
 
 // =====================================================
@@ -339,15 +146,23 @@ export async function updateDossierStatusAction(
     metadata: `Statut du dossier modifié : ${dossier.status} → ${data.status}`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
-  revalidatePath("/collaborateur/dossiers");
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: undefined };
 }
 
 // =====================================================
-// ASSIGN CLIENT (associer un client inscrit à un dossier existant)
+// ASSIGN CLIENT (associer un client à un lot libre)
 // =====================================================
 
+/**
+ * Associe un client à un lot.
+ *
+ * - le client avait déjà un dossier sur CE lot → ce dossier est réactivé tel
+ *   quel (messages, documents, timeline, factures) et le lot repointe dessus ;
+ * - sinon → un dossier neuf est créé pour le couple (lot, client).
+ *
+ * Un client peut porter plusieurs dossiers actifs, un par lot.
+ */
 export async function assignClientAction(
   input: AssignClientInput,
 ): Promise<ActionResult> {
@@ -359,136 +174,107 @@ export async function assignClientAction(
   const data = parsed.data;
   const ctx = await getRequestContext();
 
-  const dossier = await findDossierForUser(data.dossierId, me.id, me.role);
-  if (!dossier) return { ok: false, error: "Dossier introuvable" };
-  if (dossier.archivedAt) {
-    return {
-      ok: false,
-      error: "Ce dossier est archivé : il ne peut plus recevoir de client.",
-    };
-  }
-  if (dossier.clientId) {
-    return { ok: false, error: "Ce dossier a déjà un client associé." };
-  }
-
   const client = await prisma.user.findUnique({
     where: { id: data.clientId },
   });
   if (!client || client.role !== "CLIENT" || client.deletedAt) {
     return { ok: false, error: "Client invalide." };
   }
-  const alreadyAssociated = await prisma.dossier.findFirst({
-    where: { clientId: data.clientId, archivedAt: null },
-  });
-  if (alreadyAssociated) {
-    return { ok: false, error: "Ce client est déjà sur un autre dossier." };
+
+  const lot = await prisma.lot.findUnique({ where: { id: data.lotId } });
+  if (!lot) return { ok: false, error: "Lot introuvable." };
+  if (lot.dossierId) {
+    return {
+      ok: false,
+      error: "Ce lot a déjà un client associé : dissociez-le d'abord.",
+    };
   }
 
-  // Lot porté par le dossier support : c'est lui qui identifie l'historique.
-  const lots = await prisma.lot.findMany({
-    where: { dossierId: dossier.id },
-    select: { id: true },
-  });
-  const lotIds = lots.map((l) => l.id);
-
-  // Historique : ce client avait-il déjà un dossier archivé sur ce lot ?
-  const archived =
-    lotIds.length > 0
-      ? await prisma.dossier.findFirst({
-          where: {
-            clientId: data.clientId,
-            archivedAt: { not: null },
-            archivedLotId: { in: lotIds },
-          },
-          orderBy: { archivedAt: "desc" },
-          select: { id: true },
-        })
-      : null;
-
-  const counts = await countDossierContent(dossier.id);
-  const plan = planClientAssignment({
-    archivedDossierId: archived?.id ?? null,
-    currentCounts: counts,
+  // Historique : ce client a-t-il déjà eu un dossier sur ce lot ?
+  const existing = await prisma.dossier.findUnique({
+    where: { lotId_clientId: { lotId: data.lotId, clientId: data.clientId } },
   });
 
   // Un client sans compte (T7) ne devient jamais ACTIVE : il n'a pas d'accès.
   const clientStatus = client.status === "NO_ACCOUNT" ? "NO_ACCOUNT" : "ACTIVE";
+  const clientName = `${client.firstName} ${client.lastName}`;
 
-  /** Dossier finalement actif à l'issue de l'association. */
-  let activeDossierId = dossier.id;
-
+  let dossierId: string;
   try {
-    await prisma.$transaction(async (tx) => {
-      if (plan.kind === "reactivate") {
-        activeDossierId = plan.archivedDossierId;
-        // Le dossier support laisse la place au dossier historique du client.
-        if (plan.currentDossierDisposal === "delete") {
-          await tx.lot.updateMany({
-            where: { dossierId: dossier.id },
-            data: { dossierId: null },
-          });
-          await tx.dossier.delete({ where: { id: dossier.id } });
-        } else {
-          await tx.dossier.update({
-            where: { id: dossier.id },
+    dossierId = await prisma.$transaction(async (tx) => {
+      const dossier = existing
+        ? await tx.dossier.update({
+            where: { id: existing.id },
+            data: { archivedAt: null, lastActivityAt: new Date() },
+          })
+        : await tx.dossier.create({
             data: {
-              archivedAt: new Date(),
-              archivedLotId: lotIds[0] ?? null,
+              lotId: data.lotId,
+              clientId: data.clientId,
+              status: "NEW_LEAD",
+              lastActivityAt: new Date(),
             },
           });
-          await tx.lot.updateMany({
-            where: { dossierId: dossier.id },
-            data: { dossierId: null },
-          });
-        }
-        // Réactivation : messages, documents et timeline reviennent avec lui.
-        await tx.dossier.update({
-          where: { id: plan.archivedDossierId },
-          data: {
-            archivedAt: null,
-            archivedLotId: null,
-            lastActivityAt: new Date(),
-          },
-        });
-        await tx.lot.updateMany({
-          where: { id: { in: lotIds } },
-          data: { dossierId: plan.archivedDossierId },
-        });
-        await tx.timelineEvent.create({
-          data: {
-            dossierId: plan.archivedDossierId,
-            kind: "STATUS_CHANGE",
-            title: "Dossier réactivé",
-            description: `${client.firstName} ${client.lastName} — historique restitué`,
-            actorId: me.id,
-          },
-        });
-      } else {
-        await tx.dossier.update({
-          where: { id: dossier.id },
-          data: { clientId: data.clientId, lastActivityAt: new Date() },
-        });
+
+      if (existing) {
         await tx.timelineEvent.create({
           data: {
             dossierId: dossier.id,
             kind: "STATUS_CHANGE",
-            title: "Client associé",
-            description: `${client.firstName} ${client.lastName}`,
+            title: "Dossier réactivé",
+            description: `${clientName} — historique restitué`,
+            actorId: me.id,
+          },
+        });
+      } else {
+        // Dossier neuf : référent, pièces standard et événement de création.
+        if (me.role === "COLLABORATOR") {
+          await tx.dossierParticipant.create({
+            data: {
+              dossierId: dossier.id,
+              userId: me.id,
+              role: "COLLABORATOR_PRIMARY",
+            },
+          });
+        }
+        await tx.documentRequest.createMany({
+          data: DEFAULT_DOCUMENT_REQUESTS.map((r) => ({
+            dossierId: dossier.id,
+            label: r.label,
+            required: r.required,
+          })),
+        });
+        await tx.timelineEvent.create({
+          data: {
+            dossierId: dossier.id,
+            kind: "LEAD_CREATED",
+            title: "Dossier créé et client associé",
+            description: clientName,
             actorId: me.id,
           },
         });
       }
+
+      // Le lot pointe vers son dossier actif et passe en réservé.
+      await tx.lot.update({
+        where: { id: data.lotId },
+        data: {
+          dossierId: dossier.id,
+          ...(lot.status === "SOLD" ? {} : { status: "RESERVED" as const }),
+        },
+      });
       await tx.user.update({
         where: { id: data.clientId },
         data: { status: clientStatus },
       });
+      return dossier.id;
     });
   } catch (e) {
     if (
       e instanceof Prisma.PrismaClientKnownRequestError &&
       e.code === "P2002"
     ) {
-      return { ok: false, error: "Ce client est déjà associé." };
+      return { ok: false, error: "Ce client est déjà associé à ce lot." };
     }
     throw e;
   }
@@ -497,13 +283,12 @@ export async function assignClientAction(
     userId: me.id,
     action: "DOSSIER_UPDATED",
     resourceType: "Dossier",
-    resourceId: activeDossierId,
+    resourceId: dossierId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata:
-      plan.kind === "reactivate"
-        ? `Client ${data.clientId} réassocié — dossier archivé réactivé avec son historique`
-        : `Client ${data.clientId} associé au dossier`,
+    metadata: existing
+      ? `Client ${data.clientId} réassocié au lot ${lot.reference} — dossier réactivé avec son historique`
+      : `Client ${data.clientId} associé au lot ${lot.reference} — dossier créé`,
   });
 
   // Un client sans compte n'est ni notifié ni relancé par email (T7).
@@ -514,7 +299,7 @@ export async function assignClientAction(
       kind: "DOSSIER_ASSOCIATED",
       title: "Votre dossier est prêt",
       body: `Votre dossier a été créé. Vous pouvez maintenant suivre son avancement.`,
-      link: "/client",
+      link: `/client/${dossierId}`,
     });
     // Email auto (CDC §8.5)
     void getMailer()
@@ -524,58 +309,20 @@ export async function assignClientAction(
       });
   }
 
-  revalidateDossierPaths(dossier.id, dossier.programmeId);
-  revalidateDossierPaths(activeDossierId, dossier.programmeId);
+  revalidateLotPaths(lot.id);
+  revalidateProgrammePaths(lot.programmeId);
   return { ok: true, value: undefined };
 }
 
-/** Compte le contenu métier d'un dossier — base de la règle « dossier vide ». */
-async function countDossierContent(
-  dossierId: string,
-): Promise<DossierContentCounts> {
-  const dossier = await prisma.dossier.findUnique({
-    where: { id: dossierId },
-    select: {
-      _count: {
-        select: {
-          messages: true,
-          documents: true,
-          timelineEvents: true,
-          invoices: true,
-          signatures: true,
-          appointments: true,
-          notes: true,
-        },
-      },
-    },
-  });
-  return {
-    messages: dossier?._count.messages ?? 0,
-    documents: dossier?._count.documents ?? 0,
-    timelineEvents: dossier?._count.timelineEvents ?? 0,
-    invoices: dossier?._count.invoices ?? 0,
-    signatures: dossier?._count.signatures ?? 0,
-    appointments: dossier?._count.appointments ?? 0,
-    notes: dossier?._count.notes ?? 0,
-  };
-}
-
-/** Revalide les deux espaces qui exposent les dossiers (collaborateur, admin). */
-function revalidateDossierPaths(dossierId: string, programmeId?: string): void {
-  revalidatePath("/collaborateur/dossiers");
-  revalidatePath("/admin/dossiers");
-  revalidatePath(`/collaborateur/dossiers/${dossierId}`);
-  revalidatePath(`/admin/dossiers/${dossierId}`);
-  if (programmeId) {
-    revalidatePath(`/admin/programmes/${programmeId}`);
-    revalidatePath(`/collaborateur/programmes/${programmeId}`);
-  }
-}
-
 // =====================================================
-// UNASSIGN CLIENT (dissocier le client d'un dossier — inverse de l'association)
+// UNASSIGN CLIENT (dissocier le client d'un lot)
 // =====================================================
 
+/**
+ * Dissocie le client du lot : `Lot.dossierId` est effacé et le dossier est
+ * archivé tel quel — messages, documents, timeline, notes et factures sont
+ * conservés et restitués si ce client est réassocié à ce lot.
+ */
 export async function unassignClientAction(
   input: UnassignClientInput,
 ): Promise<ActionResult> {
@@ -586,34 +333,24 @@ export async function unassignClientAction(
   }
   const ctx = await getRequestContext();
 
-  const dossier = await findDossierForUser(
-    parsed.data.dossierId,
-    me.id,
-    me.role,
-  );
-  if (!dossier) return { ok: false, error: "Dossier introuvable" };
-  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
-  if (!dossier.clientId) {
-    return { ok: false, error: "Ce dossier n'a pas de client associé." };
+  const lot = await prisma.lot.findUnique({
+    where: { id: parsed.data.lotId },
+    include: { dossier: { include: { client: true } } },
+  });
+  if (!lot) return { ok: false, error: "Lot introuvable." };
+  const dossier = lot.dossier;
+  if (!dossier) {
+    return { ok: false, error: "Ce lot n'a pas de client associé." };
   }
 
-  const clientId = dossier.clientId;
-  const client = await prisma.user.findUnique({
-    where: { id: clientId },
-    select: { firstName: true, lastName: true, status: true },
-  });
-  const clientName = client
-    ? `${client.firstName} ${client.lastName}`
-    : "Client inconnu";
-
-  const lots = await prisma.lot.findMany({
-    where: { dossierId: dossier.id },
-    select: { id: true },
+  const client = dossier.client;
+  const clientName = `${client.firstName} ${client.lastName}`;
+  // Le compte redevient « en attente » seulement s'il ne reste aucun autre
+  // dossier actif ; un client sans compte (T7) garde son statut NO_ACCOUNT.
+  const otherActiveDossiers = await prisma.dossier.count({
+    where: { clientId: client.id, archivedAt: null, id: { not: dossier.id } },
   });
 
-  // Le dossier n'est PAS vidé de son client : il est archivé tel quel, avec ses
-  // messages, documents, timeline, notes et factures. Le client suivant repart
-  // d'un dossier neuf, et une réassociation de ce client-ci le restituera (T10).
   await prisma.$transaction(async (tx) => {
     await tx.timelineEvent.create({
       data: {
@@ -626,22 +363,19 @@ export async function unassignClientAction(
     });
     await tx.dossier.update({
       where: { id: dossier.id },
+      data: { archivedAt: new Date(), lastActivityAt: new Date() },
+    });
+    // Le lot redevient libre : il pourra recevoir un nouveau client.
+    await tx.lot.update({
+      where: { id: lot.id },
       data: {
-        archivedAt: new Date(),
-        archivedLotId: lots[0]?.id ?? null,
-        lastActivityAt: new Date(),
+        dossierId: null,
+        ...(lot.status === "SOLD" ? {} : { status: "AVAILABLE" as const }),
       },
     });
-    // Le lot redevient libre : il pourra recevoir un nouveau dossier.
-    await tx.lot.updateMany({
-      where: { dossierId: dossier.id },
-      data: { dossierId: null },
-    });
-    // Le compte redevient associable, sauf s'il s'agit d'un client sans
-    // compte (T7) dont le statut NO_ACCOUNT doit être préservé.
-    if (client && client.status !== "NO_ACCOUNT") {
+    if (client.status !== "NO_ACCOUNT" && otherActiveDossiers === 0) {
       await tx.user.update({
-        where: { id: clientId },
+        where: { id: client.id },
         data: { status: "PENDING_ASSOCIATION" },
       });
     }
@@ -654,16 +388,15 @@ export async function unassignClientAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Client ${clientId} (${clientName}) dissocié — dossier archivé, historique conservé`,
+    metadata: `Client ${client.id} (${clientName}) dissocié du lot ${lot.reference} — dossier archivé, historique conservé`,
   });
 
-  revalidateDossierPaths(dossier.id, dossier.programmeId);
+  revalidateLotPaths(lot.id);
+  revalidateProgrammePaths(lot.programmeId);
   revalidatePath("/collaborateur/fonds");
   revalidatePath("/admin/fonds");
-  for (const lot of lots) {
-    revalidatePath(`/collaborateur/fonds/${lot.id}`);
-    revalidatePath(`/admin/fonds/${lot.id}`);
-  }
+  revalidatePath(`/collaborateur/fonds/${lot.id}`);
+  revalidatePath(`/admin/fonds/${lot.id}`);
   return { ok: true, value: undefined };
 }
 
@@ -708,7 +441,7 @@ export async function assignCollaboratorAction(
     userAgent: ctx.userAgent,
     metadata: `Collaborateur associé au dossier avec le rôle ${data.role}`,
   });
-  revalidatePath(`/collaborateur/dossiers/${data.dossierId}`);
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: undefined };
 }
 
@@ -718,7 +451,7 @@ export async function assignCollaboratorAction(
 
 export async function createClientAndDossierAction(
   input: CreateClientAndDossierInput,
-): Promise<ActionResult<{ dossierId: string; userId: string }>> {
+): Promise<ActionResult<{ dossierId: string; userId: string; lotId: string }>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
   const parsed = createClientAndDossierSchema.safeParse(input);
   if (!parsed.success) {
@@ -755,20 +488,19 @@ export async function createClientAndDossierAction(
     }
   }
 
-  const programme = await prisma.programme.findUnique({
-    where: { id: data.programmeId },
+  // Le lot porte le programme : inutile de le demander séparément.
+  const lot = await prisma.lot.findUnique({
+    where: { id: data.lotId },
+    include: { programme: { select: { id: true, status: true } } },
   });
-  if (!programme || programme.status !== "ACTIVE") {
-    return { ok: false, error: "Programme invalide." };
+  if (!lot || lot.programmeId !== data.programmeId) {
+    return { ok: false, error: "Lot incompatible avec ce programme." };
   }
-  if (data.lotId) {
-    const lot = await prisma.lot.findUnique({ where: { id: data.lotId } });
-    if (!lot || lot.programmeId !== programme.id) {
-      return { ok: false, error: "Lot incompatible." };
-    }
-    if (lot.status !== "AVAILABLE") {
-      return { ok: false, error: "Ce lot n'est plus disponible." };
-    }
+  if (lot.programme.status !== "ACTIVE") {
+    return { ok: false, error: "Programme inactif." };
+  }
+  if (lot.dossierId) {
+    return { ok: false, error: "Ce lot a déjà un client associé." };
   }
 
   const placeholderHash = await hashPassword(randomBytes(32).toString("hex"));
@@ -819,8 +551,7 @@ export async function createClientAndDossierAction(
       firstName: data.firstName,
       lastName: data.lastName,
       phone: data.phone || null,
-      programmeId: data.programmeId,
-      lotId: data.lotId ?? null,
+      lotId: data.lotId,
       passwordHash: placeholderHash,
       noAccount: data.noAccount,
       collaboratorId: me.id,
@@ -891,7 +622,7 @@ export async function createClientAndDossierAction(
     resourceId: dossier.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Dossier créé avec un nouveau client (programme ${data.programmeId})`,
+    metadata: `Dossier créé avec un nouveau client sur le lot ${lot.reference}`,
   });
 
   // Pièces déposées dès la création (best-effort — n'invalide pas la création).
@@ -949,11 +680,12 @@ export async function createClientAndDossierAction(
   }
 
   revalidatePath("/collaborateur");
-  revalidatePath("/collaborateur/dossiers");
+  revalidateLotPaths(data.lotId);
+  revalidateProgrammePaths(lot.programmeId);
   revalidatePath("/collaborateur/facturation");
   return {
     ok: true,
-    value: { dossierId: dossier.id, userId: user.id },
+    value: { dossierId: dossier.id, userId: user.id, lotId: data.lotId },
   };
 }
 
@@ -1203,7 +935,7 @@ export async function relaunchClientAction(
     metadata: `Client relancé sur le dossier${parsed.data.comment ? ", avec commentaire" : ""}`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: undefined };
 }
 
@@ -1272,7 +1004,7 @@ export async function setDossierOptionAction(
       : "Option retirée du dossier",
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   revalidatePath("/collaborateur/clients-en-attente");
   return { ok: true, value: undefined };
 }
@@ -1334,7 +1066,7 @@ export async function recordOptionReminderAction(
     metadata: "Relance de l'option envoyée au client",
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   revalidatePath("/collaborateur/clients-en-attente");
   return { ok: true, value: undefined };
 }
@@ -1410,7 +1142,6 @@ export async function updateContractStatusAction(
     metadata: `Statut contractuel du dossier modifié : ${dossier.contractStatus} → ${data.contractStatus}`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
-  revalidatePath("/collaborateur/dossiers");
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: undefined };
 }

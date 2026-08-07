@@ -18,7 +18,6 @@ import { CreateLotForm } from "@/components/admin/lot-form";
 import { DeleteLotButton } from "@/components/admin/lot-row-actions";
 import { UnassignClientButton } from "@/components/collab/unassign-client";
 import { PromoterAssignment } from "@/components/admin/promoter-assignment";
-import { OpenDossierCell } from "@/components/views/programmes/open-dossier-cell";
 import { LotReferenceHeader } from "@/components/views/lots/lot-reference-header";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 import { sortByLotReference, type LotSortDirection } from "@/lib/lot/sort";
@@ -40,8 +39,8 @@ interface Props {
   }[];
   /** Racine « programmes » de l'espace appelant, ex. « /admin/programmes ». */
   basePath: string;
-  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
-  dossierBasePath: string;
+  /** Racine « lots » de l'espace appelant, ex. « /admin/lots ». */
+  lotBasePath: string;
   /** Racine « suivi des fonds » de l'espace appelant. */
   fondsBasePath: string;
   /** Modification / archivage du programme et CRUD des lots. */
@@ -67,7 +66,7 @@ export function ProgrammeDetailView({
   programme,
   availablePromoters,
   basePath,
-  dossierBasePath,
+  lotBasePath,
   fondsBasePath,
   canEdit,
   canManagePromoters,
@@ -219,17 +218,17 @@ export function ProgrammeDetailView({
                       <Td className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           {/* Le lot est toujours ouvrable : dossier existant ou création (T5). */}
-                          <OpenDossierCell
-                            lotId={lot.id}
-                            lotReference={lot.reference}
-                            dossierId={lot.dossier?.id ?? null}
-                            dossierBasePath={dossierBasePath}
-                          />
+                          <Link
+                            href={`${lotBasePath}/${lot.id}`}
+                            className="text-equatis-turquoise-700 text-sm hover:underline"
+                          >
+                            Ouvrir →
+                          </Link>
                           {canEdit && !isArchived && (
                             <>
-                              {lot.dossier?.clientId && lot.dossier.client && (
+                              {lot.dossier?.client && (
                                 <UnassignClientButton
-                                  dossierId={lot.dossier.id}
+                                  lotId={lot.id}
                                   clientName={`${lot.dossier.client.firstName} ${lot.dossier.client.lastName}`}
                                   convertedProspect={Boolean(
                                     lot.dossier.prospect,

@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 const NAV = [
   { href: "/collaborateur", label: "Tableau de bord", icon: LayoutDashboard },
-  { href: "/collaborateur/dossiers", label: "Dossiers", icon: FolderOpen },
+  { href: "/collaborateur/lots", label: "Lots", icon: FolderOpen },
   { href: "/collaborateur/programmes", label: "Programmes", icon: Building2 },
   { href: "/collaborateur/prospects", label: "Prospects", icon: Users2 },
   {

@@ -48,15 +48,11 @@ const contactSchema = z.object({
   country: z.string().trim().max(60).optional().or(z.literal("")),
 });
 
-export const createAssociatedClientSchema = contactSchema;
-export type CreateAssociatedClientInput = z.infer<typeof contactSchema>;
-
-export const updateAssociatedClientSchema = contactSchema.extend({
+type CreateAssociatedClientInput = z.infer<typeof contactSchema>;
+const updateAssociatedClientSchema = contactSchema.extend({
   clientId: z.string().min(1),
 });
-export type UpdateAssociatedClientInput = z.infer<
-  typeof updateAssociatedClientSchema
->;
+type UpdateAssociatedClientInput = z.infer<typeof updateAssociatedClientSchema>;
 
 /** Sérialise l'adresse au format attendu par `User.addressEnc`. */
 function encodeAddress(data: CreateAssociatedClientInput): string | null {
@@ -132,8 +128,8 @@ export async function createAssociatedClientAction(
     metadata: "Client associé sans compte créé",
   });
 
-  revalidatePath("/collaborateur/dossiers");
-  revalidatePath("/admin/dossiers");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
   return { ok: true, value: { clientId: client.id } };
 }
 
@@ -217,8 +213,8 @@ export async function updateAssociatedClientAction(
     metadata: "Fiche d'un client associé sans compte mise à jour",
   });
 
-  revalidatePath("/collaborateur/dossiers");
-  revalidatePath("/admin/dossiers");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
   return { ok: true, value: undefined };
 }
 
@@ -230,7 +226,7 @@ const convertSchema = z.object({
   clientId: z.string().min(1),
   email: z.email("Email invalide").toLowerCase(),
 });
-export type ConvertToAccountInput = z.infer<typeof convertSchema>;
+type ConvertToAccountInput = z.infer<typeof convertSchema>;
 
 /**
  * Transforme un client associé en client disposant d'un accès : lui attribue
@@ -329,7 +325,7 @@ export async function convertToAccountClientAction(
       "Client associé converti en client avec compte — invitation envoyée",
   });
 
-  revalidatePath("/collaborateur/dossiers");
-  revalidatePath("/admin/dossiers");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
   return { ok: true, value: undefined };
 }

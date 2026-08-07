@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { collaboratorLotPath, revalidateLotPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
@@ -98,15 +98,12 @@ export async function requestSignatureAction(
     }
     pdfFileName = document.fileName;
   } else {
-    const programme = await prisma.programme.findUnique({
-      where: { id: dossier.programmeId },
-      select: { name: true },
+    const lot = await prisma.lot.findUnique({
+      where: { id: dossier.lotId },
+      select: { reference: true, programme: { select: { name: true } } },
     });
-    const lots = await prisma.lot.findMany({
-      where: { dossierId: dossier.id },
-      select: { reference: true },
-    });
-    const lotReference = lots.map((l) => l.reference).join(", ") || undefined;
+    const programme = lot?.programme ?? null;
+    const lotReference = lot?.reference;
     const signerName = `${parsed.data.signerFirstName} ${parsed.data.signerLastName}`;
     pdfBuffer = generatePlaceholderPdf({
       programmeName: programme?.name ?? "—",
@@ -219,7 +216,7 @@ export async function requestSignatureAction(
     metadata: `Signature demandée à ${parsed.data.signerEmail} (dossier ${dossier.id}, procédure Yousign ${procedure.id})`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: { signatureId: signature.id } };
 }
 
@@ -233,6 +230,7 @@ export async function notifySignatureUpdate(
       dossier: {
         select: {
           id: true,
+          lotId: true,
           clientId: true,
           participants: {
             where: {
@@ -272,7 +270,7 @@ export async function notifySignatureUpdate(
         kind: "SIGNATURE_COMPLETED",
         title: "Signature complétée",
         body: `Le document du dossier ${clientName} a été signé.`,
-        link: `/collaborateur/dossiers/${signature.dossier.id}`,
+        link: collaboratorLotPath(signature.dossier.lotId),
       });
       mailer
         .send(
@@ -280,7 +278,7 @@ export async function notifySignatureUpdate(
             p.user.email,
             p.user.firstName,
             clientName,
-            signature.dossierId,
+            signature.dossier.lotId,
           ),
         )
         .catch((err) =>

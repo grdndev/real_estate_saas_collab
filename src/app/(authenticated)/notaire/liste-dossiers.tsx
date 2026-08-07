@@ -29,9 +29,8 @@ export default function ListeDossiers({
     id: string;
     status: keyof typeof STATUS_BADGE;
     notaryTransmittedAt: Date | null;
-    programme: { name: string };
-    lots: { reference: string }[];
-    client: { firstName: string; lastName: string } | null;
+    lot: { reference: string; programme: { name: string } };
+    client: { firstName: string; lastName: string };
   }>;
 }) {
   const [page, setPage] = useState(0);
@@ -61,12 +60,10 @@ export default function ListeDossiers({
             return (
               <Tr key={d.id}>
                 <Td>
-                  {d.client
-                    ? `${d.client.firstName} ${d.client.lastName}`
-                    : "—"}
+                  {d.client.firstName} {d.client.lastName}
                 </Td>
-                <Td>{d.programme.name}</Td>
-                <Td>{d.lots.map((l) => l.reference).join(", ") || "—"}</Td>
+                <Td>{d.lot.programme.name}</Td>
+                <Td>{d.lot.reference}</Td>
                 <Td>
                   <Badge variant={sb.variant}>{sb.label}</Badge>
                 </Td>

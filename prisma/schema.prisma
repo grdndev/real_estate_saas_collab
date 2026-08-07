@@ -315,7 +315,6 @@ model Programme {
   archivedAt DateTime?
 
   lots            Lot[]
-  dossiers        Dossier[]
   documents       ProgrammeDocument[]
   promoters       ProgrammePromoter[]
   tresorerie      TresoreriePrev[]
@@ -342,7 +341,9 @@ model ProgrammePromoter {
 model Lot {
   id          String    @id @default(cuid())
   programmeId String
-  dossierId   String?
+  // Dossier ACTIF du lot. `null` = aucun client associé. Un lot peut porter
+  // plusieurs dossiers dans le temps (un par client) : cf. `dossiers`.
+  dossierId   String?   @unique
   reference   String
   surface     Decimal   @db.Decimal(8, 2)
   floor       Int?
@@ -374,9 +375,9 @@ model Lot {
   updatedAt DateTime @updatedAt
 
   programme   Programme      @relation(fields: [programmeId], references: [id], onDelete: Cascade)
-  dossier     Dossier?       @relation(fields: [dossierId], references: [id])
-  // Dossiers archivés du lot : historique des clients précédents.
-  archivedDossiers Dossier[] @relation("DossierArchivedLot")
+  dossier     Dossier?       @relation("LotActiveDossier", fields: [dossierId], references: [id])
+  // Historique complet : tous les dossiers ayant porté ce lot, actif comme archivés.
+  dossiers    Dossier[]      @relation("LotDossiers")
   fondsSuivi  LotFondsSuivi?
 
   @@unique([programmeId, reference])
@@ -404,14 +405,15 @@ model TresoreriePrev {
 // DOSSIERS
 // =====================================================
 
+// Un dossier matérialise l'achat d'UN lot par UN client : les deux sont requis
+// et permanents. Le lot pointe vers son dossier actif (`Lot.dossierId`) ; à la
+// dissociation, le dossier est archivé mais garde son `lotId`, ce qui permet de
+// le restituer intégralement si le même client est réassocié au même lot.
 model Dossier {
   id          String        @id @default(cuid())
-  programmeId String
-  // Plusieurs dossiers possibles par client : un seul actif (archivedAt = null),
-  // les autres archivés (historique conservé après dissociation).
-  clientId    String?
+  clientId    String
+  lotId       String
   status      DossierStatus @default(NEW_LEAD)
-  // Axe contractuel parallèle (null tant que le dossier n'est pas en phase contrat).
   contractStatus ContractStatus?
 
   // Option : dossier « optionné » — capable d'acheter mais avec délai.
@@ -420,16 +422,9 @@ model Dossier {
 
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
-  // Mis à jour automatiquement par triggers applicatifs : base des relances auto.
   lastActivityAt      DateTime  @default(now())
   closedAt            DateTime?
-  // Dossier archivé à la dissociation du client : messages, documents et timeline
-  // sont conservés et restitués si le même client est réassocié au même lot.
   archivedAt          DateTime?
-  // Lot concerné par un dossier archivé. `Lot.dossierId` ne désigne que le dossier
-  // ACTIF : sans cette trace, le couple (lot, client) serait perdu à la dissociation
-  // et l'historique du client ne pourrait plus être restitué.
-  archivedLotId       String?
   notaryId            String?
   notaryTransmittedAt DateTime?
 
@@ -448,10 +443,10 @@ model Dossier {
   reservationEndDate         DateTime?
   actSignedAt                DateTime?
 
-  programme        Programme            @relation(fields: [programmeId], references: [id])
-  lots             Lot[]
-  archivedLot      Lot?                 @relation("DossierArchivedLot", fields: [archivedLotId], references: [id], onDelete: SetNull)
-  client           User?                @relation("DossierClient", fields: [clientId], references: [id])
+  client           User                 @relation("DossierClient", fields: [clientId], references: [id])
+  lot              Lot                  @relation("LotDossiers", fields: [lotId], references: [id], onDelete: Cascade)
+  // Renseigné uniquement tant que ce dossier est le dossier actif de son lot.
+  activeOnLot      Lot?                 @relation("LotActiveDossier")
   participants     DossierParticipant[]
   documents        Document[]
   documentRequests DocumentRequest[]
@@ -463,15 +458,17 @@ model Dossier {
   invoices         Invoice[]
   notes            Note[]
 
+  // Un seul dossier par couple (lot, client) : réassocier un client déjà venu
+  // sur ce lot réactive son dossier au lieu d'en créer un second.
+  @@unique([lotId, clientId])
   @@index([status])
-  @@index([programmeId])
   @@index([lastActivityAt])
   @@index([notaryId, status])
   @@index([contractStatus])
   @@index([optioned])
   @@index([clientId])
   @@index([archivedAt])
-  @@index([archivedLotId, clientId])
+  @@index([lotId])
 }
 
 // Lien M2M : un user peut être collaborateur principal/secondaire ou notaire d'un dossier.

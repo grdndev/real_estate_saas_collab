@@ -42,7 +42,7 @@ export default async function LotFondsDetailPage({ params }: PageProps) {
   return (
     <FondsDetailView
       lot={lot}
-      dossierBasePath="/collaborateur/dossiers"
+      lotBasePath="/collaborateur/lots"
       notaries={notaries}
       programmeAppelTypes={programmeAppelTypes}
     />

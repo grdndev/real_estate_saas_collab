@@ -56,6 +56,11 @@ export function ProgrammeContextPanel({
   const statusBadge = PROGRAMME_STATUS_BADGE[programme.status];
   const soldLots = programme.lotCounts.get("SOLD") ?? 0;
   const signedDossiers = programme.dossierCounts.get("ACT_SIGNED") ?? 0;
+  // Dossiers actifs du programme = lots portant un client.
+  const activeDossiers = [...programme.dossierCounts.values()].reduce(
+    (acc, n) => acc + n,
+    0,
+  );
 
   return (
     <Card>
@@ -96,11 +101,10 @@ export function ProgrammeContextPanel({
             )}
           </Fact>
           <Fact label="Dossiers">
-            {programme.dossiers.length} dossier
-            {programme.dossiers.length > 1 ? "s" : ""}
+            {activeDossiers} dossier{activeDossiers > 1 ? "s" : ""}
             {signedDossiers > 0 &&
               ` dont ${signedDossiers} acté${signedDossiers > 1 ? "s" : ""}`}
-            {programme.dossiers.length > 0 && (
+            {activeDossiers > 0 && (
               <span className="mt-1 flex flex-wrap gap-1.5">
                 {[...programme.dossierCounts.entries()].map(
                   ([status, count]) => (

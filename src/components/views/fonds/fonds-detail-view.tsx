@@ -11,8 +11,8 @@ import type { LotFondsDetail } from "@/lib/fonds/access";
  */
 interface Props {
   lot: LotFondsDetail;
-  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
-  dossierBasePath: string;
+  /** Racine « lots » de l'espace appelant, ex. « /admin/lots ». */
+  lotBasePath: string;
   /** Notaires actifs, pour le rattachement depuis le lot (T4). */
   notaries: {
     id: string;
@@ -32,7 +32,7 @@ interface Props {
 
 export function FondsDetailView({
   lot,
-  dossierBasePath,
+  lotBasePath,
   notaries,
   programmeAppelTypes,
 }: Props) {
@@ -96,7 +96,7 @@ export function FondsDetailView({
         contact={clientContact}
         convertedProspect={Boolean(lot.dossier?.prospect)}
         pendingSignature={(lot.dossier?.signatures.length ?? 0) > 0}
-        dossierBasePath={dossierBasePath}
+        lotBasePath={lotBasePath}
       />
 
       <Card>

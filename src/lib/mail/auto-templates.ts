@@ -47,7 +47,8 @@ export function newDocumentMail(
   firstName: string,
   fileName: string,
 ): MailMessage {
-  const link = `${baseUrl}/client/documents`;
+  // Le client peut avoir plusieurs dossiers : on l'envoie sur son espace.
+  const link = `${baseUrl}/client`;
   return {
     to,
     subject: "Un document a été partagé avec vous",
@@ -68,7 +69,7 @@ export function pieceDepositedMail(
   clientName: string,
   fileName: string,
 ): MailMessage {
-  const link = `${baseUrl}/collaborateur/dossiers`;
+  const link = `${baseUrl}/collaborateur/lots`;
   return {
     to,
     subject: `[${clientName}] Une pièce a été déposée`,
@@ -89,7 +90,7 @@ export function dossierRelaunchMail(
   clientName: string,
   daysSinceLastActivity: number,
 ): MailMessage {
-  const link = `${baseUrl}/collaborateur/dossiers`;
+  const link = `${baseUrl}/collaborateur/lots`;
   return {
     to,
     subject: `[Relance] Le dossier ${clientName} est inactif depuis ${daysSinceLastActivity} jours`,
@@ -220,9 +221,10 @@ export function signatureCompletedCollaboratorMail(
   to: string,
   firstName: string,
   clientName: string,
-  dossierId: string,
+  /** Lot du dossier : c'est lui qui porte l'URL de la fiche interne. */
+  lotId: string,
 ): MailMessage {
-  const link = `${baseUrl}/collaborateur/dossiers/${dossierId}`;
+  const link = `${baseUrl}/collaborateur/lots/${lotId}`;
   return {
     to,
     subject: `[${clientName}] Document signé électroniquement`,

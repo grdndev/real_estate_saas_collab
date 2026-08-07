@@ -111,7 +111,8 @@ export function messageByEmailMail(
   body: string,
   attachmentCount: number,
 ): MailMessage {
-  const link = `${baseUrl}/client/messagerie`;
+  // Le client peut avoir plusieurs dossiers : on l'envoie sur son espace.
+  const link = `${baseUrl}/client`;
   const attachmentLine =
     attachmentCount > 0
       ? `\n\n${attachmentCount} fichier${attachmentCount > 1 ? "s" : ""} joint${attachmentCount > 1 ? "s" : ""} à cet email.`

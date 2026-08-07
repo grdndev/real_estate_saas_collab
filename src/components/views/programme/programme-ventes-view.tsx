@@ -25,7 +25,7 @@ interface Props {
   dossiers: ProgrammeSalesRow[];
   showClientIdentity: boolean;
   /** Lien vers la fiche dossier, ou `null` si l'espace n'en propose pas. */
-  dossierBasePath: string | null;
+  lotBasePath: string | null;
 }
 
 const STATUS_BADGE = {
@@ -51,7 +51,7 @@ export function ProgrammeVentesView({
   programme,
   dossiers,
   showClientIdentity,
-  dossierBasePath,
+  lotBasePath,
 }: Props) {
   const stats = dossiers.reduce(
     (acc, d) => {
@@ -92,7 +92,7 @@ export function ProgrammeVentesView({
         </h1>
         <p className="mt-1 text-sm text-slate-600">
           {programme.name} —{" "}
-          {dossierBasePath ? "dossiers du programme." : "vue lecture seule."}
+          {lotBasePath ? "lots du programme." : "vue lecture seule."}
         </p>
       </div>
 
@@ -146,7 +146,7 @@ export function ProgrammeVentesView({
                 <Th>Statut</Th>
                 <Th>Créé le</Th>
                 <Th>Dernière activité</Th>
-                {dossierBasePath && <Th />}
+                {lotBasePath && <Th />}
               </Tr>
             </THead>
             <TBody>
@@ -154,13 +154,7 @@ export function ProgrammeVentesView({
                 const sb = STATUS_BADGE[d.status];
                 return (
                   <Tr key={d.id}>
-                    <Td>
-                      {d.lots.length > 0
-                        ? d.lots
-                            .map((l) => `${l.reference} · ${l.type}`)
-                            .join(", ")
-                        : "—"}
-                    </Td>
+                    <Td>{`${d.lot.reference} · ${d.lot.type}`}</Td>
                     {showClientIdentity && (
                       <Td>
                         {d.clientName ?? (
@@ -177,10 +171,10 @@ export function ProgrammeVentesView({
                     <Td className="text-xs text-slate-500">
                       {d.lastActivityAt.toLocaleDateString("fr-FR")}
                     </Td>
-                    {dossierBasePath && (
+                    {lotBasePath && (
                       <Td className="text-right">
                         <Link
-                          href={`${dossierBasePath}/${d.id}`}
+                          href={`${lotBasePath}/${d.lotId}`}
                           className="text-equatis-turquoise-700 text-sm hover:underline"
                         >
                           Ouvrir →

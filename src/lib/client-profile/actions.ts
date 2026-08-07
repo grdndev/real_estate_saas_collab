@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidateLotPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
@@ -116,7 +116,7 @@ export async function upsertClientProfileAction(
     metadata: `Fiche client mise à jour (dossier ${dossier.id})`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}/fiche-client`);
+  revalidateLotPaths(dossier.lotId);
+  revalidateLotPaths(dossier.lotId, "/fiche-client");
   return { ok: true, value: undefined };
 }

@@ -23,7 +23,7 @@ export default async function AdminProspectsPage() {
       canDelete
       subtitle="Gérez les leads entrants et importez vos contacts Google Forms."
       sectioned
-      dossierBasePath="/admin/dossiers"
+      lotBasePath="/admin/lots"
     />
   );
 }

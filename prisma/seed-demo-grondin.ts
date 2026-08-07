@@ -161,7 +161,7 @@ async function main() {
   // --- Dossier ---
   const dossier = await prisma.dossier.create({
     data: {
-      programmeId: programme.id,
+      lotId: lot.id,
       clientId: client.id,
       status: "SIGNED_AT_NOTARY",
       contractStatus: "LOAN_OFFER_SENT_TO_NOTARY",

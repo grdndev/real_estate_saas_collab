@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateLotPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
@@ -138,7 +139,7 @@ export async function createAppointmentAction(
     metadata: `Rendez-vous notaire créé (dossier ${dossier.id})`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   revalidatePath("/collaborateur/facturation");
   revalidatePath("/client");
   revalidatePath(`/notaire/${dossier.id}`);
@@ -196,7 +197,7 @@ export async function cancelAppointmentAction(
     metadata: `Rendez-vous notaire annulé (dossier ${dossier.id})`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   revalidatePath("/client");
   return { ok: true, value: undefined };
 }

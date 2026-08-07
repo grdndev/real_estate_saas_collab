@@ -8,7 +8,8 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { unassignClientAction } from "@/lib/dossier/actions";
 
 interface Props {
-  dossierId: string;
+  /** Le lot dont on retire le client : c'est `Lot.dossierId` qui est effacé. */
+  lotId: string;
   clientName: string;
   /** Le dossier provient de la conversion d'un prospect. */
   convertedProspect?: boolean;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export function UnassignClientButton({
-  dossierId,
+  lotId,
   clientName,
   convertedProspect = false,
   pendingSignature = false,
@@ -45,9 +46,9 @@ export function UnassignClientButton({
         description={
           <div className="space-y-2">
             <p>
-              Le compte du client est conservé et repasse en attente
-              d&apos;association. Le lot reste lié au dossier, ainsi que les
-              documents déjà déposés.
+              Le lot redevient libre. Le dossier est archivé avec ses messages,
+              documents et sa timeline : il sera restitué intégralement si ce
+              client est réassocié à ce lot.
             </p>
             {convertedProspect && (
               <p className="font-medium text-amber-700">
@@ -72,7 +73,7 @@ export function UnassignClientButton({
         }}
         onConfirm={() =>
           startTransition(async () => {
-            const result = await unassignClientAction({ dossierId });
+            const result = await unassignClientAction({ lotId });
             if (!result.ok) {
               setError(result.error);
               return;

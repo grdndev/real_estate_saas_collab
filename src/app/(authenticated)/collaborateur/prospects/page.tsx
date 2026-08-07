@@ -23,7 +23,7 @@ export default async function CollabProspectsPage() {
       canDelete
       subtitle="Gérez les leads entrants et importez vos contacts Google Forms."
       sectioned
-      dossierBasePath="/collaborateur/dossiers"
+      lotBasePath="/collaborateur/lots"
     />
   );
 }

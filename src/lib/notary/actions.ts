@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { collaboratorLotPath, revalidateLotPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
@@ -185,10 +186,7 @@ export async function attachNotaryAction(
     });
   }
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
-  revalidatePath(`/admin/dossiers/${dossier.id}`);
-  revalidatePath("/collaborateur/dossiers");
-  revalidatePath("/admin/dossiers");
+  revalidateLotPaths(dossier.lotId);
   revalidatePath("/notaire");
   return { ok: true, value: undefined };
 }
@@ -376,10 +374,11 @@ export async function transmitToNotaryAction(
     link: `/notaire/${dossier.id}`,
   });
 
-  const programme = await prisma.programme.findUnique({
-    where: { id: dossier.programmeId },
-    select: { name: true },
+  const lot = await prisma.lot.findUnique({
+    where: { id: dossier.lotId },
+    select: { programme: { select: { name: true } } },
   });
+  const programme = lot?.programme ?? null;
   const mail = isRetransmission
     ? documentsTransmittedToNotaryMail(
         notary.email,
@@ -403,7 +402,7 @@ export async function transmitToNotaryAction(
       await getMailer().send(mail);
     } catch (err) {
       console.error("[mail] transmittedToNotary (PJ)", err);
-      revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+      revalidateLotPaths(dossier.lotId);
       revalidatePath("/notaire");
       return {
         ok: false,
@@ -421,7 +420,7 @@ export async function transmitToNotaryAction(
       });
   }
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   revalidatePath("/notaire");
   return { ok: true, value: undefined };
 }
@@ -492,14 +491,20 @@ export async function notaryUpdateStatusAction(
       "ACT_READY",
       "Acte signé",
       `Le dossier ${clientName} a été signé chez le notaire.`,
-      `/collaborateur/dossiers/${dossier.id}`,
+      collaboratorLotPath(dossier.lotId),
     );
 
     // Notifier également les promoteurs rattachés au programme.
-    const promoterLinks = await prisma.programmePromoter.findMany({
-      where: { programmeId: dossier.programmeId },
-      select: { promoterId: true },
+    const dossierLot = await prisma.lot.findUnique({
+      where: { id: dossier.lotId },
+      select: { programmeId: true },
     });
+    const promoterLinks = dossierLot
+      ? await prisma.programmePromoter.findMany({
+          where: { programmeId: dossierLot.programmeId },
+          select: { promoterId: true },
+        })
+      : [];
     await Promise.all(
       promoterLinks
         .filter((p) => p.promoterId !== me.id)
@@ -509,7 +514,7 @@ export async function notaryUpdateStatusAction(
             kind: "ACT_READY",
             title: "Acte signé",
             body: `Le dossier ${clientName} a été signé chez le notaire.`,
-            link: `/promoteur/${dossier.programmeId}/ventes`,
+            link: `/promoteur/${dossierLot?.programmeId}/ventes`,
           }),
         ),
     );
@@ -521,7 +526,7 @@ export async function notaryUpdateStatusAction(
       "DOSSIER_INACTIVE",
       "Dossier bloqué",
       `Le notaire a bloqué le dossier ${clientName}.${comment ? " " + comment : ""}`,
-      `/collaborateur/dossiers/${dossier.id}`,
+      collaboratorLotPath(dossier.lotId),
     );
 
     // Email auto (CDC §8.5) au client + collaborateurs.
@@ -638,7 +643,7 @@ export async function flagMissingPieceAction(
         kind: "MISSING_PIECE_REPORTED",
         title: "Pièce manquante signalée par le notaire",
         body: `${clientName} : ${parsed.data.label}`,
-        link: `/collaborateur/dossiers/${dossier.id}`,
+        link: collaboratorLotPath(dossier.lotId),
       }),
     ),
   );
@@ -714,13 +719,14 @@ export async function relaunchNotaryAction(input: {
     };
   }
 
-  const [notary, programme] = await Promise.all([
+  const [notary, relaunchLot] = await Promise.all([
     prisma.user.findUnique({ where: { id: dossier.notaryId } }),
-    prisma.programme.findUnique({
-      where: { id: dossier.programmeId },
-      select: { name: true },
+    prisma.lot.findUnique({
+      where: { id: dossier.lotId },
+      select: { programme: { select: { name: true } } },
     }),
   ]);
+  const programme = relaunchLot?.programme ?? null;
   if (!notary || notary.role !== "NOTARY") {
     return { ok: false, error: "Notaire introuvable." };
   }
@@ -790,6 +796,6 @@ export async function relaunchNotaryAction(input: {
     metadata: `Notaire ${notary.id} relancé, ${daysSinceTransmission} jour(s) après la transmission${parsed.data.comment ? ", avec commentaire" : ""}`,
   });
 
-  revalidatePath(`/collaborateur/dossiers/${dossier.id}`);
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: undefined };
 }

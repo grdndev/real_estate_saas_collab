@@ -26,8 +26,8 @@ export interface CreateClientDossierCoreParams {
   firstName: string;
   lastName: string;
   phone?: string | null;
-  programmeId: string;
-  lotId?: string | null;
+  /** Lot acheté — un dossier n'existe jamais sans lot. */
+  lotId: string;
   /** Hash de mot de passe placeholder (calculé hors transaction). */
   passwordHash: string;
   /**
@@ -84,7 +84,7 @@ export async function createClientDossierCore(
 
   const createdDossier = await tx.dossier.create({
     data: {
-      programmeId: params.programmeId,
+      lotId: params.lotId,
       clientId: createdUser.id,
       status: "NEW_LEAD",
     },
@@ -100,12 +100,11 @@ export async function createClientDossierCore(
     });
   }
 
-  if (params.lotId) {
-    await tx.lot.update({
-      where: { id: params.lotId },
-      data: { dossierId: createdDossier.id, status: "RESERVED" },
-    });
-  }
+  // Le lot pointe vers son dossier actif et passe en réservé.
+  await tx.lot.update({
+    where: { id: params.lotId },
+    data: { dossierId: createdDossier.id, status: "RESERVED" },
+  });
 
   await tx.timelineEvent.create({
     data: {

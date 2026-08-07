@@ -12,14 +12,20 @@ export const metadata: Metadata = { title: "Facturation" };
 export default async function FacturationPage() {
   await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
 
-  // Tout dossier actif rattaché à un client est facturable ; les dossiers
-  // archivés (client dissocié, T10) sont exclus.
+  // Tout dossier actif est facturable ; les dossiers archivés (client
+  // dissocié, T10) sont exclus.
   const dossiers = await prisma.dossier.findMany({
-    where: { clientId: { not: null }, archivedAt: null },
+    where: { archivedAt: null },
     orderBy: { updatedAt: "desc" },
     include: {
       client: { select: { firstName: true, lastName: true } },
-      programme: { select: { name: true, id: true } },
+      lot: {
+        select: {
+          id: true,
+          reference: true,
+          programme: { select: { id: true, name: true } },
+        },
+      },
       invoices: { orderBy: { createdAt: "desc" } },
       appointments: {
         where: { status: { in: ["SCHEDULED", "CONFIRMED"] } },
@@ -71,12 +77,10 @@ export default async function FacturationPage() {
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle>
                   <Link
-                    href={`/collaborateur/dossiers/${d.id}`}
+                    href={`/collaborateur/lots/${d.lot.id}`}
                     className="hover:underline"
                   >
-                    {d.client
-                      ? `${d.client.firstName} ${d.client.lastName}`
-                      : "Client non associé"}
+                    {d.client.firstName} {d.client.lastName}
                   </Link>
                 </CardTitle>
                 {d.appointments[0] && (
@@ -86,11 +90,14 @@ export default async function FacturationPage() {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-slate-500">{d.programme.name}</p>
+              <p className="text-xs text-slate-500">
+                {d.lot.programme.name} — lot {d.lot.reference}
+              </p>
             </CardHeader>
             <CardContent>
               <InvoiceManager
                 dossierId={d.id}
+                lotId={d.lot.id}
                 hasNotary={Boolean(d.notaryId)}
                 invoices={d.invoices.map((i) => ({
                   id: i.id,

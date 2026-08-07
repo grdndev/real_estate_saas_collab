@@ -36,7 +36,7 @@ export default async function CollabProgrammeDetailPage({
       programme={programme}
       availablePromoters={availablePromoters}
       basePath="/collaborateur/programmes"
-      dossierBasePath="/collaborateur/dossiers"
+      lotBasePath="/collaborateur/lots"
       fondsBasePath="/collaborateur/fonds"
       canEdit
       // L'assignation des promoteurs reste réservée au SUPER_ADMIN.

@@ -70,10 +70,7 @@ export function DossierContextPanel({ dossier }: { dossier: DossierContext }) {
     <Card>
       <CardHeader className="flex-row flex-wrap items-center justify-between">
         <CardTitle>
-          Dossier{" "}
-          {dossier.client
-            ? `${dossier.client.firstName} ${dossier.client.lastName}`
-            : "sans client"}
+          Dossier {dossier.client.firstName} {dossier.client.lastName}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
@@ -94,27 +91,18 @@ export function DossierContextPanel({ dossier }: { dossier: DossierContext }) {
       <CardContent className="flex flex-col gap-5">
         <dl className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Fact label="Client">
-            {dossier.client
-              ? `${dossier.client.firstName} ${dossier.client.lastName}`
-              : "Aucun client associé"}
+            {dossier.client.firstName} {dossier.client.lastName}
           </Fact>
           <Fact label="Programme">
             <Link
-              href={`/admin/logs?vue=programme&id=${dossier.programme.id}`}
+              href={`/admin/logs?vue=programme&id=${dossier.lot.programme.id}`}
               className="text-equatis-turquoise-700 hover:underline"
             >
-              {dossier.programme.name}
+              {dossier.lot.programme.name}
             </Link>
           </Fact>
-          <Fact label="Lots">
-            {dossier.lots.length === 0
-              ? "—"
-              : dossier.lots
-                  .map(
-                    (lot) =>
-                      `${lot.reference} (${LOT_STATUS_LABEL[lot.status] ?? lot.status})`,
-                  )
-                  .join(", ")}
+          <Fact label="Lot">
+            {`${dossier.lot.reference} (${LOT_STATUS_LABEL[dossier.lot.status] ?? dossier.lot.status})`}
           </Fact>
           <Fact label="Intervenants">
             {dossier.participants.length === 0

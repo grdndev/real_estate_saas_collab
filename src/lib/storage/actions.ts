@@ -1,6 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import {
+  collaboratorLotPath,
+  revalidateDossierPaths,
+} from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireUser } from "@/lib/auth/guards";
@@ -151,9 +155,10 @@ export async function confirmUploadAction(
     return { ok: false, error: "Accès refusé." };
   }
 
-  await prisma.dossier.update({
+  const dossier = await prisma.dossier.update({
     where: { id: document.dossierId! },
     data: { lastActivityAt: new Date() },
+    select: { lotId: true },
   });
 
   if (document.documentRequestId) {
@@ -176,8 +181,8 @@ export async function confirmUploadAction(
         : "Document partagé",
       document.fileName,
       document.source === "CLIENT_UPLOAD"
-        ? `/collaborateur/dossiers/${document.dossierId}`
-        : "/client/documents",
+        ? collaboratorLotPath(dossier.lotId)
+        : `/client/${document.dossierId}/documents`,
     );
 
     // Email auto (CDC §8.5)
@@ -231,9 +236,9 @@ export async function confirmUploadAction(
   }
 
   if (document.dossierId) {
-    revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
+    await revalidateDossierPaths(document.dossierId);
+    revalidatePath(`/client/${document.dossierId}/documents`);
   }
-  revalidatePath("/client/documents");
   return { ok: true, value: undefined };
 }
 
@@ -408,9 +413,9 @@ export async function deleteDocumentAction(
   });
 
   if (document.dossierId) {
-    revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
+    await revalidateDossierPaths(document.dossierId);
+    revalidatePath(`/client/${document.dossierId}/documents`);
   }
-  revalidatePath("/client/documents");
   return { ok: true, value: undefined };
 }
 
@@ -454,8 +459,8 @@ export async function toggleDocumentVisibilityAction(
   });
 
   if (document.dossierId) {
-    revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
+    await revalidateDossierPaths(document.dossierId);
+    revalidatePath(`/client/${document.dossierId}/documents`);
   }
-  revalidatePath("/client/documents");
   return { ok: true, value: undefined };
 }

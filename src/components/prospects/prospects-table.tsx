@@ -40,6 +40,8 @@ export interface ProspectRow {
   source: string | null;
   status: ProspectStatusInput;
   convertedDossierId: string | null;
+  /** Lot du dossier converti — cible du lien « Voir le lot ». */
+  convertedLotId: string | null;
   dossierHasActivity: boolean;
   createdAt: Date;
   notes: NoteItem[];
@@ -67,14 +69,14 @@ export function ProspectsTable({
   programmes,
   canDelete,
   currentUserId,
-  dossierBasePath,
+  lotBasePath,
 }: {
   prospects: ProspectRow[];
   programmes: ProgrammeLotOption[];
   canDelete: boolean;
   currentUserId: string;
-  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
-  dossierBasePath: string;
+  /** Racine « lots » de l'espace appelant ; `null` si l'espace n'y donne pas accès. */
+  lotBasePath: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -238,12 +240,12 @@ export function ProspectsTable({
 
                       {p.status === "CONVERTED" && (
                         <>
-                          {p.convertedDossierId && (
+                          {p.convertedLotId && lotBasePath && (
                             <Link
-                              href={`${dossierBasePath}/${p.convertedDossierId}`}
+                              href={`${lotBasePath}/${p.convertedLotId}`}
                               className="text-equatis-turquoise-700 text-xs hover:underline"
                             >
-                              Voir le dossier
+                              Voir le lot
                             </Link>
                           )}
                           <Button

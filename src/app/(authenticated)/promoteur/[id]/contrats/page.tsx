@@ -28,7 +28,7 @@ export default async function ProgrammeContractsPage({ params }: PageProps) {
       programme={programme}
       dossiers={dossiers}
       showClientIdentity={false}
-      dossierBasePath={null}
+      lotBasePath={null}
     />
   );
 }

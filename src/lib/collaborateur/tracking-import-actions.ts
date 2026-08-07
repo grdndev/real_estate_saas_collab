@@ -228,7 +228,7 @@ export async function importTrackingLotsAction(
 
 export async function upsertTrackingDossierAction(
   input: unknown,
-): Promise<ActionResult<{ dossierId: string }>> {
+): Promise<ActionResult<{ dossierId: string | null }>> {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN", "PROMOTER"]);
 
   const parsed = createTrackingDossierSchema.safeParse(input);
@@ -257,25 +257,43 @@ export async function upsertTrackingDossierAction(
 
   const clientId = client?.existingUserId ?? null;
 
-  let existingDossier = lot.dossierId
-    ? await prisma.dossier.findUnique({ where: { id: lot.dossierId } })
-    : null;
-
-  if (clientId) {
-    const user = await prisma.user.findUnique({ where: { id: clientId } });
-    if (!user || user.role !== "CLIENT") {
-      return { ok: false, error: "Client introuvable ou rôle invalide." };
-    }
-    const clientDossier = await prisma.dossier.findFirst({
-      where: { clientId, archivedAt: null },
+  // Sans acquéreur, il n'y a pas de dossier : seule la grille du lot est mise à
+  // jour. Les données de process (dates, financement) appartiennent au dossier
+  // et ne peuvent donc pas être importées tant qu'aucun client n'est associé.
+  if (!clientId) {
+    await prisma.lot.update({
+      where: { id: lotId },
+      data: { status: lotFinalStatus },
     });
-    if (clientDossier && clientDossier.id !== (existingDossier?.id ?? "")) {
-      await prisma.lot.update({
-        where: { id: lotId },
-        data: { dossierId: clientDossier.id },
-      });
-      existingDossier = clientDossier;
-    }
+    await audit({
+      userId: me.id,
+      action: "LOT_STATUS_CHANGED",
+      resourceType: "Lot",
+      resourceId: lotId,
+      ip: ctx.ip,
+      userAgent: ctx.userAgent,
+      metadata: `Lot mis à jour via l'import d'un fichier de suivi, sans acquéreur (programme ${programmeId})`,
+    });
+    revalidatePath("/collaborateur");
+    revalidatePath("/collaborateur/lots");
+    return { ok: true, value: { dossierId: null } };
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: clientId } });
+  if (!user || user.role !== "CLIENT") {
+    return { ok: false, error: "Client introuvable ou rôle invalide." };
+  }
+
+  // Le dossier du couple (lot, client) — actif ou archivé — est réutilisé.
+  const existingDossier = await prisma.dossier.findUnique({
+    where: { lotId_clientId: { lotId, clientId } },
+  });
+  if (!existingDossier && lot.dossierId) {
+    return {
+      ok: false,
+      error:
+        "Ce lot est déjà associé à un autre client : dissociez-le avant d'importer.",
+    };
   }
 
   // Infer dossier status
@@ -399,8 +417,9 @@ export async function upsertTrackingDossierAction(
       await tx.dossier.update({
         where: { id: existingDossier.id },
         data: {
-          clientId,
           status: effectiveStatus,
+          // L'import réactive le dossier et le rattache au lot.
+          archivedAt: null,
           contractStatus,
           optioned,
           optionExpiresAt: optioned ? optionExpiry : null,
@@ -412,7 +431,7 @@ export async function upsertTrackingDossierAction(
 
       await tx.lot.update({
         where: { id: lotId },
-        data: { status: lotFinalStatus },
+        data: { dossierId: existingDossier.id, status: lotFinalStatus },
       });
 
       const existing = await tx.timelineEvent.findMany({
@@ -447,7 +466,8 @@ export async function upsertTrackingDossierAction(
     });
 
     revalidatePath("/collaborateur");
-    revalidatePath("/collaborateur/dossiers");
+    revalidatePath("/collaborateur/lots");
+    revalidatePath("/admin/lots");
 
     return { ok: true, value: { dossierId: existingDossier.id } };
   }
@@ -456,7 +476,7 @@ export async function upsertTrackingDossierAction(
   const dossier = await prisma.$transaction(async (tx) => {
     const created = await tx.dossier.create({
       data: {
-        programmeId,
+        lotId,
         clientId,
         status: dossierStatus,
         contractStatus,
@@ -530,7 +550,8 @@ export async function upsertTrackingDossierAction(
   });
 
   revalidatePath("/collaborateur");
-  revalidatePath("/collaborateur/dossiers");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
 
   return { ok: true, value: { dossierId: dossier.id } };
 }

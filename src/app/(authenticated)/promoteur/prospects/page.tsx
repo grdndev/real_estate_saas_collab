@@ -29,7 +29,7 @@ export default async function PromoteurProspectsPage() {
       subtitle="Leads de vos programmes — visibilité limitée aux programmes auxquels vous êtes assigné."
       sectioned={false}
       // Le promoteur n'accède pas au détail des dossiers.
-      dossierBasePath="/promoteur"
+      lotBasePath={null}
     />
   );
 }

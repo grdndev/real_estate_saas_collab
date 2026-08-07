@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { revalidateDossierPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
@@ -57,8 +58,8 @@ export async function addNoteAction(
 
   if (data.scope === "PROSPECT") {
     revalidatePath("/collaborateur/prospects");
-  } else {
-    revalidatePath(`/collaborateur/dossiers/${data.dossierId}`);
+  } else if (data.dossierId) {
+    await revalidateDossierPaths(data.dossierId);
   }
   return { ok: true, value: { id: note.id } };
 }
@@ -96,7 +97,7 @@ export async function deleteNoteAction(noteId: string): Promise<ActionResult> {
   if (note.scope === "PROSPECT") {
     revalidatePath("/collaborateur/prospects");
   } else if (note.dossierId) {
-    revalidatePath(`/collaborateur/dossiers/${note.dossierId}`);
+    await revalidateDossierPaths(note.dossierId);
   }
   return { ok: true, value: undefined };
 }

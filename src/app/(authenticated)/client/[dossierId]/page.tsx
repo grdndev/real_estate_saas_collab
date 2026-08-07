@@ -1,0 +1,229 @@
+import type { Metadata } from "next";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  DossierProgress,
+  nextStageLabel,
+} from "@/components/client-space/progress-bar";
+import { requireRole } from "@/lib/auth/guards";
+import { findDossierForUser } from "@/lib/dossier/access";
+import { prisma } from "@/lib/prisma";
+
+export const metadata: Metadata = { title: "Mon dossier" };
+
+const STATUS_BADGE = {
+  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
+  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
+  SIGNATURE_PENDING: {
+    label: "Signature en attente",
+    variant: "warning" as const,
+  },
+  SIGNED_AT_NOTARY: {
+    label: "Envoyé chez le notaire",
+    variant: "info" as const,
+  },
+  LOAN_OFFER_RECEIVED: {
+    label: "Offre de prêt reçue",
+    variant: "info" as const,
+  },
+  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
+  BLOCKED: { label: "Bloqué", variant: "danger" as const },
+};
+
+const eur = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+  maximumFractionDigits: 0,
+});
+
+interface PageProps {
+  params: Promise<{ dossierId: string }>;
+}
+
+export default async function ClientDossierPage({ params }: PageProps) {
+  const me = await requireRole(["CLIENT", "SUPER_ADMIN"]);
+  const { dossierId } = await params;
+
+  // Contrôle d'accès dans la route : le client ne voit que ses dossiers actifs.
+  const accessible = await findDossierForUser(dossierId, me.id, me.role);
+  if (!accessible) notFound();
+
+  const dossier = await prisma.dossier.findUniqueOrThrow({
+    where: { id: dossierId },
+    include: {
+      lot: { include: { programme: { select: { name: true, city: true } } } },
+      participants: {
+        where: { role: "COLLABORATOR_PRIMARY" },
+        include: {
+          user: {
+            select: { firstName: true, lastName: true, email: true },
+          },
+        },
+      },
+      documentRequests: {
+        select: { id: true, label: true, fulfilled: true, required: true },
+      },
+      appointments: {
+        where: { status: { in: ["SCHEDULED", "CONFIRMED"] } },
+        orderBy: { scheduledAt: "asc" },
+      },
+    },
+  });
+
+  const sb = STATUS_BADGE[dossier.status];
+  const lot = dossier.lot;
+  const referent = dossier.participants[0]?.user;
+  const totalRequests = dossier.documentRequests.length;
+  const fulfilledRequests = dossier.documentRequests.filter(
+    (r) => r.fulfilled,
+  ).length;
+  const missingRequired = dossier.documentRequests.filter(
+    (r) => r.required && !r.fulfilled,
+  ).length;
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
+          Bonjour {me.name?.split(" ")[0] ?? ""}
+        </h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Suivi de votre acquisition immobilière.
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Mon programme</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          <p className="text-equatis-night-800 text-lg font-semibold">
+            {lot.programme.name}
+            {lot.programme.city && (
+              <span className="ml-2 text-sm font-normal text-slate-500">
+                · {lot.programme.city}
+              </span>
+            )}
+          </p>
+          <div className="text-slate-700">
+            <p>
+              Lot <span className="font-mono">{lot.reference}</span> ·{" "}
+              {Number(lot.surface)} m² · {lot.type}
+            </p>
+            <p className="text-slate-600">
+              Prix TTC : <strong>{eur.format(Number(lot.priceTTC))}</strong>
+            </p>
+          </div>
+          <p className="pt-2">
+            <Badge variant={sb.variant}>{sb.label}</Badge>
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Avancement</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <DossierProgress current={dossier.status} />
+          <p className="text-equatis-night-800 text-sm">
+            <strong>Prochaine étape :</strong> {nextStageLabel(dossier.status)}
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Rendez-vous chez le notaire</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2 text-sm">
+          {dossier.appointments.length === 0 ? (
+            <p className="text-slate-500">
+              Aucun rendez-vous notaire n&apos;est encore planifié. Vous serez
+              informé(e) dès qu&apos;un rendez-vous sera fixé.
+            </p>
+          ) : (
+            <ul className="space-y-2">
+              {dossier.appointments.map((a) => (
+                <li
+                  key={a.id}
+                  className="rounded-md border border-sky-200 bg-sky-50 p-3"
+                >
+                  <p className="text-equatis-night-800 font-medium">
+                    {a.scheduledAt.toLocaleString("fr-FR", {
+                      dateStyle: "long",
+                      timeStyle: "short",
+                    })}
+                  </p>
+                  {a.location && <p className="text-slate-600">{a.location}</p>}
+                  {a.notes && (
+                    <p className="mt-1 text-xs text-slate-500">{a.notes}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Documents</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm">
+            <p>
+              <strong>{fulfilledRequests}</strong> sur{" "}
+              <strong>{totalRequests}</strong> pièces déposées.
+            </p>
+            {missingRequired > 0 && (
+              <Alert variant="warning">
+                {missingRequired} pièce{missingRequired > 1 ? "s" : ""}{" "}
+                obligatoire{missingRequired > 1 ? "s" : ""} en attente.
+              </Alert>
+            )}
+            <Link href={`/client/${dossier.id}/documents`}>
+              <Button variant="outline">Voir mes documents</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Mon collaborateur référent</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            {referent ? (
+              <>
+                <p className="font-medium">
+                  {referent.firstName} {referent.lastName}
+                </p>
+                <p className="text-slate-600">
+                  <a
+                    className="text-sky-700 hover:underline"
+                    href={`mailto:${referent.email}`}
+                  >
+                    {referent.email}
+                  </a>
+                </p>
+                <Link
+                  href={`/client/${dossier.id}/messagerie`}
+                  className="inline-block pt-1"
+                >
+                  <Button variant="outline">Envoyer un message</Button>
+                </Link>
+              </>
+            ) : (
+              <p className="text-slate-500">Aucun référent assigné.</p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

@@ -26,7 +26,7 @@ export default async function AdminProgrammeSalesPage({ params }: PageProps) {
       programme={programme}
       dossiers={dossiers}
       showClientIdentity
-      dossierBasePath="/admin/dossiers"
+      lotBasePath="/admin/lots"
     />
   );
 }

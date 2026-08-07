@@ -1,6 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+
+import {
+  collaboratorLotPath,
+  revalidateDossierPaths,
+  revalidateLotPaths,
+} from "@/lib/lot/revalidate";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { canBeContactedByEmail } from "@/lib/user/no-account";
@@ -91,12 +97,12 @@ export async function requestDocumentAction(
       kind: "DOCUMENT_REQUESTED",
       title: "Nouvelle pièce à déposer",
       body: data.label,
-      link: "/client/documents",
+      link: `/client/${data.dossierId}/documents`,
     });
   }
 
-  revalidatePath(`/collaborateur/dossiers/${data.dossierId}`);
-  revalidatePath("/client");
+  await revalidateDossierPaths(data.dossierId);
+  revalidatePath(`/client/${data.dossierId}`);
   return { ok: true, value: { id: created.id } };
 }
 
@@ -130,8 +136,10 @@ export async function acceptDocumentAction({
     userAgent: ctx.userAgent,
     metadata: `Document « ${document.fileName} » accepté (dossier ${document.dossierId})`,
   });
-  revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
-  revalidatePath("/client/documents");
+  if (document.dossierId) {
+    await revalidateDossierPaths(document.dossierId);
+    revalidatePath(`/client/${document.dossierId}/documents`);
+  }
   return { ok: true, value: undefined };
 }
 
@@ -181,7 +189,7 @@ export async function refuseDocumentAction({
       kind: "DOCUMENT_REQUESTED",
       title: "Document refusé",
       body: document.fileName,
-      link: "/client/documents",
+      link: `/client/${document.dossierId}/documents`,
     });
 
     getMailer().send(
@@ -193,8 +201,10 @@ export async function refuseDocumentAction({
     );
   }
 
-  revalidatePath(`/collaborateur/dossiers/${document.dossierId}`);
-  revalidatePath("/client/documents");
+  if (document.dossierId) {
+    await revalidateDossierPaths(document.dossierId);
+    revalidatePath(`/client/${document.dossierId}/documents`);
+  }
   return { ok: true, value: undefined };
 }
 
@@ -230,8 +240,8 @@ export async function cancelDocumentRequestAction(
     userAgent: ctx.userAgent,
     metadata: `Demande de pièce « ${request.label} » annulée (dossier ${request.dossierId})`,
   });
-  revalidatePath(`/collaborateur/dossiers/${request.dossierId}`);
-  revalidatePath("/client");
+  await revalidateDossierPaths(request.dossierId);
+  revalidatePath(`/client/${request.dossierId}`);
   return { ok: true, value: undefined };
 }
 
@@ -288,6 +298,8 @@ async function notifyMessageRecipients(
 }
 
 interface DossierMessageActors {
+  /** Lot du dossier — clé d'URL des écrans internes. */
+  lotId: string;
   clientId: string | null;
   client: { email: string; firstName: string } | null;
   participants: Array<{
@@ -309,7 +321,7 @@ function messageRecipients(
       userId: actors.clientId,
       email: actors.client?.email ?? null,
       firstName: actors.client?.firstName ?? "",
-      link: "/client/messagerie",
+      link: `/client/${dossierId}/messagerie`,
     });
   }
   for (const participant of actors.participants) {
@@ -322,7 +334,7 @@ function messageRecipients(
         userId: participant.userId,
         email: participant.user.email,
         firstName: participant.user.firstName,
-        link: `/collaborateur/dossiers/${dossierId}/messagerie`,
+        link: collaboratorLotPath(actors.lotId, "/messagerie"),
       });
     }
   }
@@ -331,6 +343,7 @@ function messageRecipients(
 
 const dossierMessageActorsSelect = {
   clientId: true,
+  lotId: true,
   client: { select: { email: true, firstName: true, status: true } },
   participants: {
     select: {
@@ -400,8 +413,8 @@ export async function sendMessageAction(
     parsed.data.body,
   );
 
-  revalidatePath(`/collaborateur/dossiers/${dossierId}/messagerie`);
-  revalidatePath("/client/messagerie");
+  revalidateLotPaths(actors.lotId, "/messagerie");
+  revalidatePath(`/client/${dossierId}/messagerie`);
   return { ok: true, value: { id: message.id } };
 }
 
@@ -542,7 +555,7 @@ export async function sendMessageByEmailAction(
             kind: "NEW_MESSAGE",
             title: "Nouveau message",
             body: preview.slice(0, 120),
-            link: "/client/messagerie",
+            link: `/client/${dossierId}/messagerie`,
           }),
         ]
       : []),
@@ -553,8 +566,8 @@ export async function sendMessageByEmailAction(
     ),
   ]);
 
-  revalidatePath(`/collaborateur/dossiers/${dossierId}/messagerie`);
-  revalidatePath("/client/messagerie");
+  revalidateLotPaths(actors.lotId, "/messagerie");
+  revalidatePath(`/client/${dossierId}/messagerie`);
   return { ok: true, value: { id: message.id } };
 }
 

@@ -30,8 +30,8 @@ interface Props {
   contact: ClientContactData | null;
   convertedProspect?: boolean;
   pendingSignature?: boolean;
-  /** Racine « dossiers » de l'espace appelant, ex. « /admin/dossiers ». */
-  dossierBasePath: string;
+  /** Racine « lots » de l'espace appelant, ex. « /admin/lots ». */
+  lotBasePath: string;
 }
 
 export function ClientContactCard({
@@ -41,7 +41,7 @@ export function ClientContactCard({
   contact,
   convertedProspect = false,
   pendingSignature = false,
-  dossierBasePath,
+  lotBasePath,
 }: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -119,14 +119,12 @@ export function ClientContactCard({
     <Card>
       <CardHeader className="flex-row items-center justify-between">
         <CardTitle>Client</CardTitle>
-        {dossierId && (
-          <Link
-            href={`${dossierBasePath}/${dossierId}`}
-            className="text-equatis-turquoise-700 text-sm hover:underline"
-          >
-            Voir le dossier →
-          </Link>
-        )}
+        <Link
+          href={`${lotBasePath}/${lotId}`}
+          className="text-equatis-turquoise-700 text-sm hover:underline"
+        >
+          Voir le lot →
+        </Link>
       </CardHeader>
       <CardContent>
         {!dossierId ? (
@@ -135,8 +133,8 @@ export function ClientContactCard({
           </p>
         ) : !contact ? (
           <p className="text-sm text-slate-500">
-            Aucun client associé à ce dossier. Associez un client depuis la page
-            du dossier.
+            Aucun client associé à ce dossier. Associez un client depuis la
+            fiche du lot.
           </p>
         ) : !editing ? (
           <div className="flex flex-col gap-4">
@@ -181,7 +179,7 @@ export function ClientContactCard({
               </Button>
               {dossierId && (
                 <UnassignClientButton
-                  dossierId={dossierId}
+                  lotId={lotId}
                   clientName={clientName ?? "ce client"}
                   convertedProspect={convertedProspect}
                   pendingSignature={pendingSignature}

@@ -25,7 +25,9 @@ export interface ProgrammeListRow {
   name: string;
   city: string | null;
   status: ProgrammeStatus;
-  _count: { lots: number; dossiers: number; promoters: number };
+  _count: { lots: number; promoters: number };
+  /** Lots du programme ayant un client associé (= dossiers actifs). */
+  activeDossiers: number;
 }
 
 interface Props {
@@ -100,7 +102,7 @@ export function ProgrammesListView({ programmes, basePath, canCreate }: Props) {
                     </Td>
                     <Td className="text-right">{p._count.lots}</Td>
                     <Td className="text-right">{p._count.promoters}</Td>
-                    <Td className="text-right">{p._count.dossiers}</Td>
+                    <Td className="text-right">{p.activeDossiers}</Td>
                     <Td className="text-right">
                       <Link
                         href={`${basePath}/${p.id}`}

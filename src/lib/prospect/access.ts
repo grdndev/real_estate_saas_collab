@@ -27,6 +27,7 @@ export async function loadProspects({
       convertedDossier: {
         select: {
           id: true,
+          lotId: true,
           timelineEvents: { select: { kind: true } },
           _count: {
             select: {
@@ -59,6 +60,8 @@ export async function loadProspects({
     source: p.source,
     status: p.status,
     convertedDossierId: p.convertedDossier?.id ?? null,
+    // Le dossier converti se consulte depuis la fiche de son lot.
+    convertedLotId: p.convertedDossier?.lotId ?? null,
     dossierHasActivity: dossierHasActivity(p.convertedDossier),
     createdAt: p.createdAt,
     notes: p.sharedNotes.map((n) => ({
@@ -83,7 +86,8 @@ export async function loadProspectProgrammes({ programmeIds }: ProspectScope) {
       id: true,
       name: true,
       lots: {
-        where: { status: "AVAILABLE" },
+        // « Libre » = sans client associé (`Lot.dossierId` nul).
+        where: { dossierId: null },
         orderBy: { reference: "asc" },
         select: { id: true, reference: true, type: true },
       },

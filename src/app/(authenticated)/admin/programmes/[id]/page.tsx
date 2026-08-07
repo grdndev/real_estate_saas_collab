@@ -36,7 +36,7 @@ export default async function ProgrammeDetailPage({
       programme={programme}
       availablePromoters={availablePromoters}
       basePath="/admin/programmes"
-      dossierBasePath="/admin/dossiers"
+      lotBasePath="/admin/lots"
       fondsBasePath="/admin/fonds"
       canEdit
       canManagePromoters

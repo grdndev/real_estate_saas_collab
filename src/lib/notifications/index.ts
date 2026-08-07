@@ -46,14 +46,18 @@ export async function notifyDossierParticipants(
   });
   const dossier = await prisma.dossier.findUnique({
     where: { id: dossierId },
-    select: { clientId: true, notaryId: true, programmeId: true },
+    select: {
+      clientId: true,
+      notaryId: true,
+      lot: { select: { programmeId: true } },
+    },
   });
   const userIds = new Set<string>(participants.map((p) => p.userId));
   if (dossier?.clientId) userIds.add(dossier.clientId);
   if (dossier?.notaryId) userIds.add(dossier.notaryId);
-  if (dossier?.programmeId) {
+  if (dossier?.lot) {
     const promoters = await prisma.programmePromoter.findMany({
-      where: { programmeId: dossier.programmeId },
+      where: { programmeId: dossier.lot.programmeId },
       select: { promoterId: true },
     });
     for (const p of promoters) userIds.add(p.promoterId);

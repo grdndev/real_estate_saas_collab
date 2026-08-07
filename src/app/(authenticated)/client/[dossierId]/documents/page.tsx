@@ -1,0 +1,237 @@
+import type { Metadata } from "next";
+
+import { Alert } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  EmptyState,
+  TBody,
+  THead,
+  Table,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui/table";
+import { DocumentDropZone } from "@/components/storage/document-drop-zone";
+import { DocumentRowActions } from "@/components/storage/document-row-actions";
+import { ScanStatusBadge } from "@/components/storage/scan-status-badge";
+import { notFound } from "next/navigation";
+
+import { requireRole } from "@/lib/auth/guards";
+import { findDossierForUser } from "@/lib/dossier/access";
+import { prisma } from "@/lib/prisma";
+import { isStorageConfigured } from "@/lib/storage/s3";
+
+export const metadata: Metadata = { title: "Mes documents" };
+
+interface PageProps {
+  params: Promise<{ dossierId: string }>;
+}
+
+export default async function ClientDocumentsPage({ params }: PageProps) {
+  const me = await requireRole(["CLIENT", "SUPER_ADMIN"]);
+  const { dossierId } = await params;
+  const storageReady = isStorageConfigured();
+
+  // Contrôle d'accès dans la route : le client ne voit que ses dossiers actifs.
+  const accessible = await findDossierForUser(dossierId, me.id, me.role);
+  if (!accessible) notFound();
+
+  const dossier = await prisma.dossier.findUniqueOrThrow({
+    where: { id: dossierId },
+    include: {
+      lot: { select: { reference: true } },
+      documentRequests: {
+        orderBy: [{ required: "desc" }, { createdAt: "asc" }],
+        include: {
+          documents: {
+            where: { deletedAt: null },
+            orderBy: { createdAt: "desc" },
+            select: {
+              id: true,
+              fileName: true,
+              scanStatus: true,
+              createdAt: true,
+              uploadedById: true,
+              reviewStatus: true,
+              reviewReason: true,
+            },
+          },
+        },
+      },
+      documents: {
+        where: { deletedAt: null, isShared: true },
+        select: {
+          id: true,
+          fileName: true,
+          mimeType: true,
+          scanStatus: true,
+          createdAt: true,
+        },
+        orderBy: { createdAt: "desc" },
+      },
+    },
+  });
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-equatis-night-800 text-2xl font-semibold tracking-tight">
+          Mes documents
+        </h1>
+        <p className="mt-1 text-sm text-slate-600">
+          Lot {dossier.lot.reference} — documents transmis par votre
+          collaborateur et pièces à déposer.
+        </p>
+      </div>
+
+      {!storageReady && (
+        <Alert variant="warning">
+          Le stockage S3 n&apos;est pas encore configuré sur ce serveur. Le
+          dépôt de pièces sera disponible dès que les variables S3_* seront
+          renseignées dans <code>.env</code>.
+        </Alert>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Pièces à déposer</CardTitle>
+        </CardHeader>
+        {dossier.documentRequests.length === 0 ? (
+          <EmptyState
+            title="Aucune pièce demandée"
+            description="Votre collaborateur n'a pas encore configuré de pièces à déposer."
+          />
+        ) : (
+          <CardContent className="space-y-4">
+            {dossier.documentRequests.map((req) => {
+              const fulfilled = req.fulfilled || req.documents.length > 0;
+              return (
+                <div
+                  key={req.id}
+                  className="rounded-md border border-slate-200 p-4"
+                >
+                  <p className="text-equatis-night-800 font-medium">
+                    {req.label}
+                    {req.required && (
+                      <span
+                        aria-label="Pièce obligatoire"
+                        className="ml-1 text-red-600"
+                      >
+                        *
+                      </span>
+                    )}
+                  </p>
+
+                  {req.documents.length > 0 && (
+                    <ul className="mt-3 divide-y divide-slate-100 text-sm">
+                      {req.documents.map((doc) => (
+                        <li key={doc.id} className="flex flex-col gap-1 py-2">
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="min-w-0 flex-1 truncate font-mono text-xs">
+                              {doc.fileName}
+                            </span>
+                            <div className="flex items-center gap-2">
+                              {doc.reviewStatus === "ACCEPTED" ? (
+                                <Badge
+                                  variant="success"
+                                  className="text-[10px]"
+                                >
+                                  acceptée
+                                </Badge>
+                              ) : doc.reviewStatus === "REFUSED" ? (
+                                <Badge variant="danger" className="text-[10px]">
+                                  refusée
+                                </Badge>
+                              ) : (
+                                <Badge
+                                  variant="neutral"
+                                  className="text-[10px]"
+                                >
+                                  en cours de vérification
+                                </Badge>
+                              )}
+                              <ScanStatusBadge status={doc.scanStatus} />
+                              <DocumentRowActions
+                                documentId={doc.id}
+                                scanStatus={doc.scanStatus}
+                                canDelete={doc.uploadedById === me.id}
+                              />
+                            </div>
+                          </div>
+                          {doc.reviewStatus === "REFUSED" &&
+                            doc.reviewReason && (
+                              <p className="text-xs text-red-600">
+                                Motif du refus : {doc.reviewReason}
+                              </p>
+                            )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {storageReady && (
+                    <div className="mt-3">
+                      <DocumentDropZone
+                        dossierId={dossier.id}
+                        documentRequestId={req.id}
+                        source="CLIENT_UPLOAD"
+                        compact
+                        label={fulfilled ? "Remplacer le fichier" : undefined}
+                      />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </CardContent>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Documents reçus</CardTitle>
+        </CardHeader>
+        {dossier.documents.length === 0 ? (
+          <EmptyState
+            title="Aucun document reçu"
+            description="Les documents transmis par votre collaborateur apparaîtront ici."
+          />
+        ) : (
+          <Table>
+            <THead>
+              <Tr>
+                <Th>Nom</Th>
+                <Th>Type</Th>
+                <Th>Statut</Th>
+                <Th>Reçu le</Th>
+                <Th />
+              </Tr>
+            </THead>
+            <TBody>
+              {dossier.documents.map((doc) => (
+                <Tr key={doc.id}>
+                  <Td className="font-medium">{doc.fileName}</Td>
+                  <Td className="text-xs text-slate-500">{doc.mimeType}</Td>
+                  <Td>
+                    <ScanStatusBadge status={doc.scanStatus} />
+                  </Td>
+                  <Td className="text-xs text-slate-500">
+                    {doc.createdAt.toLocaleDateString("fr-FR")}
+                  </Td>
+                  <Td className="text-right">
+                    <DocumentRowActions
+                      documentId={doc.id}
+                      scanStatus={doc.scanStatus}
+                      canDelete={false}
+                    />
+                  </Td>
+                </Tr>
+              ))}
+            </TBody>
+          </Table>
+        )}
+      </Card>
+    </div>
+  );
+}

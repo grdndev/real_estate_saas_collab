@@ -8,7 +8,8 @@ interface HonorairesPdfDialogProps {
   montantHt: string;
   tauxTva: string;
   montantTtc: string;
-  dossierId: string;
+  /** Le PDF se génère depuis la route du lot. */
+  lotId: string;
   vendeurNom: string;
   vendeurAdresse: string;
 }
@@ -17,14 +18,14 @@ interface HonorairesPdfDialogProps {
  * Bouton + dialogue de génération du PDF « Honoraires de négociation ».
  * L'utilisateur saisit le montant HT (requis), le taux de TVA, un n° de
  * facture (requis) et le vendeur ; le PDF s'ouvre ensuite dans un nouvel onglet
- * via la route GET /collaborateur/dossiers/[id]/honoraires-pdf.
+ * via la route GET /collaborateur/lots/[id]/honoraires-pdf.
  */
 export function HonorairesPdfDialog({
   facture,
   montantHt,
   tauxTva,
   montantTtc,
-  dossierId,
+  lotId,
   vendeurNom,
   vendeurAdresse,
 }: HonorairesPdfDialogProps) {
@@ -76,7 +77,7 @@ export function HonorairesPdfDialog({
     }
 
     window.open(
-      `/collaborateur/dossiers/${dossierId}/honoraires-pdf?${params}`,
+      `/collaborateur/lots/${lotId}/honoraires-pdf?${params}`,
       "_blank",
       "noopener",
     );

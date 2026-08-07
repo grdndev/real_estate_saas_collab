@@ -407,8 +407,7 @@ export async function convertProspectAction(
         firstName: prospect.firstName,
         lastName: prospect.lastName,
         phone: prospect.phone,
-        programmeId: data.programmeId,
-        lotId: data.lotId ?? null,
+        lotId: data.lotId,
         passwordHash: placeholderHash,
         collaboratorId,
         actorId: me.id,
@@ -466,7 +465,8 @@ export async function convertProspectAction(
   });
 
   revalidateAll();
-  revalidatePath("/collaborateur/dossiers");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
   return {
     ok: true,
     value: { dossierId: created.dossier.id },
@@ -501,7 +501,7 @@ export async function revertProspectConversionAction(
     select: {
       id: true,
       clientId: true,
-      lots: { select: { id: true } },
+      lotId: true,
       timelineEvents: { select: { kind: true } },
       _count: {
         select: {
@@ -551,13 +551,11 @@ export async function revertProspectConversionAction(
       where: { id: prospect.id },
       data: { status: "OPTIONED", convertedDossierId: null },
     });
-    // Libérer les lots réservés (pas de cascade sur Lot.dossierId).
-    if (dossier.lots.length > 0) {
-      await tx.lot.updateMany({
-        where: { dossierId: dossier.id },
-        data: { dossierId: null, status: "AVAILABLE" },
-      });
-    }
+    // Libérer le lot réservé (pas de cascade sur Lot.dossierId).
+    await tx.lot.updateMany({
+      where: { dossierId: dossier.id },
+      data: { dossierId: null, status: "AVAILABLE" },
+    });
     // Supprimer le dossier vide (cascade : participants, pièces demandées,
     // timeline, etc.).
     await tx.dossier.delete({ where: { id: dossier.id } });
@@ -582,6 +580,7 @@ export async function revertProspectConversionAction(
   });
 
   revalidateAll();
-  revalidatePath("/collaborateur/dossiers");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath("/admin/lots");
   return { ok: true, value: undefined };
 }

@@ -51,7 +51,7 @@ async function main() {
   const dossier = await prisma.$transaction(async (tx) => {
     const created = await tx.dossier.create({
       data: {
-        programmeId: programme.id,
+        lotId: lot.id,
         clientId: client.id,
         status: "RESERVATION_SENT",
         lastActivityAt: new Date(),
