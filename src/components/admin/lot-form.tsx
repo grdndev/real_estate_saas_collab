@@ -37,6 +37,7 @@ export function CreateLotForm({
       type: "T2",
       priceHT: 0,
       vatRate: 5.5,
+      priceTTC: 0,
       status: "AVAILABLE",
     },
   });
@@ -71,6 +72,7 @@ export function CreateLotForm({
         type: "T2",
         priceHT: 0,
         vatRate: 5.5,
+        priceTTC: 0,
         status: "AVAILABLE",
       });
       router.refresh();
@@ -81,7 +83,7 @@ export function CreateLotForm({
     <form
       noValidate
       onSubmit={form.handleSubmit(onSubmit)}
-      className="grid grid-cols-1 gap-3 sm:grid-cols-7"
+      className="grid grid-cols-1 gap-3 sm:grid-cols-5"
     >
       <input type="hidden" {...form.register("programmeId")} />
       <FormField
@@ -154,6 +156,8 @@ export function CreateLotForm({
       >
         <Input placeholder="T2" {...form.register("type")} />
       </FormField>
+      {/* Les trois montants sont saisis indépendamment : aucun n'est recalculé
+          à partir des deux autres. */}
       <FormField
         label="Prix HT (€)"
         htmlFor="lot-priceHT"
@@ -179,6 +183,19 @@ export function CreateLotForm({
         />
       </FormField>
       <FormField
+        label="Prix FAI (€)"
+        htmlFor="lot-priceTTC"
+        required
+        hint="Prix TTC frais d'agence inclus"
+        error={form.formState.errors.priceTTC?.message}
+      >
+        <Input
+          type="number"
+          step="0.01"
+          {...form.register("priceTTC", { valueAsNumber: true })}
+        />
+      </FormField>
+      <FormField
         label="Statut"
         htmlFor="lot-status"
         required
@@ -193,13 +210,13 @@ export function CreateLotForm({
         </Select>
       </FormField>
       {globalError && (
-        <div className="sm:col-span-7">
+        <div className="sm:col-span-5">
           <Alert variant="danger" role="alert">
             {globalError}
           </Alert>
         </div>
       )}
-      <div className="sm:col-span-7">
+      <div className="sm:col-span-5">
         <Button type="submit" disabled={pending}>
           {pending ? "Ajout…" : "Ajouter le lot"}
         </Button>

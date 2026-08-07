@@ -452,10 +452,42 @@ export async function unassignPromoterAction(
 // LOTS — CRUD
 // =====================================================
 
-function computeTtc(priceHT: number, vatRate: number): Prisma.Decimal {
-  return new Prisma.Decimal(priceHT)
-    .times(1 + vatRate / 100)
-    .toDecimalPlaces(2);
+/** Montant € facultatif → Decimal Prisma, en conservant le `null`. */
+function toDecimal(value: number | null | undefined): Prisma.Decimal | null {
+  return value != null ? new Prisma.Decimal(value) : null;
+}
+
+/**
+ * Champs du lot pilotés par la saisie, communs à la création et à l'édition.
+ * Ni `programmeId` (immuable) ni `status` (piloté par le dossier) n'en font
+ * partie.
+ *
+ * Les trois montants HT / TVA / FAI sont écrits tels quels : aucun n'est
+ * recalculé à partir des deux autres.
+ */
+function lotWritableFields(data: Omit<LotInput, "status" | "programmeId">) {
+  return {
+    reference: data.reference.toUpperCase(),
+    building: data.building ?? null,
+    floor: data.floor ?? null,
+    type: data.type,
+    notes: data.notes ?? null,
+    surface: new Prisma.Decimal(data.surface),
+    annexSurface: toDecimal(data.annexSurface),
+    suv: toDecimal(data.suv),
+    garden: toDecimal(data.garden),
+    priceHT: new Prisma.Decimal(data.priceHT),
+    vatRate: new Prisma.Decimal(data.vatRate),
+    priceTTC: new Prisma.Decimal(data.priceTTC),
+    priceNetVendeur: toDecimal(data.priceNetVendeur),
+    priceNetVendeurWithParking: toDecimal(data.priceNetVendeurWithParking),
+    commissionAgence: toDecimal(data.commissionAgence),
+    commissionAgenceParking: toDecimal(data.commissionAgenceParking),
+    priceLocation: toDecimal(data.priceLocation),
+    creditImpot35: toDecimal(data.creditImpot35),
+    priceRevientCrdImp: toDecimal(data.priceRevientCrdImp),
+    additionalParking: data.additionalParking ?? null,
+  };
 }
 
 /**
@@ -479,6 +511,15 @@ function revalidateProgrammePaths(programmeId?: string): void {
     revalidatePath(`/admin/suivi/${programmeId}/lots`);
     revalidatePath(`/promoteur/${programmeId}/lots`);
   }
+}
+
+/** Chemins à revalider après une écriture sur un lot précis. */
+function revalidateLotPaths(lotId: string, programmeId?: string): void {
+  revalidateProgrammePaths(programmeId);
+  revalidatePath("/admin/lots");
+  revalidatePath("/collaborateur/lots");
+  revalidatePath(`/admin/lots/${lotId}`);
+  revalidatePath(`/collaborateur/lots/${lotId}`);
 }
 
 async function ensureProgrammeAccess(
@@ -528,18 +569,7 @@ export async function createLotAction(
     const lot = await prisma.lot.create({
       data: {
         programmeId: data.programmeId,
-        reference: data.reference.toUpperCase(),
-        surface: new Prisma.Decimal(data.surface),
-        annexSurface:
-          data.annexSurface != null
-            ? new Prisma.Decimal(data.annexSurface)
-            : null,
-        suv: data.suv != null ? new Prisma.Decimal(data.suv) : null,
-        floor: data.floor ?? null,
-        type: data.type,
-        priceHT: new Prisma.Decimal(data.priceHT),
-        vatRate: new Prisma.Decimal(data.vatRate),
-        priceTTC: computeTtc(data.priceHT, data.vatRate),
+        ...lotWritableFields(data),
         status: data.status,
       },
     });
@@ -556,7 +586,7 @@ export async function createLotAction(
       userAgent: ctx.userAgent,
       metadata: `Lot créé avec le statut ${data.status} (programme ${data.programmeId})`,
     });
-    revalidateProgrammePaths(data.programmeId);
+    revalidateLotPaths(lot.id, data.programmeId);
     return { ok: true, value: { id: lot.id } };
   } catch (e) {
     if (
@@ -587,8 +617,17 @@ export async function updateLotAction(
   const data = parsed.data;
   const ctx = await getRequestContext();
 
+  // Le programme de rattachement vient de la base, jamais de la saisie : sinon
+  // un promoteur pourrait faire passer le contrôle d'accès avec l'un de ses
+  // programmes tout en modifiant le lot d'un autre.
+  const existing = await prisma.lot.findUnique({
+    where: { id: data.id },
+    select: { programmeId: true },
+  });
+  if (!existing) return { ok: false, error: "Lot introuvable" };
+
   const hasAccess = await ensureProgrammeAccess(
-    data.programmeId,
+    existing.programmeId,
     me.id,
     me.role as "SUPER_ADMIN" | "COLLABORATOR" | "PROMOTER",
   );
@@ -596,24 +635,24 @@ export async function updateLotAction(
     return { ok: false, error: "Accès refusé à ce programme." };
   }
 
-  await prisma.lot.update({
-    where: { id: data.id },
-    data: {
-      reference: data.reference.toUpperCase(),
-      surface: new Prisma.Decimal(data.surface),
-      annexSurface:
-        data.annexSurface != null
-          ? new Prisma.Decimal(data.annexSurface)
-          : null,
-      suv: data.suv != null ? new Prisma.Decimal(data.suv) : null,
-      floor: data.floor ?? null,
-      type: data.type,
-      priceHT: new Prisma.Decimal(data.priceHT),
-      vatRate: new Prisma.Decimal(data.vatRate),
-      priceTTC: computeTtc(data.priceHT, data.vatRate),
-      status: data.status,
-    },
-  });
+  try {
+    await prisma.lot.update({
+      where: { id: data.id },
+      data: lotWritableFields(data),
+    });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return {
+        ok: false,
+        error: "Cette référence de lot existe déjà dans ce programme.",
+      };
+    }
+    throw e;
+  }
+
   await audit({
     userId: me.id,
     action: "LOT_STATUS_CHANGED",
@@ -621,9 +660,9 @@ export async function updateLotAction(
     resourceId: data.id,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Lot mis à jour (programme ${data.programmeId})`,
+    metadata: `Lot mis à jour (programme ${existing.programmeId})`,
   });
-  revalidateProgrammePaths(data.programmeId);
+  revalidateLotPaths(data.id, existing.programmeId);
   return { ok: true, value: undefined };
 }
 

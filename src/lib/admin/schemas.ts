@@ -34,26 +34,46 @@ export const assignPromoterSchema = z.object({
   promoterId: z.string().min(1),
 });
 
+/** Montant € facultatif — champs financiers issus du fichier de suivi. */
+const optionalAmount = z.number().min(0).max(99_999_999).optional().nullable();
+
 export const lotSchema = z.object({
   programmeId: z.string().min(1),
-  reference: z
-    .string()
-    .min(1)
-    .max(20)
-    .regex(/^[A-Z0-9_-]+$/i, "Caractères alphanumériques uniquement"),
+  reference: z.string().min(1).max(20),
   surface: z.number().positive("Surface > 0").max(100_000),
   // Surfaces complémentaires, facultatives (T6).
   annexSurface: z.number().min(0).max(100_000).optional().nullable(),
   suv: z.number().min(0).max(100_000).optional().nullable(),
+  garden: z.number().min(0).max(100_000).optional().nullable(),
   floor: z.number().int().min(-5).max(50).optional().nullable(),
   type: z.string().min(1).max(20),
+  building: z.string().max(60).optional().nullable(),
+  notes: z.string().max(2000).optional().nullable(),
+  // Les trois montants sont toujours saisis explicitement : aucun n'est
+  // recalculé à partir des deux autres (décision produit). Le prix FAI est la
+  // valeur du fichier de suivi, le HT et la TVA restent des données propres.
   priceHT: z.number().positive("Prix > 0").max(99_999_999),
   vatRate: z.number().min(0).max(50),
+  priceTTC: z.number().positive("Prix > 0").max(99_999_999),
+  // Champs financiers additionnels (tracking import).
+  priceNetVendeur: optionalAmount,
+  priceNetVendeurWithParking: optionalAmount,
+  commissionAgence: optionalAmount,
+  commissionAgenceParking: optionalAmount,
+  priceLocation: optionalAmount,
+  creditImpot35: optionalAmount,
+  priceRevientCrdImp: optionalAmount,
+  additionalParking: z.boolean().optional().nullable(),
   status: z.enum(["AVAILABLE", "OPTIONED", "RESERVED", "SOLD", "WITHDRAWN"]),
 });
 export type LotInput = z.infer<typeof lotSchema>;
 
-export const updateLotSchema = lotSchema.extend({
+/**
+ * Édition d'un lot existant. `status` est volontairement omis : il est piloté
+ * par le cycle de vie du dossier (réservation, notaire, acte signé) et une
+ * saisie manuelle le désynchroniserait.
+ */
+export const updateLotSchema = lotSchema.omit({ status: true }).extend({
   id: z.string().min(1),
 });
 export type UpdateLotInput = z.infer<typeof updateLotSchema>;

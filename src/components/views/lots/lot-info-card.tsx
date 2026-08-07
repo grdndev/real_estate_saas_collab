@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Lot } from "@/generated/prisma/client";
 
@@ -14,7 +16,14 @@ const money = (v: Lot["priceNetVendeur"]) =>
  * Caractéristiques du lot — données purement immobilières, indépendantes du
  * dossier : elles s'affichent que le lot ait un client associé ou non.
  */
-export function LotInfoCard({ lot }: { lot: Lot }) {
+export function LotInfoCard({
+  lot,
+  /** Chemin de la fiche du lot, ex. « /admin/lots/abc ». Active l'édition. */
+  lotPath,
+}: {
+  lot: Lot;
+  lotPath?: string;
+}) {
   const totalSurface = Number(lot.surface) + Number(lot.annexSurface ?? 0);
   const rows: [string, string][] = [
     ["Localisation", lot.building ?? "—"],
@@ -26,7 +35,10 @@ export function LotInfoCard({ lot }: { lot: Lot }) {
       lot.annexSurface != null ? `${lot.annexSurface} m²` : "—",
     ],
     ["Total (habitable + annexe)", `${totalSurface} m²`],
+    ["Surface utile SUV", lot.suv != null ? `${lot.suv} m²` : "—"],
     ["Jardin", lot.garden != null ? `${lot.garden} m²` : "—"],
+    ["Prix HT", eur.format(Number(lot.priceHT))],
+    ["TVA", `${lot.vatRate} %`],
     ["Prix FAI", eur.format(Number(lot.priceTTC))],
     ["Prix net vendeur", money(lot.priceNetVendeur)],
     ["NV avec place parking", money(lot.priceNetVendeurWithParking)],
@@ -47,8 +59,16 @@ export function LotInfoCard({ lot }: { lot: Lot }) {
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex-row items-center justify-between gap-3">
         <CardTitle>Lot {lot.reference}</CardTitle>
+        {lotPath && (
+          <Link
+            href={`${lotPath}/modifier`}
+            className="text-equatis-turquoise-700 text-xs hover:underline"
+          >
+            Modifier
+          </Link>
+        )}
       </CardHeader>
       <CardContent className="text-sm">
         <dl className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs">
@@ -59,6 +79,14 @@ export function LotInfoCard({ lot }: { lot: Lot }) {
             </div>
           ))}
         </dl>
+        {lot.notes && (
+          <div className="mt-3 border-t border-slate-100 pt-3">
+            <p className="text-xs text-slate-500">Notes</p>
+            <p className="mt-1 text-xs whitespace-pre-line text-slate-700">
+              {lot.notes}
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

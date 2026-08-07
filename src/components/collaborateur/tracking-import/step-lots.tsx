@@ -143,8 +143,9 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 "Surface annexes (m²)",
                 "Surface utile SUV (m²)",
                 "Jardin (m²)",
-                "Prix TTC (€)",
+                "Prix HT (€)",
                 "TVA (%)",
+                "Prix FAI (€)",
                 "Prix net vendeur (€)",
                 "NV avec parking (€)",
                 "Commission agence (€)",
@@ -225,27 +226,19 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                   value={lot.garden}
                   onChange={(v) => update(i, "garden", v)}
                 />
+                {/* Les trois montants sont saisis indépendamment : aucun n'est
+                    recalculé à partir des deux autres. Le HT proposé ici est
+                    celui déduit du fichier quand la colonne en est absente —
+                    il reste corrigeable avant l'import. */}
                 <Td className="px-2 py-1">
                   <input
                     type="number"
                     step="0.01"
                     className="w-28 rounded border border-slate-200 px-1.5 py-1 text-xs"
-                    value={lot.priceTTC}
-                    onChange={(e) => {
-                      const ttc = Number(e.target.value);
-                      setLots((prev) => {
-                        const next = [...prev];
-                        const cur = next[i]!;
-                        next[i] = {
-                          ...cur,
-                          priceTTC: ttc,
-                          priceHT: Number(
-                            (ttc / (1 + cur.vatRate / 100)).toFixed(2),
-                          ),
-                        };
-                        return next;
-                      });
-                    }}
+                    value={lot.priceHT}
+                    onChange={(e) =>
+                      update(i, "priceHT", Number(e.target.value))
+                    }
                   />
                 </Td>
                 <Td className="px-2 py-1">
@@ -254,21 +247,20 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                     step="0.1"
                     className="w-16 rounded border border-slate-200 px-1.5 py-1 text-xs"
                     value={lot.vatRate}
-                    onChange={(e) => {
-                      const vat = Number(e.target.value);
-                      setLots((prev) => {
-                        const next = [...prev];
-                        const cur = next[i]!;
-                        next[i] = {
-                          ...cur,
-                          vatRate: vat,
-                          priceHT: Number(
-                            (cur.priceTTC / (1 + vat / 100)).toFixed(2),
-                          ),
-                        };
-                        return next;
-                      });
-                    }}
+                    onChange={(e) =>
+                      update(i, "vatRate", Number(e.target.value))
+                    }
+                  />
+                </Td>
+                <Td className="px-2 py-1">
+                  <input
+                    type="number"
+                    step="0.01"
+                    className="w-28 rounded border border-slate-200 px-1.5 py-1 text-xs"
+                    value={lot.priceTTC}
+                    onChange={(e) =>
+                      update(i, "priceTTC", Number(e.target.value))
+                    }
                   />
                 </Td>
                 <NumberCell
