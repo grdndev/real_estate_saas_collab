@@ -3,15 +3,8 @@ import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 
@@ -82,7 +75,7 @@ export default async function ClientsEnAttentePage() {
             description="Les dossiers marqués comme optionnés apparaîtront ici."
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <Th>Client</Th>
@@ -91,7 +84,7 @@ export default async function ClientsEnAttentePage() {
                 <Th />
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={4} itemLabel="dossier">
               {dossiers.map((d) => (
                 <Tr key={d.id}>
                   <Td>
@@ -109,7 +102,7 @@ export default async function ClientsEnAttentePage() {
                   </Td>
                 </Tr>
               ))}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
       </Card>
@@ -126,7 +119,7 @@ export default async function ClientsEnAttentePage() {
             description="Dès qu'un prospect passe au statut « Réservataire », il apparaît ici automatiquement."
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <Th>Prospect</Th>
@@ -135,7 +128,7 @@ export default async function ClientsEnAttentePage() {
                 <Th>Échéance de relance</Th>
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={4} itemLabel="prospect">
               {optionedProspects.map((p) => (
                 <Tr key={p.id}>
                   <Td className="font-medium">
@@ -146,7 +139,7 @@ export default async function ClientsEnAttentePage() {
                   <Td>{expiryBadge(p.optionExpiresAt)}</Td>
                 </Tr>
               ))}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
       </Card>
@@ -161,7 +154,7 @@ export default async function ClientsEnAttentePage() {
             description="Dès qu'un prospect passe au statut « Qualifié », il apparaît ici automatiquement."
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <Th>Prospect</Th>
@@ -170,7 +163,7 @@ export default async function ClientsEnAttentePage() {
                 <Th>Échéance de relance</Th>
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={4} itemLabel="prospect">
               {prospects.map((p) => (
                 <Tr key={p.id}>
                   <Td className="font-medium">
@@ -181,7 +174,7 @@ export default async function ClientsEnAttentePage() {
                   <Td>{expiryBadge(p.optionExpiresAt)}</Td>
                 </Tr>
               ))}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
         <CardContent className="border-t border-slate-100 text-xs text-slate-500">

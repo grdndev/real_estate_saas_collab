@@ -6,15 +6,8 @@ import Link from "next/link";
 
 import { Alert } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { Button } from "@/components/ui/button";
 import { SharedNotes, type NoteItem } from "@/components/notes/shared-notes";
 import {
@@ -130,7 +123,7 @@ export function ProspectsTable({
           {error}
         </Alert>
       )}
-      <Table>
+      <Table scrollY={false}>
         <THead>
           <Tr>
             <Th>Nom</Th>
@@ -144,7 +137,7 @@ export function ProspectsTable({
             {canDelete && <Th />}
           </Tr>
         </THead>
-        <TBody>
+        <ChunkedTableBody colSpan={canDelete ? 9 : 8} itemLabel="prospect">
           {prospects.map((p) => {
             const sb = STATUS_BADGE[p.status];
             const open = notesOpen === p.id;
@@ -319,7 +312,7 @@ export function ProspectsTable({
               </Fragment>
             );
           })}
-        </TBody>
+        </ChunkedTableBody>
       </Table>
 
       {convertFor && (

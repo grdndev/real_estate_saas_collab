@@ -3,15 +3,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { TrackingImportButtonLazy } from "@/components/collaborateur/tracking-import/tracking-import-button-lazy";
 import { PROGRAMME_STATUS_BADGE } from "@/lib/programme/labels";
 import type { ProgrammeStatus } from "@/generated/prisma/enums";
@@ -78,7 +71,7 @@ export function ProgrammesListView({ programmes, basePath, canCreate }: Props) {
             }
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <Th>Nom</Th>
@@ -90,7 +83,7 @@ export function ProgrammesListView({ programmes, basePath, canCreate }: Props) {
                 <Th />
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={7} itemLabel="programme">
               {programmes.map((p) => {
                 const badge = PROGRAMME_STATUS_BADGE[p.status];
                 return (
@@ -114,7 +107,7 @@ export function ProgrammesListView({ programmes, basePath, canCreate }: Props) {
                   </Tr>
                 );
               })}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
       </Card>

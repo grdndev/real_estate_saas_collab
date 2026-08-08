@@ -1,13 +1,26 @@
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
-export const ACTIVITY_PAGE_SIZE = 50;
+/**
+ * Journal d'activité — découpage par curseur `createdAt|id` (T16).
+ *
+ * La table grossit indéfiniment : le chargement doit rester paresseux côté
+ * serveur, contrairement aux listes bornées qui se contentent d'une révélation
+ * progressive à l'affichage. La clé composite (createdAt, id) donne un ordre
+ * total, donc un curseur stable même quand plusieurs entrées partagent la même
+ * milliseconde — ce qu'un `skip` numérique ne garantit pas dès qu'une ligne
+ * est insérée entre deux tranches.
+ */
+
+/** Nombre d'entrées par tranche de scroll. */
+export const ACTIVITY_CHUNK_SIZE = 50;
+
+export type ActivityVue = "tout" | "utilisateur" | "programme" | "dossier";
 
 export interface ActivityFilters {
   action?: string;
   from?: Date;
   to?: Date;
-  page: number;
 }
 
 export type ActivityLogEntry = Prisma.AuditLogGetPayload<{
@@ -18,9 +31,31 @@ export type ActivityLogEntry = Prisma.AuditLogGetPayload<{
 
 export interface ActivityPage {
   logs: ActivityLogEntry[];
-  total: number;
-  page: number;
-  pageCount: number;
+  /** Curseur de la tranche suivante, `null` s'il n'y a plus rien à charger. */
+  nextCursor: string | null;
+  /**
+   * Nombre total d'entrées du périmètre. Compté pour la première tranche
+   * seulement : le refaire à chaque scroll coûterait un balayage complet.
+   */
+  total: number | null;
+}
+
+/** Encode le curseur d'une entrée de journal. */
+function encodeCursor(row: { createdAt: Date; id: string }): string {
+  return `${row.createdAt.toISOString()}|${row.id}`;
+}
+
+/** Décode un curseur, `null` s'il est absent ou malformé. */
+function decodeCursor(
+  cursor: string | null,
+): { createdAt: Date; id: string } | null {
+  if (!cursor) return null;
+  const separator = cursor.lastIndexOf("|");
+  if (separator === -1) return null;
+  const createdAt = new Date(cursor.slice(0, separator));
+  const id = cursor.slice(separator + 1);
+  if (Number.isNaN(createdAt.getTime()) || !id) return null;
+  return { createdAt, id };
 }
 
 function filtersWhere(filters: ActivityFilters): Prisma.AuditLogWhereInput {
@@ -38,44 +73,122 @@ function filtersWhere(filters: ActivityFilters): Prisma.AuditLogWhereInput {
 async function queryLogs(
   scope: Prisma.AuditLogWhereInput,
   filters: ActivityFilters,
+  cursor: string | null,
 ): Promise<ActivityPage> {
+  const decoded = decodeCursor(cursor);
   const where: Prisma.AuditLogWhereInput = {
-    AND: [scope, filtersWhere(filters)],
+    AND: [
+      scope,
+      filtersWhere(filters),
+      // Strictement « après » le curseur dans l'ordre décroissant : soit une
+      // date antérieure, soit la même date et un id plus petit.
+      ...(decoded
+        ? [
+            {
+              OR: [
+                { createdAt: { lt: decoded.createdAt } },
+                { createdAt: decoded.createdAt, id: { lt: decoded.id } },
+              ],
+            } satisfies Prisma.AuditLogWhereInput,
+          ]
+        : []),
+    ],
   };
-  const page = Math.max(0, filters.page);
-  const [logs, total] = await Promise.all([
+
+  const [rows, total] = await Promise.all([
     prisma.auditLog.findMany({
       where,
-      orderBy: { createdAt: "desc" },
-      skip: page * ACTIVITY_PAGE_SIZE,
-      take: ACTIVITY_PAGE_SIZE,
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      // Une ligne de plus que la tranche : sa présence indique qu'il reste à
+      // charger, sans requête de comptage supplémentaire.
+      take: ACTIVITY_CHUNK_SIZE + 1,
       include: {
         user: { select: { firstName: true, lastName: true, role: true } },
       },
     }),
-    prisma.auditLog.count({ where }),
+    // Le total n'a de sens qu'en tête de liste : il sert à l'en-tête, pas à la
+    // pagination, et un `count` par tranche balaierait toute la table.
+    decoded ? Promise.resolve(null) : countLogs(scope, filters),
   ]);
+
+  const hasMore = rows.length > ACTIVITY_CHUNK_SIZE;
+  const logs = hasMore ? rows.slice(0, ACTIVITY_CHUNK_SIZE) : rows;
+  const last = logs[logs.length - 1];
+
   return {
     logs,
+    nextCursor: hasMore && last ? encodeCursor(last) : null,
     total,
-    page,
-    pageCount: Math.max(1, Math.ceil(total / ACTIVITY_PAGE_SIZE)),
   };
 }
+
+function countLogs(
+  scope: Prisma.AuditLogWhereInput,
+  filters: ActivityFilters,
+): Promise<number> {
+  return prisma.auditLog.count({
+    where: { AND: [scope, filtersWhere(filters)] },
+  });
+}
+
+const EMPTY_PAGE: ActivityPage = { logs: [], nextCursor: null, total: 0 };
 
 /** Toute l'activité, tous axes confondus. */
 export async function getRecentActivity(
   filters: ActivityFilters,
+  cursor: string | null = null,
 ): Promise<ActivityPage> {
-  return queryLogs({}, filters);
+  return queryLogs({}, filters, cursor);
 }
 
 /** Activité d'un utilisateur donné (logs dont il est l'acteur). */
 export async function getUserActivity(
   userId: string,
   filters: ActivityFilters,
+  cursor: string | null = null,
 ): Promise<ActivityPage> {
-  return queryLogs({ userId }, filters);
+  return queryLogs({ userId }, filters, cursor);
+}
+
+/** L'entité visée par la vue existe-t-elle encore ? */
+async function scopeExists(vue: ActivityVue, id: string): Promise<boolean> {
+  const select = { id: true };
+  if (vue === "utilisateur") {
+    return (await prisma.user.findUnique({ where: { id }, select })) !== null;
+  }
+  if (vue === "programme") {
+    return (
+      (await prisma.programme.findUnique({ where: { id }, select })) !== null
+    );
+  }
+  if (vue === "dossier") {
+    return (
+      (await prisma.dossier.findUnique({ where: { id }, select })) !== null
+    );
+  }
+  return false;
+}
+
+/**
+ * Tranche de journal pour le périmètre demandé, avec repli sur toute
+ * l'activité quand l'entité visée n'existe pas.
+ *
+ * Point d'entrée unique de la route et de l'action de scroll : c'est ce qui
+ * garantit qu'une tranche suivante porte bien sur le même périmètre que la
+ * première.
+ */
+export async function loadActivityPage(
+  vue: ActivityVue,
+  id: string,
+  filters: ActivityFilters,
+  cursor: string | null = null,
+): Promise<ActivityPage> {
+  if (vue !== "tout" && id && (await scopeExists(vue, id))) {
+    if (vue === "utilisateur") return getUserActivity(id, filters, cursor);
+    if (vue === "programme") return getProgrammeActivity(id, filters, cursor);
+    return getDossierActivity(id, filters, cursor);
+  }
+  return getRecentActivity(filters, cursor);
 }
 
 /**
@@ -88,6 +201,7 @@ export async function getUserActivity(
 export async function getDossierActivity(
   dossierId: string,
   filters: ActivityFilters,
+  cursor: string | null = null,
 ): Promise<ActivityPage> {
   const dossier = await prisma.dossier.findUnique({
     where: { id: dossierId },
@@ -105,7 +219,7 @@ export async function getDossierActivity(
       client: { select: { clientProfile: { select: { id: true } } } },
     },
   });
-  if (!dossier) return { logs: [], total: 0, page: 0, pageCount: 1 };
+  if (!dossier) return EMPTY_PAGE;
 
   const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
   const scopes: Prisma.AuditLogWhereInput[] = [
@@ -129,7 +243,7 @@ export async function getDossierActivity(
     push("ClientProfile", [dossier.client.clientProfile.id]);
   }
 
-  return queryLogs({ OR: scopes }, filters);
+  return queryLogs({ OR: scopes }, filters, cursor);
 }
 
 /**
@@ -141,6 +255,7 @@ export async function getDossierActivity(
 export async function getProgrammeActivity(
   programmeId: string,
   filters: ActivityFilters,
+  cursor: string | null = null,
 ): Promise<ActivityPage> {
   const programme = await prisma.programme.findUnique({
     where: { id: programmeId },
@@ -153,7 +268,7 @@ export async function getProgrammeActivity(
       appelsFonds: { select: { id: true } },
     },
   });
-  if (!programme) return { logs: [], total: 0, page: 0, pageCount: 1 };
+  if (!programme) return EMPTY_PAGE;
 
   const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
   const scopes: Prisma.AuditLogWhereInput[] = [
@@ -174,7 +289,7 @@ export async function getProgrammeActivity(
   push("LotFondsSuivi", ids(programme.lotFondsSuivis));
   push("AppelFonds", ids(programme.appelsFonds));
 
-  return queryLogs({ OR: scopes }, filters);
+  return queryLogs({ OR: scopes }, filters, cursor);
 }
 
 /** État actuel d'un utilisateur pour le panneau contextuel de la vue Activité. */

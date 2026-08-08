@@ -383,6 +383,10 @@ model Lot {
   @@unique([programmeId, reference])
   @@index([programmeId, status])
   @@index([dossierId])
+  // Pagination par curseur de la liste des lots (T16). La colonne porte une
+  // collation ICU numérique posée en SQL brut : l'index suit donc le tri
+  // naturel des références.
+  @@index([reference, id])
 }
 
 // Trésorerie prévisionnelle : 1 ligne par mois.

@@ -1,12 +1,26 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
-export function Table({
-  className,
-  ...props
-}: React.TableHTMLAttributes<HTMLTableElement>) {
+interface TableProps extends React.TableHTMLAttributes<HTMLTableElement> {
+  /**
+   * Scroll vertical interne au tableau (`max-h-screen`), actif par défaut.
+   *
+   * À désactiver pour les tableaux à chargement progressif : leur sentinelle
+   * est rendue sous le tableau, donc hors du conteneur scrollable. Avec le
+   * scroll interne, elle entre dans le viewport dès l'affichage de la page et
+   * déclencherait toutes les tranches d'affilée.
+   */
+  scrollY?: boolean;
+}
+
+export function Table({ className, scrollY = true, ...props }: TableProps) {
   return (
-    <div className="max-h-screen overflow-x-auto overflow-y-auto">
+    <div
+      className={cn(
+        "overflow-x-auto",
+        scrollY && "max-h-screen overflow-y-auto",
+      )}
+    >
       <table className={cn("w-full text-left text-sm", className)} {...props} />
     </div>
   );

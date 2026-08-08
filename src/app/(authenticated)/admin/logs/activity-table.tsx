@@ -1,4 +1,8 @@
+"use client";
+
+import { useCallback } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import {
   EmptyState,
@@ -9,24 +13,31 @@ import {
   Th,
   Tr,
 } from "@/components/ui/table";
-import type { ActivityPage } from "@/lib/admin/activity";
+import {
+  InfiniteSentinel,
+  useInfiniteRows,
+} from "@/components/ui/infinite-rows";
+import { loadMoreActivityAction } from "@/lib/admin/activity-actions";
+import type { ActivityLogEntry } from "@/lib/admin/activity";
 import {
   actionBadge,
   actionLabel,
   resourceTypeLabel,
 } from "@/lib/admin/activity-labels";
 
+/**
+ * Journal d'activité à chargement progressif (T16).
+ *
+ * La première tranche vient du serveur ; les suivantes sont demandées au
+ * scroll avec le curseur renvoyé par la précédente. Un changement de filtre
+ * remonte la liste à zéro via l'attribut `key` posé par la page.
+ */
 interface ActivityTableProps {
-  data: ActivityPage;
-  /** Paramètres d'URL courants (hors page), pour les liens de pagination. */
-  baseParams: Record<string, string>;
-}
-
-function pageHref(baseParams: Record<string, string>, page: number): string {
-  const params = new URLSearchParams(baseParams);
-  if (page > 0) params.set("page", String(page + 1));
-  const query = params.toString();
-  return query ? `/admin/logs?${query}` : "/admin/logs";
+  initialLogs: ActivityLogEntry[];
+  /** Curseur issu de la première tranche, `null` s'il n'y a rien de plus. */
+  initialCursor: string | null;
+  /** Nombre total d'entrées du périmètre, compté à la première tranche. */
+  total: number | null;
 }
 
 /** Lien de bascule vers la vue dédiée quand la ressource est un dossier ou un programme. */
@@ -41,8 +52,36 @@ function resourceHref(resourceType: string, resourceId: string | null) {
   return null;
 }
 
-export function ActivityTable({ data, baseParams }: ActivityTableProps) {
-  if (data.total === 0) {
+export function ActivityTable({
+  initialLogs,
+  initialCursor,
+  total,
+}: ActivityTableProps) {
+  // Le périmètre est relu depuis l'URL : même source que la première tranche.
+  const query = useSearchParams().toString();
+  const loadPage = useCallback(
+    async (cursor: string | null) => {
+      const result = await loadMoreActivityAction(query, cursor);
+      if (!result.ok) return result;
+      return {
+        ok: true as const,
+        value: {
+          rows: result.value.logs,
+          nextCursor: result.value.nextCursor,
+        },
+      };
+    },
+    [query],
+  );
+
+  const { rows, loading, done, error, setSentinel, retry } =
+    useInfiniteRows<ActivityLogEntry>({
+      initialRows: initialLogs,
+      initialCursor,
+      loadPage,
+    });
+
+  if (rows.length === 0) {
     return (
       <EmptyState
         title="Aucune activité"
@@ -53,7 +92,14 @@ export function ActivityTable({ data, baseParams }: ActivityTableProps) {
 
   return (
     <div>
-      <Table>
+      {total !== null && (
+        <p className="border-b border-slate-100 px-4 py-2 text-sm text-slate-600">
+          {total} entrée{total > 1 ? "s" : ""} au total.
+        </p>
+      )}
+      {/* Pas de scroll vertical interne : la sentinelle est rendue sous le
+          tableau et doit rester pilotée par le scroll de la page. */}
+      <Table scrollY={false}>
         <THead>
           <Tr>
             <Th>Date</Th>
@@ -64,7 +110,7 @@ export function ActivityTable({ data, baseParams }: ActivityTableProps) {
           </Tr>
         </THead>
         <TBody>
-          {data.logs.map((log) => {
+          {rows.map((log) => {
             const href = resourceHref(log.resourceType, log.resourceId);
             return (
               <Tr key={log.id}>
@@ -110,38 +156,15 @@ export function ActivityTable({ data, baseParams }: ActivityTableProps) {
           })}
         </TBody>
       </Table>
-      <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3 text-sm text-slate-600">
-        <span>
-          {data.total} entrée{data.total > 1 ? "s" : ""} — page {data.page + 1}{" "}
-          sur {data.pageCount}
-        </span>
-        <div className="flex gap-3">
-          {data.page > 0 ? (
-            <Link
-              href={pageHref(baseParams, data.page - 1)}
-              className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-100"
-            >
-              Précédent
-            </Link>
-          ) : (
-            <span className="rounded-md border border-slate-200 px-3 py-1 text-slate-300">
-              Précédent
-            </span>
-          )}
-          {data.page < data.pageCount - 1 ? (
-            <Link
-              href={pageHref(baseParams, data.page + 1)}
-              className="rounded-md border border-slate-300 px-3 py-1 hover:bg-slate-100"
-            >
-              Suivant
-            </Link>
-          ) : (
-            <span className="rounded-md border border-slate-200 px-3 py-1 text-slate-300">
-              Suivant
-            </span>
-          )}
-        </div>
-      </div>
+      <InfiniteSentinel
+        loading={loading}
+        done={done}
+        error={error}
+        setSentinel={setSentinel}
+        retry={retry}
+        loadedCount={rows.length}
+        itemLabel="entrée"
+      />
     </div>
   );
 }

@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, useTransition, useEffect, useRef } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Paperclip, Send } from "lucide-react";
 
@@ -8,6 +16,7 @@ import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/input";
 import {
+  loadOlderMessagesAction,
   sendMessageAction,
   sendMessageByEmailAction,
 } from "@/lib/client-space/actions";
@@ -33,11 +42,25 @@ export interface MessageRow {
 interface Props {
   dossierId: string;
   currentUserId: string;
+  /** Fin de la conversation, rendue par le serveur. */
   messages: MessageRow[];
   recipientLabel: string;
   canSendByEmail?: boolean;
-  /** Nombre de messages plus anciens non affichés. */
-  truncatedCount?: number;
+  /**
+   * Curseur des messages plus anciens, `null` quand tout le fil tient dans la
+   * première tranche. Ils remontent au défilement vers le haut.
+   */
+  olderCursor?: string | null;
+}
+
+/** Fusionne deux ensembles de messages, sans doublon, du plus ancien au plus récent. */
+function mergeMessages(...groups: MessageRow[][]): MessageRow[] {
+  const byId = new Map<string, MessageRow>();
+  for (const group of groups) for (const m of group) byId.set(m.id, m);
+  return [...byId.values()].sort((a, b) => {
+    const delta = a.createdAt.getTime() - b.createdAt.getTime();
+    return delta !== 0 ? delta : a.id.localeCompare(b.id);
+  });
 }
 
 export function MessageThread({
@@ -46,7 +69,7 @@ export function MessageThread({
   messages,
   recipientLabel,
   canSendByEmail,
-  truncatedCount = 0,
+  olderCursor = null,
 }: Props) {
   const router = useRouter();
   const [body, setBody] = useState("");
@@ -57,9 +80,102 @@ export function MessageThread({
   const endRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Messages déjà remontés, conservés d'un rafraîchissement à l'autre : la
+  // fenêtre servie par le serveur glisse vers le récent, elle ne les contient
+  // plus.
+  const [older, setOlder] = useState<MessageRow[]>([]);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [olderError, setOlderError] = useState<string | null>(null);
+  const [cursor, setCursor] = useState<string | null>(olderCursor);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  // Le callback d'IntersectionObserver s'exécute hors du cycle de rendu et
+  // lirait sinon des valeurs périmées, d'où le doublon en refs.
+  const cursorRef = useRef<string | null>(olderCursor);
+  const loadingRef = useRef(false);
+  // Distance au bas du fil, mémorisée avant un ajout en tête pour que la vue
+  // ne saute pas.
+  const anchorRef = useRef<number | null>(null);
+  const previousMessagesRef = useRef(messages);
+
+  const all = useMemo(() => mergeMessages(older, messages), [older, messages]);
+
+  // Un message sorti de la fenêtre serveur est réintégré aux plus anciens :
+  // sans cela il disparaîtrait du fil à la première actualisation.
   useEffect(() => {
+    const previous = previousMessagesRef.current;
+    previousMessagesRef.current = messages;
+    if (previous === messages || older.length === 0) return;
+    const dropped = previous.filter(
+      (m) => !messages.some((n) => n.id === m.id),
+    );
+    if (dropped.length > 0) setOlder((prev) => mergeMessages(prev, dropped));
+  }, [messages, older.length]);
+
+  const loadOlder = useCallback(async () => {
+    if (loadingRef.current || cursorRef.current === null) return;
+    loadingRef.current = true;
+    setLoadingOlder(true);
+    setOlderError(null);
+
+    const container = scrollRef.current;
+    anchorRef.current = container
+      ? container.scrollHeight - container.scrollTop
+      : null;
+
+    const result = await loadOlderMessagesAction(dossierId, cursorRef.current);
+    if (!result.ok) {
+      setOlderError(result.error);
+      anchorRef.current = null;
+      setLoadingOlder(false);
+      loadingRef.current = false;
+      return;
+    }
+
+    setOlder((prev) => mergeMessages(result.value.rows, prev));
+    cursorRef.current = result.value.nextCursor;
+    setCursor(result.value.nextCursor);
+    setLoadingOlder(false);
+    loadingRef.current = false;
+  }, [dossierId]);
+
+  // Position d'ouverture : bas du fil, sans animation. Cet effet de mise en
+  // page s'exécute avant celui qui pose l'observateur : la sentinelle du haut
+  // est donc déjà hors champ quand l'observation démarre, sinon l'ouverture
+  // déclencherait aussitôt un chargement.
+  useLayoutEffect(() => {
+    endRef.current?.scrollIntoView();
+  }, []);
+
+  // Après un ajout en tête, on restitue la distance au bas du fil.
+  useLayoutEffect(() => {
+    const container = scrollRef.current;
+    if (!container || anchorRef.current === null) return;
+    container.scrollTop = container.scrollHeight - anchorRef.current;
+    anchorRef.current = null;
+  }, [all.length]);
+
+  useEffect(() => {
+    const sentinel = topRef.current;
+    if (!sentinel || cursor === null) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) void loadOlder();
+      },
+      { root: scrollRef.current, rootMargin: "200px" },
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [cursor, loadOlder]);
+
+  // Nouveau message en fin de fil : on suit. Un ajout en tête ne change pas le
+  // dernier identifiant et ne déclenche donc pas ce défilement.
+  const lastId = all[all.length - 1]?.id;
+  useEffect(() => {
+    if (!lastId) return;
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [lastId]);
 
   // Rafraîchit le fil régulièrement pour voir arriver les réponses.
   useEffect(() => {
@@ -118,20 +234,39 @@ export function MessageThread({
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-3 overflow-y-auto p-4">
-        {truncatedCount > 0 && (
-          <p className="text-center text-xs text-slate-400">
-            {truncatedCount} message{truncatedCount > 1 ? "s" : ""} plus ancien
-            {truncatedCount > 1 ? "s" : ""} non affiché
-            {truncatedCount > 1 ? "s" : ""}.
-          </p>
-        )}
-        {messages.length === 0 ? (
+      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
+        {/* Sentinelle de tête : remonte les messages plus anciens. */}
+        <div aria-live="polite" aria-busy={loadingOlder}>
+          {cursor !== null && <div ref={topRef} aria-hidden className="h-px" />}
+          {olderError ? (
+            <p className="text-center text-xs">
+              <span role="alert" className="text-red-700">
+                {olderError}
+              </span>{" "}
+              <button
+                type="button"
+                onClick={() => void loadOlder()}
+                className="text-equatis-turquoise-700 hover:underline"
+              >
+                Réessayer
+              </button>
+            </p>
+          ) : loadingOlder ? (
+            <p className="text-center text-xs text-slate-400">
+              Chargement des messages plus anciens…
+            </p>
+          ) : cursor === null && all.length > 0 ? (
+            <p className="text-center text-xs text-slate-400">
+              Début de la conversation.
+            </p>
+          ) : null}
+        </div>
+        {all.length === 0 ? (
           <p className="py-12 text-center text-sm text-slate-500">
             Démarrez la conversation avec {recipientLabel}.
           </p>
         ) : (
-          messages.map((msg) => {
+          all.map((msg) => {
             const isMe = msg.senderId === currentUserId;
             return (
               <div

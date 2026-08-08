@@ -1,15 +1,8 @@
 import { CreateLotForm } from "@/components/admin/lot-form";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { LotReferenceHeader } from "@/components/views/lots/lot-reference-header";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 import { sortByLotReference, type LotSortDirection } from "@/lib/lot/sort";
@@ -114,7 +107,7 @@ export function ProgrammeLotsView({
             description="Aucun lot n'est encore défini pour ce programme."
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <LotReferenceHeader direction={sortDirection} />
@@ -129,7 +122,7 @@ export function ProgrammeLotsView({
                 <Th>Statut</Th>
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={10} itemLabel="lot">
               {sorted.map((lot) => {
                 const sb = LOT_STATUS_BADGE[lot.status];
                 return (
@@ -153,7 +146,7 @@ export function ProgrammeLotsView({
                   </Tr>
                 );
               })}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
       </Card>

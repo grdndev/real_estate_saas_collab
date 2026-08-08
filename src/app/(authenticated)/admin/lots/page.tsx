@@ -13,8 +13,8 @@ interface PageProps {
     lotStatus?: string;
     programmeId?: string;
     search?: string;
-    page?: string;
     associes?: string;
+    tri?: string;
   }>;
 }
 

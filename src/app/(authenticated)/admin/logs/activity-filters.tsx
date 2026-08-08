@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { ACTION_LABEL } from "@/lib/admin/activity-labels";
 
-export type ActivityVue = "tout" | "utilisateur" | "programme" | "dossier";
+// Le type fait foi côté serveur : la vue pilote la résolution du périmètre.
+export type { ActivityVue } from "@/lib/admin/activity";
+import type { ActivityVue } from "@/lib/admin/activity";
 
 export interface ActivityFilterValues {
   vue: ActivityVue;

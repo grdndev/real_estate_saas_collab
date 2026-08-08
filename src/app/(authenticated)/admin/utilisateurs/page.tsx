@@ -4,15 +4,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { UserRowActions } from "@/components/admin/user-row-actions";
 import { prisma } from "@/lib/prisma";
 import { USER_STATUS_BADGE } from "@/lib/user/labels";
@@ -77,7 +70,7 @@ export default async function AdminUsersPage() {
             }
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <Th>Nom</Th>
@@ -88,7 +81,7 @@ export default async function AdminUsersPage() {
                 <Th className="text-right">Actions</Th>
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={6} itemLabel="compte">
               {users.map((u) => {
                 const badge = USER_STATUS_BADGE[u.status];
                 return (
@@ -120,7 +113,7 @@ export default async function AdminUsersPage() {
                   </Tr>
                 );
               })}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
       </Card>

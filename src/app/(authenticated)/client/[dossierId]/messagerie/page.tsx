@@ -8,11 +8,9 @@ import { requireRole } from "@/lib/auth/guards";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { prisma } from "@/lib/prisma";
 import { markMessagesReadAction } from "@/lib/client-space/actions";
+import { loadThreadPage } from "@/lib/messaging/thread-page";
 
 export const metadata: Metadata = { title: "Messagerie" };
-
-// Fil borné aux derniers messages (les plus anciens restent en base).
-const THREAD_PAGE_SIZE = 200;
 
 interface PageProps {
   params: Promise<{ dossierId: string }>;
@@ -47,29 +45,8 @@ export default async function ClientMessageriePage({ params }: PageProps) {
   // Marque comme lus les messages reçus.
   await markMessagesReadAction(dossier.id);
 
-  const [totalCount, messages] = await Promise.all([
-    prisma.message.count({ where: { dossierId: dossier.id } }),
-    prisma.message.findMany({
-      where: { dossierId: dossier.id },
-      orderBy: { createdAt: "desc" },
-      take: THREAD_PAGE_SIZE,
-      include: {
-        sender: { select: { firstName: true, lastName: true } },
-      },
-    }),
-  ]);
-  messages.reverse();
-
-  const formatted = messages.map((m) => ({
-    id: m.id,
-    body: m.body,
-    createdAt: m.createdAt,
-    senderId: m.senderId,
-    senderName: `${m.sender.firstName} ${m.sender.lastName}`,
-    sentByEmail: m.sentByEmail,
-    emailAttachmentCount: m.emailAttachmentCount,
-    readByOthers: m.readBy.length > 0,
-  }));
+  // Fin de la conversation ; les messages plus anciens remontent au scroll.
+  const thread = await loadThreadPage(dossier.id, null);
 
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
@@ -86,9 +63,9 @@ export default async function ClientMessageriePage({ params }: PageProps) {
         <MessageThread
           dossierId={dossier.id}
           currentUserId={me.id}
-          messages={formatted}
+          messages={thread.rows}
           recipientLabel={referentLabel}
-          truncatedCount={Math.max(0, totalCount - messages.length)}
+          olderCursor={thread.nextCursor}
         />
       </Card>
     </div>

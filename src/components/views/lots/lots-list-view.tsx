@@ -23,7 +23,7 @@ interface Props {
 
 function buildHref(
   filters: LotFiltersInput,
-  overrides: { page?: number; associes?: boolean } = {},
+  overrides: { associes?: boolean } = {},
 ): string {
   const associes = overrides.associes ?? filters.associes;
   return `?${new URLSearchParams({
@@ -32,12 +32,20 @@ function buildHref(
     ...(filters.programmeId ? { programmeId: filters.programmeId } : {}),
     ...(filters.search ? { search: filters.search } : {}),
     ...(associes ? { associes: "1" } : {}),
-    page: String(overrides.page ?? filters.page),
   }).toString()}`;
 }
 
+/**
+ * Clé de remontée du tableau : tout changement de filtre ou de tri doit
+ * repartir d'une liste vide, sinon les tranches déjà chargées survivraient au
+ * changement de périmètre.
+ */
+function filtersKey(filters: LotFiltersInput): string {
+  return JSON.stringify(filters);
+}
+
 export function LotsListView({ data, filters, basePath }: Props) {
-  const { total, totalPages, rows, programmes } = data;
+  const { total, rows, nextCursor, programmes } = data;
 
   return (
     <div className="flex flex-col gap-6">
@@ -47,10 +55,7 @@ export function LotsListView({ data, filters, basePath }: Props) {
             Lots
           </h1>
           <p className="mt-1 text-sm text-slate-600">
-            {total} lot{total > 1 ? "s" : ""} —{" "}
-            <span className="text-slate-500">
-              page {filters.page} / {totalPages}
-            </span>
+            {total} lot{total > 1 ? "s" : ""}
             {filters.associes && (
               <span className="text-slate-500"> · avec client associé</span>
             )}
@@ -58,7 +63,7 @@ export function LotsListView({ data, filters, basePath }: Props) {
         </div>
         <div className="flex items-center gap-3">
           <Link
-            href={buildHref(filters, { page: 1, associes: !filters.associes })}
+            href={buildHref(filters, { associes: !filters.associes })}
             className="text-equatis-turquoise-700 rounded border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
           >
             {filters.associes
@@ -82,36 +87,14 @@ export function LotsListView({ data, filters, basePath }: Props) {
 
       <Card>
         <CardContent>
-          <LotsTable rows={rows} basePath={basePath} />
+          <LotsTable
+            key={filtersKey(filters)}
+            initialRows={rows}
+            initialCursor={nextCursor}
+            basePath={basePath}
+          />
         </CardContent>
       </Card>
-
-      {totalPages > 1 && (
-        <nav
-          aria-label="Pagination"
-          className="flex items-center justify-end gap-2"
-        >
-          {filters.page > 1 && (
-            <Link
-              href={buildHref(filters, { page: filters.page - 1 })}
-              className="text-equatis-turquoise-700 rounded border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
-            >
-              ← Précédent
-            </Link>
-          )}
-          <span className="text-sm text-slate-600">
-            {filters.page} / {totalPages}
-          </span>
-          {filters.page < totalPages && (
-            <Link
-              href={buildHref(filters, { page: filters.page + 1 })}
-              className="text-equatis-turquoise-700 rounded border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50"
-            >
-              Suivant →
-            </Link>
-          )}
-        </nav>
-      )}
     </div>
   );
 }

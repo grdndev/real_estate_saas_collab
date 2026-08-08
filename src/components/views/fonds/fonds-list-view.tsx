@@ -3,7 +3,8 @@ import { ProgrammeSelect } from "@/components/collaborateur/fonds/programme-sele
 import { ClickableRow } from "@/components/collaborateur/fonds/clickable-row";
 import { FondsTableHeader } from "@/components/collaborateur/fonds/fonds-table-header";
 import { GererAppelsButton } from "@/components/collaborateur/fonds/gerer-appels-button";
-import { Table, TBody, Td } from "@/components/ui/table";
+import { Table, Td } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { Card } from "@/components/ui/card";
 import type { FondsOverview } from "@/lib/fonds/access";
 import { sortByLotReference, type LotSortDirection } from "@/lib/lot/sort";
@@ -142,14 +143,19 @@ export function FondsListView({ data, basePath, sortDirection }: Props) {
         <p className="text-sm text-slate-500">Aucun lot dans ce programme.</p>
       ) : (
         <Card>
-          <Table className="min-w-max">
+          <Table className="min-w-max" scrollY={false}>
             <FondsTableHeader
               programmeId={programme.id}
               appelHeaders={appelHeaders}
               sortDirection={sortDirection}
               programmeParam={selectedId}
             />
-            <TBody>
+            {/* Borne haute du nombre de colonnes : le navigateur ramène
+                `colSpan` au nombre réel de colonnes restantes. */}
+            <ChunkedTableBody
+              colSpan={10 + appelHeaders.length}
+              itemLabel="lot"
+            >
               {sortedLots.map((lot) => {
                 const fs = lot.fondsSuivi;
                 const actSignedDate =
@@ -280,7 +286,7 @@ export function FondsListView({ data, basePath, sortDirection }: Props) {
                   </ClickableRow>
                 );
               })}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         </Card>
       )}

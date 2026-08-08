@@ -1,20 +1,18 @@
 import type { Metadata } from "next";
 import { Card } from "@/components/ui/card";
 import {
-  ACTIVITY_PAGE_SIZE,
-  getDossierActivity,
-  getDossierContext,
-  getProgrammeActivity,
-  getProgrammeContext,
-  getRecentActivity,
-  getUserActivity,
-  getUserContext,
   getActivityEntities,
-  type ActivityFilters as Filters,
-  type ActivityPage,
+  getDossierContext,
+  getProgrammeContext,
+  getUserContext,
+  loadActivityPage,
 } from "@/lib/admin/activity";
+import {
+  activityFiltersFrom,
+  parseActivityQuery,
+} from "@/lib/admin/activity-params";
 import { requireRole } from "@/lib/auth/guards";
-import { ActivityFilters, type ActivityVue } from "./activity-filters";
+import { ActivityFilters } from "./activity-filters";
 import { ActivityTable } from "./activity-table";
 import { DossierContextPanel } from "./dossier-context";
 import { ProgrammeContextPanel } from "./programme-context";
@@ -28,11 +26,13 @@ function single(value: string | string[] | undefined): string {
   return typeof value === "string" ? value : "";
 }
 
-function parseDate(value: string, endOfDay: boolean): Date | undefined {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
-  const date = new Date(`${value}T${endOfDay ? "23:59:59.999" : "00:00:00"}`);
-  return Number.isNaN(date.getTime()) ? undefined : date;
-}
+const SCOPE_HINT = {
+  utilisateur: "Actions réalisées par cet utilisateur.",
+  programme:
+    "Actions sur le programme et ses entités liées : lots, documents, prospects, suivi des fonds, dossiers (au niveau dossier).",
+  dossier:
+    "Actions sur le dossier et ses entités liées : documents, demandes de pièces, messages, signatures, rendez-vous, factures, notes, lots.",
+} as const;
 
 export default async function AdminLogsPage({
   searchParams,
@@ -42,79 +42,29 @@ export default async function AdminLogsPage({
   await requireRole("SUPER_ADMIN");
   const params = await searchParams;
 
-  const vueParam = single(params.vue);
-  const vue: ActivityVue = ["utilisateur", "programme", "dossier"].includes(
-    vueParam,
-  )
-    ? (vueParam as ActivityVue)
-    : "tout";
-  const id = single(params.id);
-  const action = single(params.action);
-  const du = single(params.du);
-  const au = single(params.au);
-  const pageParam = Number.parseInt(single(params.page), 10);
-  const page = Number.isFinite(pageParam) && pageParam > 1 ? pageParam - 1 : 0;
+  const query = parseActivityQuery((key) => single(params[key]));
+  const { vue, id } = query;
+  const filters = activityFiltersFrom(query);
 
-  const filters: Filters = {
-    action: action || undefined,
-    from: du ? parseDate(du, false) : undefined,
-    to: au ? parseDate(au, true) : undefined,
-    page,
-  };
+  // Le panneau contextuel et la première tranche se résolvent en parallèle :
+  // `loadActivityPage` se replie déjà seul sur toute l'activité quand l'entité
+  // visée n'existe pas, le panneau vaut alors `null`.
+  const [entities, data, context] = await Promise.all([
+    getActivityEntities(),
+    loadActivityPage(vue, id, filters),
+    resolveContext(vue, id),
+  ]);
 
-  const entities = await getActivityEntities();
-
-  let data: ActivityPage | null = null;
-  let contextPanel: React.ReactNode = null;
-  let scopeHint: string | null = null;
-
-  if (vue === "utilisateur" && id) {
-    const [activity, user] = await Promise.all([
-      getUserActivity(id, filters),
-      getUserContext(id),
-    ]);
-    if (user) {
-      data = activity;
-      contextPanel = <UserContextPanel user={user} />;
-      scopeHint = "Actions réalisées par cet utilisateur.";
-    }
-  } else if (vue === "programme" && id) {
-    const [activity, programme] = await Promise.all([
-      getProgrammeActivity(id, filters),
-      getProgrammeContext(id),
-    ]);
-    if (programme) {
-      data = activity;
-      contextPanel = <ProgrammeContextPanel programme={programme} />;
-      scopeHint =
-        "Actions sur le programme et ses entités liées : lots, documents, prospects, suivi des fonds, dossiers (au niveau dossier).";
-    }
-  } else if (vue === "dossier" && id) {
-    const [activity, dossier] = await Promise.all([
-      getDossierActivity(id, filters),
-      getDossierContext(id),
-    ]);
-    if (dossier) {
-      data = activity;
-      contextPanel = <DossierContextPanel dossier={dossier} />;
-      scopeHint =
-        "Actions sur le dossier et ses entités liées : documents, demandes de pièces, messages, signatures, rendez-vous, factures, notes, lots.";
-    }
-  }
-  if (!data) {
-    data = await getRecentActivity(filters);
-    scopeHint =
-      vue !== "tout" && id
+  const scopeHint =
+    vue !== "tout" && id
+      ? context === null
         ? "Entité introuvable — affichage de toute l'activité."
-        : null;
-  }
+        : SCOPE_HINT[vue]
+      : null;
 
-  const baseParams: Record<string, string> = {};
-  if (vue !== "tout") baseParams.vue = vue;
-  if (vue !== "tout" && id) baseParams.id = id;
-  if (action) baseParams.action = action;
-  if (du) baseParams.du = du;
-  if (au) baseParams.au = au;
+  // Clé de remontée : un changement de périmètre ou de filtre doit repartir
+  // d'une liste vide plutôt que d'empiler des tranches d'un autre périmètre.
+  const scopeKey = JSON.stringify(query);
 
   return (
     <div className="flex flex-col gap-6">
@@ -123,21 +73,21 @@ export default async function AdminLogsPage({
           Journal d&apos;activité
         </h1>
         <p className="mt-1 text-sm text-slate-600">
-          Suivez l&apos;activité par utilisateur, par programme ou par dossier —{" "}
-          {ACTIVITY_PAGE_SIZE} entrées par page.
+          Suivez l&apos;activité par utilisateur, par programme ou par dossier —
+          la liste se complète au fil du défilement.
         </p>
       </div>
 
       <Card className="px-5 py-4">
         <ActivityFilters
-          values={{ vue, id, action, du, au }}
+          values={query}
           users={entities.users}
           programmes={entities.programmes}
           dossiers={entities.dossiers}
         />
       </Card>
 
-      {contextPanel}
+      {context}
 
       <Card>
         {scopeHint && (
@@ -145,8 +95,34 @@ export default async function AdminLogsPage({
             {scopeHint}
           </p>
         )}
-        <ActivityTable data={data} baseParams={baseParams} />
+        <ActivityTable
+          key={scopeKey}
+          initialLogs={data.logs}
+          initialCursor={data.nextCursor}
+          total={data.total}
+        />
       </Card>
     </div>
   );
+}
+
+/** Panneau contextuel de l'entité visée, `null` si elle n'existe pas. */
+async function resolveContext(
+  vue: ReturnType<typeof parseActivityQuery>["vue"],
+  id: string,
+): Promise<React.ReactNode> {
+  if (!id) return null;
+  if (vue === "utilisateur") {
+    const user = await getUserContext(id);
+    return user ? <UserContextPanel user={user} /> : null;
+  }
+  if (vue === "programme") {
+    const programme = await getProgrammeContext(id);
+    return programme ? <ProgrammeContextPanel programme={programme} /> : null;
+  }
+  if (vue === "dossier") {
+    const dossier = await getDossierContext(id);
+    return dossier ? <DossierContextPanel dossier={dossier} /> : null;
+  }
+  return null;
 }

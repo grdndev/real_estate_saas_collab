@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { InvoiceManager } from "@/components/facturation/invoice-manager";
+import { ChunkedList } from "@/components/ui/chunked-rows";
 import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 
@@ -71,50 +72,56 @@ export default async function FacturationPage() {
           </CardContent>
         </Card>
       ) : (
-        dossiers.map((d) => (
-          <Card key={d.id}>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <CardTitle>
-                  <Link
-                    href={`/collaborateur/lots/${d.lot.id}`}
-                    className="hover:underline"
-                  >
-                    {d.client.firstName} {d.client.lastName}
-                  </Link>
-                </CardTitle>
-                {d.appointments[0] && (
-                  <Badge variant="info">
-                    RDV notaire :{" "}
-                    {d.appointments[0].scheduledAt.toLocaleDateString("fr-FR")}
-                  </Badge>
-                )}
-              </div>
-              <p className="text-xs text-slate-500">
-                {d.lot.programme.name} — lot {d.lot.reference}
-              </p>
-            </CardHeader>
-            <CardContent>
-              <InvoiceManager
-                dossierId={d.id}
-                lotId={d.lot.id}
-                hasNotary={Boolean(d.notaryId)}
-                invoices={d.invoices.map((i) => ({
-                  id: i.id,
-                  number: i.number,
-                  amountHT: Number(i.amountHT),
-                  vatRate: Number(i.vatRate),
-                  amountTTC: Number(i.amountTTC),
-                  status: i.status,
-                  hasFile: Boolean(i.storageKey),
-                  sentToNotaryAt: i.sentToNotaryAt
-                    ? i.sentToNotaryAt.toISOString()
-                    : null,
-                }))}
-              />
-            </CardContent>
-          </Card>
-        ))
+        // Chaque carte monte un gestionnaire de factures : la tranche est plus
+        // courte que pour une ligne de tableau.
+        <ChunkedList itemLabel="dossier" chunkSize={20}>
+          {dossiers.map((d) => (
+            <Card key={d.id}>
+              <CardHeader>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <CardTitle>
+                    <Link
+                      href={`/collaborateur/lots/${d.lot.id}`}
+                      className="hover:underline"
+                    >
+                      {d.client.firstName} {d.client.lastName}
+                    </Link>
+                  </CardTitle>
+                  {d.appointments[0] && (
+                    <Badge variant="info">
+                      RDV notaire :{" "}
+                      {d.appointments[0].scheduledAt.toLocaleDateString(
+                        "fr-FR",
+                      )}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500">
+                  {d.lot.programme.name} — lot {d.lot.reference}
+                </p>
+              </CardHeader>
+              <CardContent>
+                <InvoiceManager
+                  dossierId={d.id}
+                  lotId={d.lot.id}
+                  hasNotary={Boolean(d.notaryId)}
+                  invoices={d.invoices.map((i) => ({
+                    id: i.id,
+                    number: i.number,
+                    amountHT: Number(i.amountHT),
+                    vatRate: Number(i.vatRate),
+                    amountTTC: Number(i.amountTTC),
+                    status: i.status,
+                    hasFile: Boolean(i.storageKey),
+                    sentToNotaryAt: i.sentToNotaryAt
+                      ? i.sentToNotaryAt.toISOString()
+                      : null,
+                  }))}
+                />
+              </CardContent>
+            </Card>
+          ))}
+        </ChunkedList>
       )}
     </div>
   );

@@ -154,6 +154,8 @@ export function InfiniteSentinel({
   itemLabel,
 }: InfiniteSentinelProps) {
   const plural = loadedCount > 1 ? "s" : "";
+  // Élision devant une voyelle : « d'entrées » et non « de entrées ».
+  const de = /^[aeiouyéèêà]/i.test(itemLabel) ? "d'" : "de ";
 
   return (
     <div
@@ -171,7 +173,10 @@ export function InfiniteSentinel({
           </Button>
         </>
       ) : loading ? (
-        <p>Chargement de {itemLabel}s supplémentaires…</p>
+        <p>
+          Chargement {de}
+          {itemLabel}s supplémentaires…
+        </p>
       ) : done ? (
         <p>
           {loadedCount} {itemLabel}

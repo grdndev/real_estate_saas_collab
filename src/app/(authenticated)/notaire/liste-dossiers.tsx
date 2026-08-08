@@ -3,8 +3,9 @@
 import Link from "next/link";
 
 import { Badge } from "@/components/ui/badge";
-import { useState } from "react";
 import { TBody, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { useChunkedRows } from "@/components/ui/chunked-rows";
+import { InfiniteSentinel } from "@/components/ui/infinite-rows";
 
 const STATUS_BADGE = {
   NEW_LEAD: { label: "Reçu", variant: "info" as const },
@@ -33,17 +34,17 @@ export default function ListeDossiers({
     client: { firstName: string; lastName: string };
   }>;
 }) {
-  const [page, setPage] = useState(0);
-  const pageSize = 50;
-  const totalPages = Math.ceil(dossiers.length / pageSize);
-  const paginatedDossiers = dossiers.slice(
-    page * pageSize,
-    (page + 1) * pageSize,
-  );
+  // Les dossiers d'un notaire sont tous chargés par la route : seul le rendu
+  // est découpé, pour éviter de construire la table entière d'un coup.
+  const { rows, loading, done, error, setSentinel, retry } = useChunkedRows({
+    allRows: dossiers,
+  });
 
   return (
     <>
-      <Table>
+      {/* Pas de scroll vertical interne : la sentinelle est rendue sous le
+          tableau et doit rester pilotée par le scroll de la page. */}
+      <Table scrollY={false}>
         <THead>
           <Tr>
             <Th>Client</Th>
@@ -55,7 +56,7 @@ export default function ListeDossiers({
           </Tr>
         </THead>
         <TBody>
-          {paginatedDossiers.map((d) => {
+          {rows.map((d) => {
             const sb = STATUS_BADGE[d.status];
             return (
               <Tr key={d.id}>
@@ -85,27 +86,15 @@ export default function ListeDossiers({
           })}
         </TBody>
       </Table>
-      <div className="flex items-center justify-end space-x-2 p-2">
-        <span className="text-sm text-slate-500">
-          Page {page + 1} sur {totalPages}
-        </span>
-        <button
-          onClick={() => setPage((p) => Math.max(p - 1, 0))}
-          disabled={page === 0}
-          className="rounded border border-slate-300 bg-white px-3 py-1 text-sm disabled:opacity-50"
-        >
-          Précédent
-        </button>
-        <button
-          onClick={() =>
-            setPage((p) => (paginatedDossiers.length === pageSize ? p + 1 : p))
-          }
-          disabled={paginatedDossiers.length < pageSize}
-          className="rounded border border-slate-300 bg-white px-3 py-1 text-sm disabled:opacity-50"
-        >
-          Suivant
-        </button>
-      </div>
+      <InfiniteSentinel
+        loading={loading}
+        done={done}
+        error={error}
+        setSentinel={setSentinel}
+        retry={retry}
+        loadedCount={rows.length}
+        itemLabel="dossier"
+      />
     </>
   );
 }

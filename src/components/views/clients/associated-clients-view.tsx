@@ -3,15 +3,8 @@ import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  EmptyState,
-  TBody,
-  THead,
-  Table,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
+import { EmptyState, THead, Table, Td, Th, Tr } from "@/components/ui/table";
+import { ChunkedTableBody } from "@/components/ui/chunked-rows";
 import { DeleteAssociatedClientButton } from "@/components/collab/delete-associated-client";
 import { loadAssociatedClients } from "@/lib/client-account/list";
 
@@ -60,7 +53,7 @@ export async function AssociatedClientsView({ basePath, lotsPath }: Props) {
             }
           />
         ) : (
-          <Table>
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 <Th>Client</Th>
@@ -70,7 +63,7 @@ export async function AssociatedClientsView({ basePath, lotsPath }: Props) {
                 <Th className="text-right">Actions</Th>
               </Tr>
             </THead>
-            <TBody>
+            <ChunkedTableBody colSpan={5} itemLabel="client">
               {clients.map((c) => (
                 <Tr key={c.id}>
                   <Td className="font-medium">
@@ -119,7 +112,7 @@ export async function AssociatedClientsView({ basePath, lotsPath }: Props) {
                   </Td>
                 </Tr>
               ))}
-            </TBody>
+            </ChunkedTableBody>
           </Table>
         )}
         <CardContent className="border-t border-slate-100 text-xs text-slate-500">

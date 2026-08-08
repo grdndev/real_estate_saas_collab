@@ -50,7 +50,6 @@ export function LotFiltersForm({
     } else {
       next.delete(key);
     }
-    next.delete("page");
     startTransition(() => {
       router.push(`${basePath}?${next.toString()}`);
     });

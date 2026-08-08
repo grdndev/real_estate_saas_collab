@@ -18,7 +18,6 @@ export const lotFiltersSchema = z.object({
     .optional(),
   programmeId: z.string().optional(),
   search: z.string().max(100).optional(),
-  page: z.coerce.number().int().min(1).default(1),
   /** N'afficher que les lots ayant un client associé. */
   associes: z
     .union([z.literal("1"), z.literal("0")])

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import {
   EmptyState,
@@ -12,6 +13,11 @@ import {
   Th,
   Tr,
 } from "@/components/ui/table";
+import {
+  InfiniteSentinel,
+  useInfiniteRows,
+} from "@/components/ui/infinite-rows";
+import { loadMoreLotsAction } from "@/lib/lot/list-actions";
 
 type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
@@ -311,11 +317,21 @@ function setVisible(next: Set<string>) {
   listeners.forEach((l) => l());
 }
 
+/**
+ * Tableau des lots à chargement progressif (T16).
+ *
+ * La première tranche est rendue par le serveur ; les suivantes arrivent par
+ * curseur au scroll. Un changement de filtre remonte la liste à zéro par le
+ * biais de l'attribut `key` posé par la vue appelante.
+ */
 export function LotsTable({
-  rows,
+  initialRows,
+  initialCursor,
   basePath,
 }: {
-  rows: LotRow[];
+  initialRows: LotRow[];
+  /** Curseur issu de la première tranche, `null` s'il n'y a rien de plus. */
+  initialCursor: string | null;
   /** Racine « lots » de l'espace appelant, ex. « /admin/lots ». */
   basePath: string;
 }) {
@@ -325,6 +341,17 @@ export function LotsTable({
     getServerSnapshot,
   );
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Les filtres suivants sont relus depuis l'URL : c'est la même source que
+  // celle dont le serveur s'est servi pour la première tranche.
+  const query = useSearchParams().toString();
+  const loadPage = useCallback(
+    (cursor: string | null) => loadMoreLotsAction(query, cursor),
+    [query],
+  );
+
+  const { rows, loading, done, error, setSentinel, retry } =
+    useInfiniteRows<LotRow>({ initialRows, initialCursor, loadPage });
 
   function toggle(key: string) {
     const next = new Set(visible);
@@ -387,8 +414,10 @@ export function LotsTable({
           description="Modifiez vos filtres ou créez un nouveau lot."
         />
       ) : (
-        <div className="overflow-x-auto">
-          <Table>
+        <div>
+          {/* Pas de scroll vertical interne : la sentinelle est rendue sous le
+              tableau et doit rester pilotée par le scroll de la page. */}
+          <Table scrollY={false}>
             <THead>
               <Tr>
                 {activeColumns.map((c) => (
@@ -419,6 +448,15 @@ export function LotsTable({
               ))}
             </TBody>
           </Table>
+          <InfiniteSentinel
+            loading={loading}
+            done={done}
+            error={error}
+            setSentinel={setSentinel}
+            retry={retry}
+            loadedCount={rows.length}
+            itemLabel="lot"
+          />
         </div>
       )}
     </div>

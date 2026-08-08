@@ -13,6 +13,7 @@ import { canBeContactedByEmail } from "@/lib/user/no-account";
 import { requireUser, requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
 import { findDossierForUser } from "@/lib/dossier/access";
+import { loadThreadPage, type ThreadPage } from "@/lib/messaging/thread-page";
 import { notify } from "@/lib/notifications";
 import { getMailer } from "@/lib/mail";
 import {
@@ -595,6 +596,23 @@ export async function markMessagesReadAction(
     data: { readBy: { push: me.id } },
   });
   return { ok: true, value: undefined };
+}
+
+/**
+ * Tranche de messages plus anciens d'un fil (T16 — remontée au scroll).
+ *
+ * L'accès au dossier est revérifié à chaque tranche : un curseur ne donne
+ * aucun droit de lecture par lui-même.
+ */
+export async function loadOlderMessagesAction(
+  dossierId: string,
+  cursor: string | null,
+): Promise<ActionResult<ThreadPage>> {
+  const me = await requireRole([...MESSAGING_ROLES]);
+  const dossier = await findDossierForUser(dossierId, me.id, me.role);
+  if (!dossier) return { ok: false, error: "Accès refusé" };
+
+  return { ok: true, value: await loadThreadPage(dossierId, cursor) };
 }
 
 // =====================================================
