@@ -125,7 +125,7 @@ const COLUMN_ALIASES: Record<MappedField, string[]> = {
   actSignedAt: ["acte"],
   kbisObtainedAt: ["obtentionkbis", "kbis"],
   clientAtRsm: ["clientchezrsm", "rsm"],
-  deposit200ReceivedAt: ["receptiondes200", "200€", "acompte200"],
+  deposit200ReceivedAt: ["receptiondes200", "acompte200"],
   rarSentByNotaryAt: ["envoiparlenotaire", "envoiparnotaire"],
 };
 
@@ -288,25 +288,61 @@ export async function parseTrackingWorkbook(
   // Pour "type" / "typologie" : prendre la 2ème occurrence si deux colonnes "type"
   const typeOccurrences: number[] = [];
 
+  const aliasEntries = Object.entries(COLUMN_ALIASES) as [
+    MappedField,
+    string[],
+  ][];
+
+  // En-têtes normalisés, indexés par numéro de colonne (ordre croissant).
+  const headers = new Map<number, string>();
   headerRow.eachCell((cell, colNumber) => {
     const norm = normalize(cellText(cell.value));
-    if (!norm) return;
+    if (norm) headers.set(colNumber, norm);
+  });
 
-    // Colonnes typées
-    for (const [field, aliases] of Object.entries(COLUMN_ALIASES) as [
-      MappedField,
-      string[],
-    ][]) {
+  const isMapped = (field: MappedField): boolean =>
+    field === "type" ? typeOccurrences.length > 0 : colMap.has(field);
+
+  const assign = (field: MappedField, colNumber: number): void => {
+    if (field === "type") {
+      typeOccurrences.push(colNumber);
+    } else if (!colMap.has(field)) {
+      colMap.set(field, colNumber);
+    }
+  };
+
+  // Passe 1 — égalité stricte. Prioritaire : un en-tête exact ne peut pas être
+  // capté par le match approximatif d'une autre colonne (passe 2).
+  const consumed = new Set<number>();
+  for (const [colNumber, norm] of headers) {
+    for (const [field, aliases] of aliasEntries) {
       if (aliases.includes(norm)) {
-        if (field === "type") {
-          typeOccurrences.push(colNumber);
-        } else if (!colMap.has(field)) {
-          colMap.set(field, colNumber);
-        }
-        return;
+        assign(field, colNumber);
+        consumed.add(colNumber);
+        break;
       }
     }
-  });
+  }
+
+  // Passe 2 — sous-chaîne, alias le plus long gagnant. Le fichier de suivi
+  // contient des en-têtes enrichis (« Surface des annexes (Varangue, porche,
+  // terrasse) », « SUV Total (Habitable+annexe) ») que l'égalité ne capte pas.
+  // Le critère de longueur départage les alias imbriqués : « surfacedesannexes »
+  // l'emporte sur « surface », « receptiondudepotdegarantie » sur « garantie ».
+  for (const [colNumber, norm] of headers) {
+    if (consumed.has(colNumber)) continue;
+
+    let best: { field: MappedField; length: number } | null = null;
+    for (const [field, aliases] of aliasEntries) {
+      if (isMapped(field)) continue;
+      for (const alias of aliases) {
+        if (norm.includes(alias) && (!best || alias.length > best.length)) {
+          best = { field, length: alias.length };
+        }
+      }
+    }
+    if (best) assign(best.field, colNumber);
+  }
 
   // Résoudre la colonne "type" : 2ème occurrence si disponible
   if (typeOccurrences.length >= 2) {

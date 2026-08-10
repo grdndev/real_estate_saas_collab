@@ -136,3 +136,67 @@ describe("parseTrackingWorkbook — aucune ligne référencée n'est perdue (T8)
     expect(stats).toEqual({ detected: 99, kept: 99, incomplete: 6 });
   });
 });
+
+/** Parse un fichier à en-têtes libres, une seule ligne de données. */
+async function parseWithHeaders(headers: string[], row: Row) {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet("Suivi");
+  ws.addRow(headers);
+  ws.addRow(row);
+  const buf = await wb.xlsx.writeBuffer();
+  return parseTrackingWorkbook(Buffer.from(buf as ArrayBuffer));
+}
+
+describe("parseTrackingWorkbook — reconnaissance des en-têtes", () => {
+  it("reconnaît les en-têtes enrichis du fichier de suivi réel", async () => {
+    const { rows } = await parseWithHeaders(
+      [
+        "Lot",
+        "Surface habitable",
+        "Surface des annexes (Varangue, porche, terrasse)",
+        "SUV \nTotal (Habitable+annexe)",
+      ],
+      ["A101", 45, 12.5, 57.5],
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.surface).toBe(45);
+    expect(rows[0]?.annexSurface).toBe(12.5);
+    expect(rows[0]?.suv).toBe(57.5);
+  });
+
+  it("ne confond pas « Surface des annexes » avec « Surface habitable » quand l'annexe précède", async () => {
+    const { rows } = await parseWithHeaders(
+      ["Lot", "Surface des annexes (Varangue)", "Surface habitable"],
+      ["A101", 12.5, 45],
+    );
+
+    expect(rows[0]?.annexSurface).toBe(12.5);
+    expect(rows[0]?.surface).toBe(45);
+  });
+
+  it("n'attribue pas le dépôt de garantie à sa date de réception", async () => {
+    const { rows } = await parseWithHeaders(
+      [
+        "Lot",
+        "Réception du dépôt de garantie (scan)",
+        "Dépôt de garantie (montant)",
+      ],
+      ["A101", "15/03/2026", 5000],
+    );
+
+    expect(rows[0]?.guaranteeDepositAmount).toBe(5000);
+    expect(rows[0]?.guaranteeDepositReceivedAt).toEqual(
+      new Date(Date.UTC(2026, 2, 15)),
+    );
+  });
+
+  it("un en-tête exact n'est pas capté par une colonne approximative", async () => {
+    const { rows } = await parseWithHeaders(
+      ["Lot", "Prénom acquéreur", "Nom"],
+      ["A101", "Jean", "Dupont"],
+    );
+
+    expect(rows[0]?.buyerName).toBe("Dupont");
+  });
+});
