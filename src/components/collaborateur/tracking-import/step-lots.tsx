@@ -178,6 +178,7 @@ export function StepLots({ rows, programmeId, onNext, onBack }: Props) {
                 <Td className="px-2 py-1">
                   <input
                     className="w-full rounded border border-slate-200 px-1.5 py-1 font-mono text-xs"
+                    style={{ fieldSizing: "content" }}
                     value={lot.reference}
                     onChange={(e) => update(i, "reference", e.target.value)}
                   />
