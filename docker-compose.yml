@@ -71,7 +71,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=proxy"
-      - "traefik.http.routers.equatisminio.rule=Host(`equatisminio.codialis.com`)"
+      - "traefik.http.routers.equatisminio.rule=Host(`equatisminio.equatisimmobilier.fr`)"
       - "traefik.http.routers.equatisminio.entrypoints=websecure"
       - "traefik.http.routers.equatisminio.tls.certresolver=myresolver"
       - "traefik.http.services.equatisminio.loadbalancer.server.port=9000"

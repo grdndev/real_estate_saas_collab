@@ -35,15 +35,15 @@ export const updateProfileSchema = z.object({
   postalCode: z.string().min(4).max(10),
   city: z.string().min(1).max(80),
   country: z.string().min(2).max(60),
-  birthName: z.string().min(1).max(80).optional(),
-  birthDate: z.string().min(1).max(10).optional(),
-  birthPlace: z.string().min(1).max(120).optional(),
-  profession: z.string().min(1).max(120).optional(),
-  nationality: z.string().min(1).max(80).optional(),
+  birthName: z.string().max(80).optional(),
+  birthDate: z.string().max(10).optional(),
+  birthPlace: z.string().max(120).optional(),
+  profession: z.string().max(120).optional(),
+  nationality: z.string().max(80).optional(),
   familyStatus: z.string().optional(),
-  marriageDate: z.string().min(1).max(10).optional(),
-  marriagePlace: z.string().min(1).max(120).optional(),
-  marriageContract: z.string().min(1).max(200).optional(),
+  marriageDate: z.string().max(10).optional(),
+  marriagePlace: z.string().max(120).optional(),
+  marriageContract: z.string().max(200).optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
