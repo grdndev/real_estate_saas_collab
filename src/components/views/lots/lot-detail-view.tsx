@@ -125,7 +125,9 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
             lotPath={lotPath}
           />
           {dossier && <LotInfoCard lot={lot} lotPath={lotPath} />}
-          {dossier && <DossierSidePanel dossierId={dossier.id} />}
+          {dossier && (
+            <DossierSidePanel dossierId={dossier.id} lotPath={lotPath} />
+          )}
           <LotDossierHistoryCard lotId={lot.id} />
         </div>
       </div>

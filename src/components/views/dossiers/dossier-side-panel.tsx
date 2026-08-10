@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AppointmentManager } from "@/components/collab/appointment-manager";
 import { AttachNotaryForm } from "@/components/collab/attach-notary";
@@ -22,7 +24,14 @@ const day = (d: Date | null) => (d ? d.toLocaleDateString("fr-FR") : "—");
  * Colonne latérale d'un dossier : suivi commercial et contractuel, équipe,
  * option, rendez-vous notaire et signature électronique.
  */
-export async function DossierSidePanel({ dossierId }: { dossierId: string }) {
+export async function DossierSidePanel({
+  dossierId,
+  /** Chemin de la fiche du lot, ex. « /admin/lots/abc ». Active l'édition. */
+  lotPath,
+}: {
+  dossierId: string;
+  lotPath?: string;
+}) {
   const dossier = await prisma.dossier.findUniqueOrThrow({
     where: { id: dossierId },
     include: {
@@ -115,8 +124,16 @@ export async function DossierSidePanel({ dossierId }: { dossierId: string }) {
   return (
     <>
       <Card>
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between gap-3">
           <CardTitle>Suivi complémentaire</CardTitle>
+          {lotPath && (
+            <Link
+              href={`${lotPath}/suivi/modifier`}
+              className="text-equatis-turquoise-700 text-xs hover:underline"
+            >
+              Modifier
+            </Link>
+          )}
         </CardHeader>
         <CardContent className="text-sm">
           <dl className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">

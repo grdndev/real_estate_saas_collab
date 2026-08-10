@@ -48,6 +48,41 @@ export const setDossierOptionSchema = z.object({
 });
 export type SetDossierOptionInput = z.infer<typeof setDossierOptionSchema>;
 
+/**
+ * Date de suivi facultative, saisie via `<input type="date">` : chaîne vide =
+ * champ non renseigné, jamais une `Invalid Date`.
+ */
+const optionalDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date invalide")
+  .or(z.literal(""));
+
+/** Montant € facultatif — le formulaire convertit la saisie vide en `null`. */
+const optionalAmount = z.number().min(0).max(99_999_999).nullable();
+
+/** Booléen facultatif à trois états : « oui », « non » ou non renseigné. */
+const optionalBool = z.enum(["", "oui", "non"]);
+
+export const updateDossierTrackingSchema = z.object({
+  dossierId: z.string().min(1),
+  observation: z.string().trim().max(2000),
+  financingMode: z.string().trim().max(200),
+  kbisObtainedAt: optionalDate,
+  clientAtRsm: optionalBool,
+  reservationSignedAt: optionalDate,
+  deposit200ReceivedAt: optionalDate,
+  guaranteeDepositAmount: optionalAmount,
+  guaranteeDepositReceivedAt: optionalDate,
+  rarSentByNotaryAt: optionalDate,
+  loanFiledAt: optionalDate,
+  loanObtainedAt: optionalDate,
+  reservationEndDate: optionalDate,
+  actSignedAt: optionalDate,
+});
+export type UpdateDossierTrackingInput = z.infer<
+  typeof updateDossierTrackingSchema
+>;
+
 export const assignClientSchema = z.object({
   lotId: z.string().min(1),
   clientId: z.string().min(1),

@@ -31,6 +31,7 @@ import {
   unassignClientSchema,
   updateContractStatusSchema,
   updateDossierStatusSchema,
+  updateDossierTrackingSchema,
   type AssignClientInput,
   type UnassignClientInput,
   type CreateClientAndDossierInput,
@@ -39,6 +40,7 @@ import {
   type UpdateContractStatusInput,
   type AssignCollaboratorInput,
   type UpdateDossierStatusInput,
+  type UpdateDossierTrackingInput,
 } from "@/lib/dossier/schemas";
 import { notifyDossierParticipants } from "@/lib/notifications";
 import { DEFAULT_DOCUMENT_REQUESTS } from "@/lib/dossier/client-dossier-core";
@@ -1068,6 +1070,76 @@ export async function recordOptionReminderAction(
 
   revalidateLotPaths(dossier.lotId);
   revalidatePath("/collaborateur/clients-en-attente");
+  return { ok: true, value: undefined };
+}
+
+// =====================================================
+// SUIVI COMPLÉMENTAIRE — dates brutes du process de vente
+// =====================================================
+
+/**
+ * `YYYY-MM-DD` → minuit UTC, comme l'import de tracking
+ * (`src/lib/collaborateur/tracking-import.ts`) : la date calendaire ne doit pas
+ * dépendre du fuseau du serveur.
+ */
+function trackingDate(value: string): Date | null {
+  if (!value) return null;
+  const d = new Date(`${value}T00:00:00.000Z`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+export async function updateDossierTrackingAction(
+  input: UpdateDossierTrackingInput,
+): Promise<ActionResult> {
+  const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
+  const parsed = updateDossierTrackingSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: "Saisie invalide",
+      fieldErrors: flatten(parsed.error),
+    };
+  }
+  const data = parsed.data;
+  const ctx = await getRequestContext();
+
+  const dossier = await findDossierForUser(data.dossierId, me.id, me.role);
+  if (!dossier) {
+    return { ok: false, error: "Dossier introuvable ou accès refusé." };
+  }
+  if (dossier.archivedAt) return { ok: false, error: ARCHIVED_DOSSIER_ERROR };
+
+  await prisma.dossier.update({
+    where: { id: dossier.id },
+    data: {
+      observation: data.observation || null,
+      financingMode: data.financingMode || null,
+      clientAtRsm: data.clientAtRsm === "" ? null : data.clientAtRsm === "oui",
+      guaranteeDepositAmount: data.guaranteeDepositAmount,
+      kbisObtainedAt: trackingDate(data.kbisObtainedAt),
+      reservationSignedAt: trackingDate(data.reservationSignedAt),
+      deposit200ReceivedAt: trackingDate(data.deposit200ReceivedAt),
+      guaranteeDepositReceivedAt: trackingDate(data.guaranteeDepositReceivedAt),
+      rarSentByNotaryAt: trackingDate(data.rarSentByNotaryAt),
+      loanFiledAt: trackingDate(data.loanFiledAt),
+      loanObtainedAt: trackingDate(data.loanObtainedAt),
+      reservationEndDate: trackingDate(data.reservationEndDate),
+      actSignedAt: trackingDate(data.actSignedAt),
+      lastActivityAt: new Date(),
+    },
+  });
+
+  await audit({
+    userId: me.id,
+    action: "DOSSIER_UPDATED",
+    resourceType: "Dossier",
+    resourceId: dossier.id,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+    metadata: "Suivi complémentaire du dossier mis à jour",
+  });
+
+  revalidateLotPaths(dossier.lotId);
   return { ok: true, value: undefined };
 }
 
