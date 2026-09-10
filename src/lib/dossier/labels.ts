@@ -1,4 +1,4 @@
-import type { ContractStatus } from "@/generated/prisma/enums";
+import type { ContractStatus, DossierStatus } from "@/generated/prisma/enums";
 
 type BadgeVariant = "neutral" | "info" | "warning" | "success" | "danger";
 
@@ -39,3 +39,30 @@ export const CONTRACT_STATUS_BADGE: Record<ContractStatus, BadgeVariant> = {
   LOAN_OFFER_SENT_TO_NOTARY: "warning",
   NOTARY_APPOINTMENT_SCHEDULED: "success",
 };
+
+/**
+ * Cycle commercial du dossier — libellé et badge, identiques dans tous les
+ * espaces. Source unique : toute vue affichant un `DossierStatus` lit ici.
+ */
+export const DOSSIER_STATUS_BADGE: Record<
+  DossierStatus,
+  { label: string; variant: BadgeVariant }
+> = {
+  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" },
+  RESERVATION_SENT: { label: "Réservé", variant: "info" },
+  SIGNATURE_PENDING: { label: "Signature en attente", variant: "warning" },
+  SIGNED_AT_NOTARY: { label: "Envoyé chez le notaire", variant: "info" },
+  LOAN_OFFER_RECEIVED: { label: "Offre de prêt reçue", variant: "info" },
+  ACT_SIGNED: { label: "Acte signé", variant: "success" },
+  BLOCKED: { label: "Bloqué", variant: "danger" },
+};
+
+/** Ordre d'avancement du cycle commercial. `BLOCKED` est hors chaîne. */
+export const DOSSIER_STATUS_ORDER: DossierStatus[] = [
+  "NEW_LEAD",
+  "RESERVATION_SENT",
+  "SIGNATURE_PENDING",
+  "SIGNED_AT_NOTARY",
+  "LOAN_OFFER_RECEIVED",
+  "ACT_SIGNED",
+];

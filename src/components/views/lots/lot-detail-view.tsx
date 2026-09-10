@@ -8,26 +8,8 @@ import { DossierSidePanel } from "@/components/views/dossiers/dossier-side-panel
 import { LotDossierHistoryCard } from "@/components/views/lots/lot-dossier-history-card";
 import { LotInfoCard } from "@/components/views/lots/lot-info-card";
 import { prisma } from "@/lib/prisma";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
-
-const DOSSIER_STATUS_BADGE = {
-  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
-  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
-  SIGNATURE_PENDING: {
-    label: "Signature en attente",
-    variant: "warning" as const,
-  },
-  SIGNED_AT_NOTARY: {
-    label: "Envoyé chez le notaire",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Offre de prêt reçue",
-    variant: "info" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
 
 /**
  * Vue « fiche lot » — implémentation unique partagée par l'espace collaborateur
@@ -67,6 +49,9 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
   const lotPath = `${basePath}/${lot.id}`;
   const lotBadge = LOT_STATUS_BADGE[lot.status];
   const dossierBadge = dossier ? DOSSIER_STATUS_BADGE[dossier.status] : null;
+  // « Réservé » nomme à la fois un lot engagé et un dossier réservé : on
+  // n'affiche pas deux fois la même pastille.
+  const showLotBadge = lotBadge.label !== dossierBadge?.label;
 
   return (
     <div className="flex flex-col gap-6">
@@ -86,7 +71,9 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
               Lot {lot.reference}
             </h1>
             <p className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge variant={lotBadge.variant}>{lotBadge.label}</Badge>
+              {showLotBadge && (
+                <Badge variant={lotBadge.variant}>{lotBadge.label}</Badge>
+              )}
               {dossierBadge && (
                 <Badge variant={dossierBadge.variant}>
                   {dossierBadge.label}

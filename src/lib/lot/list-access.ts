@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
+import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 import { decodePhone } from "@/lib/profile";
 import { displayableEmail } from "@/lib/user/no-account";
 import type { LotRow } from "@/components/lots/lots-table";
@@ -24,33 +26,6 @@ import type { UserRole } from "@/generated/prisma/enums";
 
 /** Nombre de lots par tranche de scroll. */
 export const LOT_CHUNK_SIZE = 50;
-
-const STATUS_BADGE = {
-  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
-  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
-  SIGNATURE_PENDING: {
-    label: "Signature en attente",
-    variant: "warning" as const,
-  },
-  SIGNED_AT_NOTARY: {
-    label: "Envoyé chez le notaire",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Offre de prêt reçue",
-    variant: "info" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
-
-const LOT_STATUS_BADGE = {
-  AVAILABLE: { label: "Disponible", variant: "success" as const },
-  OPTIONED: { label: "Optionné", variant: "warning" as const },
-  RESERVED: { label: "Réservé", variant: "info" as const },
-  SOLD: { label: "Vendu", variant: "neutral" as const },
-  WITHDRAWN: { label: "Retiré", variant: "danger" as const },
-};
 
 export interface LotPage {
   rows: LotRow[];
@@ -257,7 +232,7 @@ const fmt = (d: Date | null) => (d ? d.toLocaleDateString("fr-FR") : null);
 /** Projette un lot et son dossier actif en ligne de tableau. */
 function toLotRow(lot: LotWithRelations): LotRow {
   const d = lot.dossier;
-  const sb = d ? STATUS_BADGE[d.status] : LOT_STATUS_BADGE[lot.status];
+  const sb = d ? DOSSIER_STATUS_BADGE[d.status] : LOT_STATUS_BADGE[lot.status];
   const primary = d?.participants[0]?.user;
   const totalSurface = Number(lot.surface) + Number(lot.annexSurface ?? 0);
   return {

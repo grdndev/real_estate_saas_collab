@@ -13,27 +13,9 @@ import {
 import { requireRole } from "@/lib/auth/guards";
 import { findDossierForUser } from "@/lib/dossier/access";
 import { prisma } from "@/lib/prisma";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
 
 export const metadata: Metadata = { title: "Mon dossier" };
-
-const STATUS_BADGE = {
-  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
-  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
-  SIGNATURE_PENDING: {
-    label: "Signature en attente",
-    variant: "warning" as const,
-  },
-  SIGNED_AT_NOTARY: {
-    label: "Envoyé chez le notaire",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Offre de prêt reçue",
-    variant: "info" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
 
 const eur = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -75,7 +57,7 @@ export default async function ClientDossierPage({ params }: PageProps) {
     },
   });
 
-  const sb = STATUS_BADGE[dossier.status];
+  const sb = DOSSIER_STATUS_BADGE[dossier.status];
   const lot = dossier.lot;
   const referent = dossier.participants[0]?.user;
   const totalRequests = dossier.documentRequests.length;

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { requireRole } from "@/lib/auth/guards";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
 import { prisma } from "@/lib/prisma";
 import ActivityExcerpt from "./activity-excerpt";
 
@@ -15,16 +16,6 @@ const ROLE_LABEL = {
   PROMOTER: "Promoteur",
   NOTARY: "Notaire",
   CLIENT: "Client",
-} as const;
-
-const STATUS_LABEL = {
-  NEW_LEAD: "Nouveau lead",
-  RESERVATION_SENT: "Réservation envoyée",
-  SIGNATURE_PENDING: "Signature en attente",
-  SIGNED_AT_NOTARY: "Envoyé chez le notaire",
-  LOAN_OFFER_RECEIVED: "Offre de prêt reçue",
-  ACT_SIGNED: "Acte signé",
-  BLOCKED: "Bloqué",
 } as const;
 
 export default async function AdminDashboardPage() {
@@ -165,7 +156,7 @@ export default async function AdminDashboardPage() {
                   className="flex items-center justify-between text-sm"
                 >
                   <span className="text-slate-700">
-                    {STATUS_LABEL[row.status]}
+                    {DOSSIER_STATUS_BADGE[row.status].label}
                   </span>
                   <Badge variant="primary">{row._count._all}</Badge>
                 </div>

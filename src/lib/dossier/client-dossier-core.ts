@@ -100,10 +100,11 @@ export async function createClientDossierCore(
     });
   }
 
-  // Le lot pointe vers son dossier actif et passe en réservé.
+  // Le lot pointe vers son dossier actif. Son statut commercial ne bouge pas :
+  // il traduit l'engagement (option, réservation), pas la présence d'un client.
   await tx.lot.update({
     where: { id: params.lotId },
-    data: { dossierId: createdDossier.id, status: "RESERVED" },
+    data: { dossierId: createdDossier.id },
   });
 
   await tx.timelineEvent.create({

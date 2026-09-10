@@ -46,7 +46,12 @@ import { notifyDossierParticipants } from "@/lib/notifications";
 import { DEFAULT_DOCUMENT_REQUESTS } from "@/lib/dossier/client-dossier-core";
 import { revalidateLotPaths } from "@/lib/lot/revalidate";
 import { CONTRACT_STATUS_LABEL } from "@/lib/dossier/labels";
-import type { ContractStatus, TimelineKind } from "@/generated/prisma/enums";
+import type {
+  ContractStatus,
+  DossierStatus,
+  LotStatus,
+  TimelineKind,
+} from "@/generated/prisma/enums";
 import type { ActionResult } from "@/lib/auth/actions";
 
 // Statuts contractuels donnant lieu à un événement de timeline dédié (jalon).
@@ -88,6 +93,17 @@ function revalidateProgrammePaths(programmeId: string): void {
 // UPDATE STATUS
 // =====================================================
 
+/**
+ * Statut à poser sur le lot quand le dossier atteint ce palier. Les statuts
+ * absents laissent le lot inchangé.
+ */
+const LOT_STATUS_FOR_DOSSIER_STATUS: Partial<Record<DossierStatus, LotStatus>> =
+  {
+    NEW_LEAD: "AVAILABLE",
+    RESERVATION_SENT: "RESERVED",
+    ACT_SIGNED: "SOLD",
+  };
+
 export async function updateDossierStatusAction(
   input: UpdateDossierStatusInput,
 ): Promise<ActionResult> {
@@ -118,6 +134,10 @@ export async function updateDossierStatusAction(
       data: {
         status: data.status,
         lastActivityAt: new Date(),
+        // Réserver consomme l'option en cours ; revenir au lead l'annule.
+        ...(data.status === "RESERVATION_SENT" || data.status === "NEW_LEAD"
+          ? { optioned: false, optionExpiresAt: null }
+          : {}),
         ...(data.status === "ACT_SIGNED" ? { closedAt: new Date() } : {}),
       },
     });
@@ -130,10 +150,14 @@ export async function updateDossierStatusAction(
         actorId: me.id,
       },
     });
-    if (data.status === "ACT_SIGNED") {
+    // Le statut du lot suit les trois paliers d'engagement du dossier ; les
+    // statuts intermédiaires (signature, notaire, prêt, bloqué) le laissent tel
+    // quel.
+    const lotStatus = LOT_STATUS_FOR_DOSSIER_STATUS[data.status];
+    if (lotStatus) {
       await tx.lot.updateMany({
         where: { dossierId: dossier.id },
-        data: { status: "SOLD" },
+        data: { status: lotStatus },
       });
     }
   });
@@ -257,13 +281,12 @@ export async function assignClientAction(
         });
       }
 
-      // Le lot pointe vers son dossier actif et passe en réservé.
+      // Le lot pointe vers son dossier actif. Son statut commercial ne bouge
+      // pas : il traduit l'engagement (option, réservation), pas la présence
+      // d'un client.
       await tx.lot.update({
         where: { id: data.lotId },
-        data: {
-          dossierId: dossier.id,
-          ...(lot.status === "SOLD" ? {} : { status: "RESERVED" as const }),
-        },
+        data: { dossierId: dossier.id },
       });
       await tx.user.update({
         where: { id: data.clientId },
@@ -979,6 +1002,24 @@ export async function setDossierOptionAction(
         lastActivityAt: new Date(),
       },
     });
+    // Poser l'option engage le lot ; la lever le rend disponible. On ne défait
+    // que la transition qu'on a posée : un lot vendu ou déjà réservé n'est pas
+    // touché par la levée.
+    const lot = await tx.lot.findUniqueOrThrow({
+      where: { id: dossier.lotId },
+      select: { status: true },
+    });
+    if (data.optioned && lot.status !== "SOLD") {
+      await tx.lot.update({
+        where: { id: dossier.lotId },
+        data: { status: "OPTIONED" },
+      });
+    } else if (!data.optioned && lot.status === "OPTIONED") {
+      await tx.lot.update({
+        where: { id: dossier.lotId },
+        data: { status: "AVAILABLE" },
+      });
+    }
     await tx.timelineEvent.create({
       data: {
         dossierId: dossier.id,

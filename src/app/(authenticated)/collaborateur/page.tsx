@@ -18,28 +18,10 @@ import { requireRole } from "@/lib/auth/guards";
 import { prisma } from "@/lib/prisma";
 import { dossierWhereForUser } from "@/lib/dossier/access";
 import { getSettings } from "@/lib/settings";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
 import { AutoRefresh } from "@/components/ui/auto-refresh";
 
 export const metadata: Metadata = { title: "Mon tableau de bord" };
-
-const STATUS_BADGE = {
-  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
-  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
-  SIGNATURE_PENDING: {
-    label: "Signature en attente",
-    variant: "warning" as const,
-  },
-  SIGNED_AT_NOTARY: {
-    label: "Envoyé chez le notaire",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Offre de prêt reçue",
-    variant: "info" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
 
 export default async function CollaborateurDashboardPage() {
   const me = await requireRole(["COLLABORATOR", "SUPER_ADMIN"]);
@@ -206,7 +188,7 @@ export default async function CollaborateurDashboardPage() {
             </THead>
             <TBody>
               {recent.map((d) => {
-                const sb = STATUS_BADGE[d.status];
+                const sb = DOSSIER_STATUS_BADGE[d.status];
                 return (
                   <Tr key={d.id}>
                     <Td className="text-xs text-slate-600">

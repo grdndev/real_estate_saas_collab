@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 
 const STAGES: Array<{ status: DossierStatus; label: string }> = [
   { status: "NEW_LEAD", label: "Lead reçu" },
-  { status: "RESERVATION_SENT", label: "Réservation envoyée" },
+  { status: "RESERVATION_SENT", label: "Réservé" },
   { status: "SIGNATURE_PENDING", label: "Signature en attente" },
   { status: "SIGNED_AT_NOTARY", label: "Envoyé chez le notaire" },
   { status: "LOAN_OFFER_RECEIVED", label: "Offre de prêt reçue" },

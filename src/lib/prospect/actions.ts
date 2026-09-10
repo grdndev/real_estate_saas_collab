@@ -369,7 +369,13 @@ export async function convertProspectAction(
     if (!lot || lot.programmeId !== programme.id) {
       return { ok: false, error: "Lot incompatible avec ce programme." };
     }
-    if (lot.status !== "AVAILABLE") {
+    // Le statut du lot ne dit plus s'il est libre (un lot avec client mais
+    // sans engagement reste « Disponible ») : c'est `dossierId` qui fait foi,
+    // comme dans `assignClientAction`.
+    if (lot.dossierId) {
+      return { ok: false, error: "Ce lot a déjà un client associé." };
+    }
+    if (lot.status === "SOLD" || lot.status === "WITHDRAWN") {
       return { ok: false, error: "Ce lot n'est plus disponible." };
     }
   }

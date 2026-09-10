@@ -28,4 +28,15 @@ export async function register() {
       err instanceof Error ? err.message : err,
     );
   }
+
+  try {
+    const { startOptionExpiryScheduler } =
+      await import("@/lib/queue/option-expiry-worker");
+    await startOptionExpiryScheduler();
+  } catch (err) {
+    console.error(
+      "[instrumentation] Impossible de démarrer le scheduler expiration des options :",
+      err instanceof Error ? err.message : err,
+    );
+  }
 }

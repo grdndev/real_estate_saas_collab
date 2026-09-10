@@ -9,21 +9,18 @@ import { ConfirmDialog } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/input";
 import { updateDossierStatusAction } from "@/lib/dossier/actions";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
 import type { DossierStatus } from "@/generated/prisma/enums";
 
 const STATUS_OPTIONS: Array<{
   value: DossierStatus;
   label: string;
   destructive?: boolean;
-}> = [
-  { value: "NEW_LEAD", label: "Nouveau lead" },
-  { value: "RESERVATION_SENT", label: "Réservation envoyée" },
-  { value: "SIGNATURE_PENDING", label: "Signature en attente" },
-  { value: "SIGNED_AT_NOTARY", label: "Envoyé chez le notaire" },
-  { value: "LOAN_OFFER_RECEIVED", label: "Offre de prêt reçue" },
-  { value: "ACT_SIGNED", label: "Acte signé", destructive: true },
-  { value: "BLOCKED", label: "Bloqué" },
-];
+}> = (Object.keys(DOSSIER_STATUS_BADGE) as DossierStatus[]).map((value) => ({
+  value,
+  label: DOSSIER_STATUS_BADGE[value].label,
+  destructive: value === "ACT_SIGNED",
+}));
 
 interface Props {
   dossierId: string;

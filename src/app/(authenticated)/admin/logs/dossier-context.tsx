@@ -7,30 +7,12 @@ import type { getDossierContext } from "@/lib/admin/activity";
 import {
   CONTRACT_STATUS_BADGE,
   CONTRACT_STATUS_LABEL,
+  DOSSIER_STATUS_BADGE,
 } from "@/lib/dossier/labels";
 
 type DossierContext = NonNullable<
   Awaited<ReturnType<typeof getDossierContext>>
 >;
-
-const STATUS_BADGE = {
-  NEW_LEAD: { label: "Nouveau lead", variant: "neutral" as const },
-  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
-  SIGNATURE_PENDING: {
-    label: "Signature en attente",
-    variant: "warning" as const,
-  },
-  SIGNED_AT_NOTARY: {
-    label: "Envoyé chez le notaire",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Offre de prêt reçue",
-    variant: "info" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
 
 const LOT_STATUS_LABEL: Record<string, string> = {
   AVAILABLE: "Disponible",
@@ -64,7 +46,7 @@ function Fact({
 }
 
 export function DossierContextPanel({ dossier }: { dossier: DossierContext }) {
-  const statusBadge = STATUS_BADGE[dossier.status];
+  const statusBadge = DOSSIER_STATUS_BADGE[dossier.status];
 
   return (
     <Card>

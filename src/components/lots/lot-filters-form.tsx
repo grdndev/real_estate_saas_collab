@@ -5,6 +5,8 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
+import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 
 interface Programme {
   id: string;
@@ -13,22 +15,18 @@ interface Programme {
 
 const STATUS_OPTIONS = [
   { value: "", label: "Tous les statuts commerciaux" },
-  { value: "NEW_LEAD", label: "Nouveau lead" },
-  { value: "RESERVATION_SENT", label: "Réservation envoyée" },
-  { value: "SIGNATURE_PENDING", label: "Signature en attente" },
-  { value: "SIGNED_AT_NOTARY", label: "Envoyé chez le notaire" },
-  { value: "LOAN_OFFER_RECEIVED", label: "Offre de prêt reçue" },
-  { value: "ACT_SIGNED", label: "Acte signé" },
-  { value: "BLOCKED", label: "Bloqué" },
+  ...Object.entries(DOSSIER_STATUS_BADGE).map(([value, b]) => ({
+    value,
+    label: b.label,
+  })),
 ];
 
 const LOT_STATUS_OPTIONS = [
   { value: "", label: "Tous les lots" },
-  { value: "AVAILABLE", label: "Disponible" },
-  { value: "OPTIONED", label: "Optionné" },
-  { value: "RESERVED", label: "Réservé" },
-  { value: "SOLD", label: "Vendu" },
-  { value: "WITHDRAWN", label: "Retiré" },
+  ...Object.entries(LOT_STATUS_BADGE).map(([value, b]) => ({
+    value,
+    label: b.label,
+  })),
 ];
 
 export function LotFiltersForm({

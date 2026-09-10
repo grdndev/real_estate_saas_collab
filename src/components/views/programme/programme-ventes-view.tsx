@@ -11,6 +11,7 @@ import {
   Th,
   Tr,
 } from "@/components/ui/table";
+import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
 import type { ProgrammeSalesRow } from "@/lib/programme/access";
 
 /**
@@ -27,25 +28,6 @@ interface Props {
   /** Lien vers la fiche dossier, ou `null` si l'espace n'en propose pas. */
   lotBasePath: string | null;
 }
-
-const STATUS_BADGE = {
-  NEW_LEAD: { label: "Lead", variant: "neutral" as const },
-  RESERVATION_SENT: { label: "Réservation envoyée", variant: "info" as const },
-  SIGNATURE_PENDING: {
-    label: "Signature en attente",
-    variant: "warning" as const,
-  },
-  SIGNED_AT_NOTARY: {
-    label: "Envoyé chez le notaire",
-    variant: "info" as const,
-  },
-  LOAN_OFFER_RECEIVED: {
-    label: "Offre de prêt reçue",
-    variant: "info" as const,
-  },
-  ACT_SIGNED: { label: "Acte signé", variant: "success" as const },
-  BLOCKED: { label: "Bloqué", variant: "danger" as const },
-};
 
 export function ProgrammeVentesView({
   programme,
@@ -151,7 +133,7 @@ export function ProgrammeVentesView({
             </THead>
             <TBody>
               {dossiers.map((d) => {
-                const sb = STATUS_BADGE[d.status];
+                const sb = DOSSIER_STATUS_BADGE[d.status];
                 return (
                   <Tr key={d.id}>
                     <Td>{`${d.lot.reference} · ${d.lot.type}`}</Td>
