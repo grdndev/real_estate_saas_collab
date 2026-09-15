@@ -232,7 +232,9 @@ const fmt = (d: Date | null) => (d ? d.toLocaleDateString("fr-FR") : null);
 /** Projette un lot et son dossier actif en ligne de tableau. */
 function toLotRow(lot: LotWithRelations): LotRow {
   const d = lot.dossier;
-  const sb = d ? DOSSIER_STATUS_BADGE[d.status] : LOT_STATUS_BADGE[lot.status];
+  // Le statut commercial est celui du dossier : sans dossier, la colonne reste
+  // vide plutôt que de recopier le statut du lot.
+  const sb = d ? DOSSIER_STATUS_BADGE[d.status] : null;
   const primary = d?.participants[0]?.user;
   const totalSurface = Number(lot.surface) + Number(lot.annexSurface ?? 0);
   return {
@@ -243,8 +245,7 @@ function toLotRow(lot: LotWithRelations): LotRow {
     clientPhone: d ? decodePhone(d.client.phoneEnc) || null : null,
     clientEmail: d ? displayableEmail(d.client.email) : null,
     programmeName: lot.programme.name,
-    statusLabel: sb.label,
-    statusVariant: sb.variant,
+    statusLabel: sb?.label ?? null,
     lotStatusLabel: LOT_STATUS_BADGE[lot.status].label,
     responsable: primary ? `${primary.firstName} ${primary.lastName}` : null,
     lastActivity: d ? (fmt(d.lastActivityAt) ?? "—") : "—",

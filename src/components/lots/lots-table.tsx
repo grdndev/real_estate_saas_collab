@@ -3,7 +3,7 @@
 import { useCallback, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import {
   EmptyState,
   TBody,
@@ -18,8 +18,6 @@ import {
   useInfiniteRows,
 } from "@/components/ui/infinite-rows";
 import { loadMoreLotsAction } from "@/lib/lot/list-actions";
-
-type BadgeVariant = NonNullable<BadgeProps["variant"]>;
 
 /**
  * Une ligne = un LOT. Les champs « client » et le suivi commercial viennent du
@@ -36,10 +34,9 @@ export interface LotRow {
   clientPhone: string | null;
   clientEmail: string | null;
   programmeName: string;
-  /** Statut du dossier actif, ou statut du lot quand il est libre. */
-  statusLabel: string;
-  statusVariant: BadgeVariant;
-  /** Statut du lot lui-même (disponible, réservé, vendu…). */
+  /** Statut commercial : celui du dossier actif, `null` si le lot est libre. */
+  statusLabel: string | null;
+  /** Statut contractuel : celui du lot lui-même (disponible, optionné, vendu…). */
   lotStatusLabel: string;
   responsable: string | null;
   lastActivity: string;
@@ -115,11 +112,7 @@ const COLUMNS: ColumnDef[] = [
   {
     key: "statut",
     label: "Statut commercial",
-    render: (r) => (
-      <span className="inline-flex items-center gap-1.5">
-        <Badge variant={r.statusVariant}>{r.statusLabel}</Badge>
-      </span>
-    ),
+    render: (r) => r.statusLabel ?? "—",
   },
   {
     key: "statutLot",
