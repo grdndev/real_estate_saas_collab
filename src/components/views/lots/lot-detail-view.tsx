@@ -49,9 +49,6 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
   const lotPath = `${basePath}/${lot.id}`;
   const lotBadge = LOT_STATUS_BADGE[lot.status];
   const dossierBadge = dossier ? DOSSIER_STATUS_BADGE[dossier.status] : null;
-  // « Réservé » nomme à la fois un lot engagé et un dossier réservé : on
-  // n'affiche pas deux fois la même pastille.
-  const showLotBadge = lotBadge.label !== dossierBadge?.label;
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,9 +68,7 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
               Lot {lot.reference}
             </h1>
             <p className="mt-2 flex flex-wrap items-center gap-2">
-              {showLotBadge && (
-                <Badge variant={lotBadge.variant}>{lotBadge.label}</Badge>
-              )}
+              <Badge variant={lotBadge.variant}>{lotBadge.label}</Badge>
               {dossierBadge && (
                 <Badge variant={dossierBadge.variant}>
                   {dossierBadge.label}

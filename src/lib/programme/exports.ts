@@ -6,6 +6,7 @@ import {
   type TreasuryPdfMonth,
 } from "@/lib/promoter/pdf-treasury";
 import { rollingMonths } from "@/lib/programme/access";
+import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 import { sortByLotReference } from "@/lib/lot/sort";
 import { slugify } from "@/lib/utils";
 
@@ -15,14 +16,6 @@ import { slugify } from "@/lib/utils";
  *
  * Aucun de ces exports ne contient de donnée nominative de client (T1).
  */
-
-const STATUS_LABEL = {
-  AVAILABLE: "Disponible",
-  OPTIONED: "Optionné",
-  RESERVED: "Réservé",
-  SOLD: "Vendu",
-  WITHDRAWN: "Retiré",
-} as const;
 
 const MONTH_NAMES = [
   "janvier",
@@ -86,7 +79,7 @@ export async function lotsCsvExport(
       lot.priceHT.toString(),
       lot.vatRate.toString(),
       lot.priceTTC.toString(),
-      STATUS_LABEL[lot.status],
+      LOT_STATUS_BADGE[lot.status].label,
     ]),
   );
 

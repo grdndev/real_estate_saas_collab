@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DossierProgress } from "@/components/client-space/progress-bar";
 import { Timeline } from "@/components/collab/timeline";
 import type { getDossierContext } from "@/lib/admin/activity";
+import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 import {
   CONTRACT_STATUS_BADGE,
   CONTRACT_STATUS_LABEL,
@@ -13,14 +14,6 @@ import {
 type DossierContext = NonNullable<
   Awaited<ReturnType<typeof getDossierContext>>
 >;
-
-const LOT_STATUS_LABEL: Record<string, string> = {
-  AVAILABLE: "Disponible",
-  OPTIONED: "Optionné",
-  RESERVED: "Réservé",
-  SOLD: "Vendu",
-  WITHDRAWN: "Retiré",
-};
 
 const PARTICIPANT_ROLE_LABEL: Record<string, string> = {
   COLLABORATOR_PRIMARY: "Collaborateur principal",
@@ -84,7 +77,7 @@ export function DossierContextPanel({ dossier }: { dossier: DossierContext }) {
             </Link>
           </Fact>
           <Fact label="Lot">
-            {`${dossier.lot.reference} (${LOT_STATUS_LABEL[dossier.lot.status] ?? dossier.lot.status})`}
+            {`${dossier.lot.reference} (${LOT_STATUS_BADGE[dossier.lot.status].label})`}
           </Fact>
           <Fact label="Intervenants">
             {dossier.participants.length === 0

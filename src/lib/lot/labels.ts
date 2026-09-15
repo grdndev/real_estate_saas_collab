@@ -11,5 +11,5 @@ export const LOT_STATUS_BADGE: Record<
   OPTIONED: { label: "Optionné", variant: "warning" },
   RESERVED: { label: "Réservé", variant: "warning" },
   SOLD: { label: "Vendu", variant: "info" },
-  WITHDRAWN: { label: "Retiré", variant: "neutral" },
+  WITHDRAWN: { label: "Retiré de la vente", variant: "neutral" },
 };

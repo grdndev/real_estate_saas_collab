@@ -114,14 +114,18 @@ const COLUMNS: ColumnDef[] = [
   { key: "lot", label: "Lot", render: (r) => r.reference },
   {
     key: "statut",
-    label: "Statut",
+    label: "Statut commercial",
     render: (r) => (
       <span className="inline-flex items-center gap-1.5">
         <Badge variant={r.statusVariant}>{r.statusLabel}</Badge>
       </span>
     ),
   },
-  { key: "statutLot", label: "Statut du lot", render: (r) => r.lotStatusLabel },
+  {
+    key: "statutLot",
+    label: "Statut contractuel",
+    render: (r) => r.lotStatusLabel,
+  },
   {
     key: "responsable",
     label: "Responsable",

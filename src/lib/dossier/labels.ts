@@ -49,7 +49,7 @@ export const DOSSIER_STATUS_BADGE: Record<
   { label: string; variant: BadgeVariant }
 > = {
   NEW_LEAD: { label: "Nouveau lead", variant: "neutral" },
-  RESERVATION_SENT: { label: "Réservé", variant: "info" },
+  RESERVATION_SENT: { label: "Réservation signée", variant: "info" },
   SIGNATURE_PENDING: { label: "Signature en attente", variant: "warning" },
   SIGNED_AT_NOTARY: { label: "Envoyé chez le notaire", variant: "info" },
   LOAN_OFFER_RECEIVED: { label: "Offre de prêt reçue", variant: "info" },

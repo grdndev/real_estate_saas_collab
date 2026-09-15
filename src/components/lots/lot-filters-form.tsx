@@ -22,7 +22,7 @@ const STATUS_OPTIONS = [
 ];
 
 const LOT_STATUS_OPTIONS = [
-  { value: "", label: "Tous les lots" },
+  { value: "", label: "Tous les statuts contractuels" },
   ...Object.entries(LOT_STATUS_BADGE).map(([value, b]) => ({
     value,
     label: b.label,
@@ -80,7 +80,7 @@ export function LotFiltersForm({
       <Select
         defaultValue={params.get("lotStatus") ?? ""}
         onChange={(e) => update("lotStatus", e.target.value)}
-        aria-label="Filtrer par statut du lot"
+        aria-label="Filtrer par statut contractuel"
       >
         {LOT_STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>

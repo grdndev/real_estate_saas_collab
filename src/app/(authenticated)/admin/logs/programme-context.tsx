@@ -18,12 +18,12 @@ const LOT_STATUS_LABEL: Record<string, string> = {
   OPTIONED: "optionné(s)",
   RESERVED: "réservé(s)",
   SOLD: "vendu(s)",
-  WITHDRAWN: "retiré(s)",
+  WITHDRAWN: "retiré(s) de la vente",
 };
 
 const DOSSIER_STATUS_LABEL: Record<string, string> = {
   NEW_LEAD: "nouveau lead",
-  RESERVATION_SENT: "réservation envoyée",
+  RESERVATION_SENT: "réservation signée",
   SIGNATURE_PENDING: "signature en attente",
   SIGNED_AT_NOTARY: "chez le notaire",
   LOAN_OFFER_RECEIVED: "offre de prêt reçue",

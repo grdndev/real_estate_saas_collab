@@ -1,5 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
+import type { LotStatus } from "@/generated/prisma/enums";
 
 const eur = new Intl.NumberFormat("fr-FR", {
   style: "currency",
@@ -11,14 +13,6 @@ function formatEur(value: number): string {
   return eur.format(value).replace(/[\u202f\u00a0]/gu, " ");
 }
 
-const STATUS_LABEL: Record<string, string> = {
-  AVAILABLE: "Disponible",
-  OPTIONED: "Optionné",
-  RESERVED: "Réservé",
-  SOLD: "Vendu",
-  WITHDRAWN: "Retiré",
-};
-
 export interface LotPdfRow {
   reference: string;
   surface: number;
@@ -27,7 +21,7 @@ export interface LotPdfRow {
   priceHT: number;
   vatRate: number;
   priceTTC: number;
-  status: string;
+  status: LotStatus;
 }
 
 export function generateLotsPdf(
@@ -78,7 +72,7 @@ export function generateLotsPdf(
       formatEur(lot.priceHT),
       `${lot.vatRate} %`,
       formatEur(lot.priceTTC),
-      STATUS_LABEL[lot.status] ?? lot.status,
+      LOT_STATUS_BADGE[lot.status].label,
     ]),
     margin: { left: ML, right: MR },
     styles: { fontSize: 9, cellPadding: 2.5 },
