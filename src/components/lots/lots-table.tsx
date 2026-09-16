@@ -34,10 +34,10 @@ export interface LotRow {
   clientPhone: string | null;
   clientEmail: string | null;
   programmeName: string;
-  /** Statut commercial : celui du dossier actif, `null` si le lot est libre. */
-  statusLabel: string | null;
-  /** Statut contractuel : celui du lot lui-même (disponible, optionné, vendu…). */
-  lotStatusLabel: string;
+  /** Statut commercial : celui du LOT (disponible, optionné, réservé, vendu…). */
+  commercialStatusLabel: string;
+  /** Statut contractuel : celui du CONTRAT du dossier, `null` hors phase contrat. */
+  contractStatusLabel: string | null;
   responsable: string | null;
   lastActivity: string;
 
@@ -112,12 +112,12 @@ const COLUMNS: ColumnDef[] = [
   {
     key: "statut",
     label: "Statut commercial",
-    render: (r) => r.statusLabel ?? "—",
+    render: (r) => r.commercialStatusLabel,
   },
   {
     key: "statutLot",
     label: "Statut contractuel",
-    render: (r) => r.lotStatusLabel,
+    render: (r) => r.contractStatusLabel ?? "—",
   },
   {
     key: "responsable",

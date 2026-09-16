@@ -27,7 +27,9 @@ function buildHref(
 ): string {
   const associes = overrides.associes ?? filters.associes;
   return `?${new URLSearchParams({
-    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.contractStatus
+      ? { contractStatus: filters.contractStatus }
+      : {}),
     ...(filters.lotStatus ? { lotStatus: filters.lotStatus } : {}),
     ...(filters.programmeId ? { programmeId: filters.programmeId } : {}),
     ...(filters.search ? { search: filters.search } : {}),

@@ -1,18 +1,17 @@
 import { z } from "zod";
 
-import { dossierStatusEnum } from "@/lib/dossier/schemas";
+import { contractStatusEnum } from "@/lib/dossier/schemas";
 
 /**
  * Filtres de la liste des lots (`/collaborateur/lots`, `/admin/lots`).
  *
  * La liste est centrée sur le LOT : un lot y figure qu'il porte un dossier ou
- * non. Les filtres `status` (statut commercial) portent donc sur le dossier
- * actif du lot et excluent mécaniquement les lots libres.
+ * non. Chaque filtre porte sur le champ que sa colonne affiche.
  */
 export const lotFiltersSchema = z.object({
-  /** Statut commercial du dossier actif. */
-  status: dossierStatusEnum.optional(),
-  /** Statut du lot lui-même (disponible, réservé, vendu…). */
+  /** Statut contractuel : contrat du dossier actif. Exclut les lots libres. */
+  contractStatus: contractStatusEnum.optional(),
+  /** Statut commercial : statut du lot lui-même. */
   lotStatus: z
     .enum(["AVAILABLE", "OPTIONED", "RESERVED", "SOLD", "WITHDRAWN"])
     .optional(),

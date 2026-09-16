@@ -176,7 +176,7 @@ export async function DossierSidePanel({
 
       <Card>
         <CardHeader>
-          <CardTitle>Changer le statut commercial</CardTitle>
+          <CardTitle>Changer le statut du dossier</CardTitle>
         </CardHeader>
         <CardContent>
           <StatusTransition

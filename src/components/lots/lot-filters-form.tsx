@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
+import {
+  CONTRACT_STATUS_LABEL,
+  CONTRACT_STATUS_ORDER,
+} from "@/lib/dossier/labels";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 
 interface Programme {
@@ -13,19 +16,19 @@ interface Programme {
   name: string;
 }
 
-const STATUS_OPTIONS = [
+const COMMERCIAL_STATUS_OPTIONS = [
   { value: "", label: "Tous les statuts commerciaux" },
-  ...Object.entries(DOSSIER_STATUS_BADGE).map(([value, b]) => ({
+  ...Object.entries(LOT_STATUS_BADGE).map(([value, b]) => ({
     value,
     label: b.label,
   })),
 ];
 
-const LOT_STATUS_OPTIONS = [
+const CONTRACT_STATUS_OPTIONS = [
   { value: "", label: "Tous les statuts contractuels" },
-  ...Object.entries(LOT_STATUS_BADGE).map(([value, b]) => ({
+  ...CONTRACT_STATUS_ORDER.map((value) => ({
     value,
-    label: b.label,
+    label: CONTRACT_STATUS_LABEL[value],
   })),
 ];
 
@@ -67,22 +70,22 @@ export function LotFiltersForm({
         aria-label="Rechercher dans les lots"
       />
       <Select
-        defaultValue={params.get("status") ?? ""}
-        onChange={(e) => update("status", e.target.value)}
+        defaultValue={params.get("lotStatus") ?? ""}
+        onChange={(e) => update("lotStatus", e.target.value)}
         aria-label="Filtrer par statut commercial"
       >
-        {STATUS_OPTIONS.map((opt) => (
+        {COMMERCIAL_STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>
         ))}
       </Select>
       <Select
-        defaultValue={params.get("lotStatus") ?? ""}
-        onChange={(e) => update("lotStatus", e.target.value)}
+        defaultValue={params.get("contractStatus") ?? ""}
+        onChange={(e) => update("contractStatus", e.target.value)}
         aria-label="Filtrer par statut contractuel"
       >
-        {LOT_STATUS_OPTIONS.map((opt) => (
+        {CONTRACT_STATUS_OPTIONS.map((opt) => (
           <option key={opt.value} value={opt.value}>
             {opt.label}
           </option>

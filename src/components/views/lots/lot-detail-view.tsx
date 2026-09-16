@@ -8,7 +8,11 @@ import { DossierSidePanel } from "@/components/views/dossiers/dossier-side-panel
 import { LotDossierHistoryCard } from "@/components/views/lots/lot-dossier-history-card";
 import { LotInfoCard } from "@/components/views/lots/lot-info-card";
 import { prisma } from "@/lib/prisma";
-import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
+import {
+  CONTRACT_STATUS_BADGE,
+  CONTRACT_STATUS_LABEL,
+  DOSSIER_STATUS_BADGE,
+} from "@/lib/dossier/labels";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 
 /**
@@ -38,6 +42,7 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
         select: {
           id: true,
           status: true,
+          contractStatus: true,
           client: { select: { firstName: true, lastName: true, status: true } },
         },
       },
@@ -49,6 +54,7 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
   const lotPath = `${basePath}/${lot.id}`;
   const lotBadge = LOT_STATUS_BADGE[lot.status];
   const dossierBadge = dossier ? DOSSIER_STATUS_BADGE[dossier.status] : null;
+  const contractStatus = dossier?.contractStatus ?? null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,6 +78,11 @@ export async function LotDetailView({ lotId, currentUserId, basePath }: Props) {
               {dossierBadge && (
                 <Badge variant={dossierBadge.variant}>
                   {dossierBadge.label}
+                </Badge>
+              )}
+              {contractStatus && (
+                <Badge variant={CONTRACT_STATUS_BADGE[contractStatus]}>
+                  {CONTRACT_STATUS_LABEL[contractStatus]}
                 </Badge>
               )}
               {dossier?.client.status === "NO_ACCOUNT" && (

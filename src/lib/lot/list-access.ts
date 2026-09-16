@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { DOSSIER_STATUS_BADGE } from "@/lib/dossier/labels";
+import { CONTRACT_STATUS_LABEL } from "@/lib/dossier/labels";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
 import { decodePhone } from "@/lib/profile";
 import { displayableEmail } from "@/lib/user/no-account";
@@ -90,7 +90,8 @@ function buildLotWhere(filters: LotFiltersInput): Prisma.LotWhereInput {
   if (filters.programmeId) conds.push({ programmeId: filters.programmeId });
   if (filters.lotStatus) conds.push({ status: filters.lotStatus });
   if (filters.associes) conds.push({ dossierId: { not: null } });
-  if (filters.status) conds.push({ dossier: { status: filters.status } });
+  if (filters.contractStatus)
+    conds.push({ dossier: { contractStatus: filters.contractStatus } });
   if (filters.search) {
     conds.push({
       OR: [
@@ -232,9 +233,8 @@ const fmt = (d: Date | null) => (d ? d.toLocaleDateString("fr-FR") : null);
 /** Projette un lot et son dossier actif en ligne de tableau. */
 function toLotRow(lot: LotWithRelations): LotRow {
   const d = lot.dossier;
-  // Le statut commercial est celui du dossier : sans dossier, la colonne reste
-  // vide plutôt que de recopier le statut du lot.
-  const sb = d ? DOSSIER_STATUS_BADGE[d.status] : null;
+  // Statut commercial = celui du lot ; statut contractuel = celui du contrat du
+  // dossier, absent tant que le dossier n'est pas entré en phase contrat.
   const primary = d?.participants[0]?.user;
   const totalSurface = Number(lot.surface) + Number(lot.annexSurface ?? 0);
   return {
@@ -245,8 +245,10 @@ function toLotRow(lot: LotWithRelations): LotRow {
     clientPhone: d ? decodePhone(d.client.phoneEnc) || null : null,
     clientEmail: d ? displayableEmail(d.client.email) : null,
     programmeName: lot.programme.name,
-    statusLabel: sb?.label ?? null,
-    lotStatusLabel: LOT_STATUS_BADGE[lot.status].label,
+    commercialStatusLabel: LOT_STATUS_BADGE[lot.status].label,
+    contractStatusLabel: d?.contractStatus
+      ? CONTRACT_STATUS_LABEL[d.contractStatus]
+      : null,
     responsable: primary ? `${primary.firstName} ${primary.lastName}` : null,
     lastActivity: d ? (fmt(d.lastActivityAt) ?? "—") : "—",
 

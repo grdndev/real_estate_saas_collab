@@ -9,7 +9,7 @@ export const metadata: Metadata = { title: "Lots · Admin" };
 
 interface PageProps {
   searchParams: Promise<{
-    status?: string;
+    contractStatus?: string;
     lotStatus?: string;
     programmeId?: string;
     search?: string;
