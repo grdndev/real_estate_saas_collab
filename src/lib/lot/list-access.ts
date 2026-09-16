@@ -246,6 +246,7 @@ function toLotRow(lot: LotWithRelations): LotRow {
     clientEmail: d ? displayableEmail(d.client.email) : null,
     programmeName: lot.programme.name,
     commercialStatusLabel: LOT_STATUS_BADGE[lot.status].label,
+    commercialStatusVariant: LOT_STATUS_BADGE[lot.status].variant,
     contractStatusLabel: d?.contractStatus
       ? CONTRACT_STATUS_LABEL[d.contractStatus]
       : null,
