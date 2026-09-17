@@ -30,6 +30,8 @@ const LIGNE = 5;
 const LARGEUR_TEXTE = 210 - MARGES.gauche - MARGES.droite;
 /** Colonne du bloc destinataire et de la signature. */
 const COLONNE_DROITE = 115;
+/** Le logo du promoteur est plus haut que celui de l'agence (cf. modèle). */
+const LOGO_HAUTEUR_PROMOTEUR = 26;
 
 /** Capitale initiale seule : « TRENTE MILLE… » → « Trente mille… ». */
 function casserLesCapitales(texte: string): string {
@@ -108,7 +110,12 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
   const doc = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
   const pourcentage = String(data.appelPourcentage).replace(".", ",");
 
-  let y = drawEnTete(doc, data.logoDataUrl, SOCIETE_PROMOTEUR);
+  let y = drawEnTete(
+    doc,
+    data.logoDataUrl,
+    SOCIETE_PROMOTEUR,
+    LOGO_HAUTEUR_PROMOTEUR,
+  );
   y = drawBlocDestinataire(doc, y, data);
 
   y = drawObjet(

@@ -124,12 +124,13 @@ export function drawEnTete(
   doc: jsPDF,
   logoDataUrl?: string | null,
   societe: MentionsSociete = SOCIETE,
+  hauteurLogo: number = LOGO_HAUTEUR,
 ): number {
   if (logoDataUrl) {
     // Un data URL corrompu ne doit pas casser la génération : fallback texte.
     try {
       const props = doc.getImageProperties(logoDataUrl);
-      const largeur = (props.width / props.height) * LOGO_HAUTEUR;
+      const largeur = (props.width / props.height) * hauteurLogo;
       const format = logoDataUrl.startsWith("data:image/png") ? "PNG" : "JPEG";
       doc.addImage(
         logoDataUrl,
@@ -137,9 +138,9 @@ export function drawEnTete(
         MARGES.gauche,
         14,
         largeur,
-        LOGO_HAUTEUR,
+        hauteurLogo,
       );
-      return 36;
+      return 14 + hauteurLogo + 8;
     } catch {
       // Ignoré : on dessine l'en-tête texte ci-dessous.
     }
