@@ -13,9 +13,15 @@ export interface MentionsSociete {
   formeJuridique: string;
   /** Adresse du siège, sur une ligne. Omise si l'entité n'en affiche pas. */
   adresse?: string;
+  /** Code postal + commune, seconde ligne d'adresse du bandeau promoteur. */
+  ville?: string;
+  /** Commune seule, pour la mention de lieu en tête de courrier. */
+  commune?: string;
   siret: string;
   /** TVA intracommunautaire, si le document doit la porter. */
   tva?: string;
+  /** Code APE, affiché à droite du bandeau promoteur. */
+  ape?: string;
   /** Carte professionnelle : agents immobiliers uniquement. */
   cpi?: string;
   telephone?: string;
@@ -40,21 +46,19 @@ export const SOCIETE: MentionsSociete = {
 
 /**
  * Domaine de la Réunion — promoteur. Courriers d'appel de fonds.
- * Source : API Recherche d'entreprises (INSEE + RNE), SIREN 444 841 241.
- * Aucune carte professionnelle : activité de promotion immobilière (NAF 41.10A),
- * pas de transaction sur immeubles.
- *
- * ⚠️ TODO : capital social et ville du RCS relevés sur une source secondaire,
- * à confirmer sur l'extrait Kbis.
+ * Valeurs relevées sur le courrier de référence fourni par le client
+ * (APE 6810 Z, qui diffère du 41.10A enregistré à l'INSEE).
  */
 export const SOCIETE_PROMOTEUR: MentionsSociete = {
   nom: "Domaine de la Réunion",
-  formeJuridique: "SARL au capital de 8 000 €",
-  adresse: "76 avenue Pierre Mendès France, 97441 Sainte-Suzanne",
-  siret: "Siret 444 841 241 00029 - RCS Saint-Denis de La Réunion",
-  tva: "TVA FR63444841241",
-  telephone: "Tél. 0262 23 62 01",
-  email: "christianvirapatrin@orange.fr",
+  formeJuridique: "SARL",
+  adresse: "76 Avenue Pierre Mendès France",
+  ville: "97441 Sainte-Suzanne",
+  commune: "Sainte-Suzanne",
+  siret: "444 841 241 00029",
+  ape: "6810 Z",
+  telephone: "0262 23 62 01",
+  email: "domainedelareunion@orange.fr",
 };
 
 /** Couleurs de la charte (voir globals.css). */
@@ -62,6 +66,10 @@ export const COULEURS = {
   turquoise: [15, 184, 169] as const, // --color-equatis-turquoise
   night: [15, 23, 42] as const, // texte principal
   gris: [71, 85, 105] as const, // texte secondaire
+  // Bandeau de pied de page du promoteur (charte Domaine de la Réunion).
+  bandeau: [16, 33, 67] as const, // bleu nuit du fond
+  bandeauTexte: [255, 255, 255] as const,
+  bandeauPuce: [232, 196, 122] as const, // pastilles dorées
 };
 
 /** Marges par défaut des documents (en mm). */
@@ -108,11 +116,15 @@ export function formatDateFr(date: Date): string {
 const LOGO_HAUTEUR = 14;
 
 /**
- * Dessine l'en-tête Équatis. Si un logo est fourni (data URL PNG/JPEG),
- * il remplace le wordmark texte ; sinon, wordmark texte + filet.
+ * Dessine l'en-tête. Si un logo est fourni (data URL PNG/JPEG), il remplace le
+ * wordmark texte ; sinon, wordmark texte + filet au nom de `societe`.
  * Retourne la position Y sous l'en-tête, à partir de laquelle écrire la suite.
  */
-export function drawEnTete(doc: jsPDF, logoDataUrl?: string | null): number {
+export function drawEnTete(
+  doc: jsPDF,
+  logoDataUrl?: string | null,
+  societe: MentionsSociete = SOCIETE,
+): number {
   if (logoDataUrl) {
     // Un data URL corrompu ne doit pas casser la génération : fallback texte.
     try {
@@ -136,7 +148,7 @@ export function drawEnTete(doc: jsPDF, logoDataUrl?: string | null): number {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(20);
   doc.setTextColor(...COULEURS.turquoise);
-  doc.text(SOCIETE.nom.toUpperCase(), MARGES.gauche, 22);
+  doc.text(societe.nom.toUpperCase(), MARGES.gauche, 22);
 
   // Filet sous le wordmark.
   doc.setDrawColor(...COULEURS.turquoise);
@@ -187,5 +199,64 @@ export function drawPiedDePage(
     .join(" - ");
   if (contact) {
     doc.text(contact, centreX, hauteur - 11, { align: "center" });
+  }
+}
+
+/** Hauteur du bandeau de pied de page du promoteur (en mm). */
+export const BANDEAU_HAUTEUR = 30;
+
+/**
+ * Pied de page du promoteur : bandeau plein pleine largeur, coordonnées à
+ * gauche précédées d'une pastille, identifiants légaux à droite.
+ * Reproduit le courrier de référence fourni par le client.
+ */
+export function drawBandeauPromoteur(
+  doc: jsPDF,
+  societe: MentionsSociete,
+): void {
+  const largeur = doc.internal.pageSize.getWidth();
+  const hauteur = doc.internal.pageSize.getHeight();
+  const hautBandeau = hauteur - BANDEAU_HAUTEUR;
+
+  doc.setFillColor(...COULEURS.bandeau);
+  doc.rect(0, hautBandeau, largeur, BANDEAU_HAUTEUR, "F");
+
+  const xPuce = MARGES.gauche;
+  const xTexte = xPuce + 5;
+  doc.setTextColor(...COULEURS.bandeauTexte);
+
+  // Bloc adresse : deux lignes serrées, en gras comme sur le modèle.
+  let y = hautBandeau + 8;
+  doc.setFillColor(...COULEURS.bandeauPuce);
+  doc.circle(xPuce, y - 1.2, 1.4, "F");
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  if (societe.adresse) doc.text(societe.adresse, xTexte, y);
+  if (societe.ville) doc.text(societe.ville, xTexte, y + 3.2);
+
+  doc.setFont("helvetica", "normal");
+  if (societe.telephone) {
+    y += 10;
+    doc.setFillColor(...COULEURS.bandeauPuce);
+    doc.circle(xPuce, y - 1.2, 1.4, "F");
+    doc.text(societe.telephone, xTexte, y);
+  }
+  if (societe.email) {
+    y += 7;
+    doc.setFillColor(...COULEURS.bandeauPuce);
+    doc.circle(xPuce, y - 1.2, 1.4, "F");
+    doc.text(societe.email, xTexte, y);
+  }
+
+  // Identifiants légaux, alignés à droite sur la dernière ligne de contact.
+  const identifiants = [
+    societe.siret ? `Siret : ${societe.siret}` : null,
+    societe.ape ? `Ape : ${societe.ape}` : null,
+  ]
+    .filter(Boolean)
+    .join(" - ");
+  if (identifiants) {
+    doc.setFontSize(7.5);
+    doc.text(identifiants, largeur - MARGES.droite, y, { align: "right" });
   }
 }

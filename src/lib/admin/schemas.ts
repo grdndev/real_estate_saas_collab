@@ -93,5 +93,15 @@ export const settingsSchema = z.object({
     .max(700_000, "Image trop lourde (500 Ko max)")
     .optional()
     .nullable(),
+  // Logo du promoteur — courriers d'appel de fonds uniquement.
+  PROMOTER_LOGO: z
+    .string()
+    .regex(
+      /^data:image\/(png|jpeg);base64,/,
+      "Format d'image invalide (PNG ou JPEG)",
+    )
+    .max(700_000, "Image trop lourde (500 Ko max)")
+    .optional()
+    .nullable(),
 });
 export type SettingsInput = z.infer<typeof settingsSchema>;

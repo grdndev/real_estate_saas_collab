@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/guards";
-import { getCompanyLogo, getSettings } from "@/lib/settings";
+import { getCompanyLogo, getPromoterLogo, getSettings } from "@/lib/settings";
 import { SettingsForm } from "./settings-form";
 
 export const metadata: Metadata = { title: "Paramètres globaux" };
@@ -11,7 +11,11 @@ export default async function ParametresPage() {
   // Défense en profondeur : proxy.ts filtre déjà /admin, la garde revérifie ici.
   await requireRole("SUPER_ADMIN");
 
-  const [settings, logo] = await Promise.all([getSettings(), getCompanyLogo()]);
+  const [settings, logo, promoterLogo] = await Promise.all([
+    getSettings(),
+    getCompanyLogo(),
+    getPromoterLogo(),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -29,7 +33,13 @@ export default async function ParametresPage() {
           <CardTitle>Plateforme</CardTitle>
         </CardHeader>
         <CardContent>
-          <SettingsForm initial={{ ...settings, COMPANY_LOGO: logo }} />
+          <SettingsForm
+            initial={{
+              ...settings,
+              COMPANY_LOGO: logo,
+              PROMOTER_LOGO: promoterLogo,
+            }}
+          />
         </CardContent>
       </Card>
 

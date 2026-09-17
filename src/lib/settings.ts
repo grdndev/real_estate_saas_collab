@@ -42,6 +42,29 @@ export async function getCompanyLogo(): Promise<string | null> {
   return value;
 }
 
+// Logo du promoteur : bandeau et en-tête des courriers d'appel de fonds.
+// Distinct de COMPANY_LOGO, qui reste celui de l'agence (honoraires).
+const PROMOTER_LOGO_KEY = "PROMOTER_LOGO";
+let promoterLogoCache: { value: string | null; expiresAt: number } | null =
+  null;
+
+export function invalidatePromoterLogoCache(): void {
+  promoterLogoCache = null;
+}
+
+/** Logo du promoteur en data URL (base64), ou null si aucun logo défini. */
+export async function getPromoterLogo(): Promise<string | null> {
+  if (promoterLogoCache && Date.now() < promoterLogoCache.expiresAt) {
+    return promoterLogoCache.value;
+  }
+  const row = await prisma.setting.findUnique({
+    where: { key: PROMOTER_LOGO_KEY },
+  });
+  const value = row?.value || null;
+  promoterLogoCache = { value, expiresAt: Date.now() + CACHE_TTL_MS };
+  return value;
+}
+
 export async function getSettings(): Promise<PlatformSettings> {
   if (cache && Date.now() < cache.expiresAt) return cache.value;
   const rows = await prisma.setting.findMany({

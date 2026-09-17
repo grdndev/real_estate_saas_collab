@@ -9,9 +9,9 @@ import {
 } from "@/lib/pdf/pdf-appel-fonds";
 import { formatAdresseProgramme } from "@/lib/pdf/letterhead";
 import { prisma } from "@/lib/prisma";
-import { decodeAddress } from "@/lib/profile";
+import { decodeAddress, decodeText } from "@/lib/profile";
 import { getRequestContext } from "@/lib/request-context";
-import { getCompanyLogo } from "@/lib/settings";
+import { getPromoterLogo } from "@/lib/settings";
 
 interface RouteContext {
   params: Promise<{ lotId: string }>;
@@ -50,7 +50,13 @@ export async function GET(request: Request, ctx: RouteContext) {
       dossier: {
         include: {
           client: {
-            select: { firstName: true, lastName: true, addressEnc: true },
+            select: {
+              firstName: true,
+              lastName: true,
+              email: true,
+              addressEnc: true,
+              additionalEmailsEnc: true,
+            },
           },
         },
       },
@@ -74,6 +80,15 @@ export async function GET(request: Request, ctx: RouteContext) {
   if (!adresse) {
     return erreur("Le client n'a pas d'adresse postale renseignée.", 400);
   }
+  // Emails des acquéreurs : celui du compte, puis les adresses complémentaires
+  // (conjoint…), saisies en texte libre séparé par virgules ou retours ligne.
+  const emailsClient = [
+    client.email,
+    ...decodeText(client.additionalEmailsEnc)
+      .split(/[\n,;]+/)
+      .map((e) => e.trim()),
+  ].filter((e) => e.length > 0);
+
   const fondsAppele = lot.fondsSuivi?.fondsAppeles[0] ?? null;
   if (!fondsAppele) {
     return erreur(`Appel de fonds n° ${numero} introuvable pour ce lot.`, 404);
@@ -97,11 +112,12 @@ export async function GET(request: Request, ctx: RouteContext) {
     programmeAdresse:
       formatAdresseProgramme(lot.programme) ??
       "Adresse du programme non renseignée",
+    clientEmails: emailsClient,
     lotReference: lot.reference,
     appelLabel: appel.label,
     appelPourcentage: Number(appel.pourcentage),
     appelMontant: Number(fondsAppele.montant),
-    logoDataUrl: await getCompanyLogo(),
+    logoDataUrl: await getPromoterLogo(),
   };
 
   const pdf = generateAppelFondsPdf(data);

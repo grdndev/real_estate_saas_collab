@@ -14,6 +14,7 @@ import { getRequestContext } from "@/lib/request-context";
 import { canBeContactedByEmail } from "@/lib/user/no-account";
 import {
   invalidateCompanyLogoCache,
+  invalidatePromoterLogoCache,
   invalidateSettingsCache,
 } from "@/lib/settings";
 import {
@@ -748,9 +749,13 @@ export async function updateSettingsAction(
     };
   }
   const ctx = await getRequestContext();
-  // COMPANY_LOGO est traité à part : valeur vide/null = suppression de la clé.
-  const { COMPANY_LOGO, ...plateforme } = parsed.data;
+  // Les logos sont traités à part : valeur vide/null = suppression de la clé.
+  const { COMPANY_LOGO, PROMOTER_LOGO, ...plateforme } = parsed.data;
   const entries = Object.entries(plateforme);
+  const logos: Array<[string, string | null | undefined]> = [
+    ["COMPANY_LOGO", COMPANY_LOGO],
+    ["PROMOTER_LOGO", PROMOTER_LOGO],
+  ];
 
   await prisma.$transaction([
     ...entries.map(([key, value]) =>
@@ -760,20 +765,19 @@ export async function updateSettingsAction(
         update: { value: String(value), updatedBy: me.id },
       }),
     ),
-    COMPANY_LOGO
-      ? prisma.setting.upsert({
-          where: { key: "COMPANY_LOGO" },
-          create: {
-            key: "COMPANY_LOGO",
-            value: COMPANY_LOGO,
-            updatedBy: me.id,
-          },
-          update: { value: COMPANY_LOGO, updatedBy: me.id },
-        })
-      : prisma.setting.deleteMany({ where: { key: "COMPANY_LOGO" } }),
+    ...logos.map(([key, value]) =>
+      value
+        ? prisma.setting.upsert({
+            where: { key },
+            create: { key, value, updatedBy: me.id },
+            update: { value, updatedBy: me.id },
+          })
+        : prisma.setting.deleteMany({ where: { key } }),
+    ),
   ]);
   invalidateSettingsCache();
   invalidateCompanyLogoCache();
+  invalidatePromoterLogoCache();
 
   await audit({
     userId: me.id,
@@ -783,7 +787,7 @@ export async function updateSettingsAction(
     userAgent: ctx.userAgent,
     metadata: `Paramètres de la plateforme mis à jour : ${[
       ...entries.map(([k]) => k),
-      COMPANY_LOGO ? "COMPANY_LOGO" : "COMPANY_LOGO (supprimé)",
+      ...logos.map(([k, v]) => (v ? k : `${k} (supprimé)`)),
     ].join(", ")}`,
   });
   revalidatePath("/admin/parametres");
