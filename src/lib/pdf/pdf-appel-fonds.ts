@@ -3,7 +3,7 @@ import { jsPDF } from "jspdf";
 import {
   COULEURS,
   MARGES,
-  SOCIETE,
+  SOCIETE_PROMOTEUR,
   drawEnTete,
   drawPiedDePage,
   formatDateFr,
@@ -66,7 +66,7 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
   y = drawParagraphe(
     doc,
     y,
-    `Objet : Appel de fonds ${pourcentage} - ${data.appelLabel} - Lot ${data.lotReference} ${data.programmeName}`,
+    `Objet : Appel de fonds ${pourcentage}% - ${data.appelLabel} - Lot ${data.lotReference} ${data.programmeName}`,
   );
 
   doc.setFont("helvetica", "normal");
@@ -85,15 +85,15 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
   y = drawParagraphe(
     doc,
     y,
-    `Je vous prie de trouver ci-joint l'attesation transmise par le Maître d'oeuvre: ` +
+    `Je vous prie de trouver ci-joint l'attestation transmise par le Maître d'œuvre : ` +
       `Charles MORIN, gérant de la société I2C (en charge du projet ${data.programmeName}, situé au ${data.programmeAdresse}).`,
   );
 
   y = drawParagraphe(
     doc,
     y,
-    `Je vous prie de trouver ci-joint, le RIB du compte promotion "${data.programmeName}" de la société` +
-      "Domaine de la Réunion sur lequel vous devrez réaliser votre prochain versement.",
+    `Je vous prie de trouver ci-joint le RIB du compte promotion "${data.programmeName}" de la société ` +
+      "Domaine de la Réunion, sur lequel vous devrez réaliser votre prochain versement.",
   );
 
   y = drawParagraphe(
@@ -104,9 +104,9 @@ export function generateAppelFondsPdf(data: AppelFondsPdfData): Buffer {
 
   y += 6;
   doc.setFont("helvetica", "bold");
-  doc.text(`Christian VIRAPATRIN, Gérant`, 130, y);
+  doc.text("Christian VIRAPATRIN, Gérant", 130, y);
 
-  drawPiedDePage(doc);
+  drawPiedDePage(doc, SOCIETE_PROMOTEUR);
 
   return Buffer.from(doc.output("arraybuffer"));
 }

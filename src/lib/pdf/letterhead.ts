@@ -7,7 +7,23 @@ import type { jsPDF } from "jspdf";
  * ⚠️ TODO : remplacer les valeurs placeholder ci-dessous par les vraies
  * mentions légales de la société avant mise en production.
  */
-export const SOCIETE = {
+/** Mentions légales portées par le pied de page d'un document. */
+export interface MentionsSociete {
+  nom: string;
+  formeJuridique: string;
+  /** Adresse du siège, sur une ligne. Omise si l'entité n'en affiche pas. */
+  adresse?: string;
+  siret: string;
+  /** TVA intracommunautaire, si le document doit la porter. */
+  tva?: string;
+  /** Carte professionnelle : agents immobiliers uniquement. */
+  cpi?: string;
+  telephone?: string;
+  email?: string;
+}
+
+/** Équatis — agence. Documents d'honoraires de négociation. */
+export const SOCIETE: MentionsSociete = {
   nom: "Équatis",
   // Forme juridique et capital - PLACEHOLDER
   formeJuridique: "Société par actions simplifiée au capital de 1 000 €",
@@ -20,6 +36,25 @@ export const SOCIETE = {
   // Coordonnées - PLACEHOLDER
   telephone: "Tél. 02 62 23 62 01 / 06 92 45 22 10",
   email: "equatisimmo@gmail.com",
+};
+
+/**
+ * Domaine de la Réunion — promoteur. Courriers d'appel de fonds.
+ * Source : API Recherche d'entreprises (INSEE + RNE), SIREN 444 841 241.
+ * Aucune carte professionnelle : activité de promotion immobilière (NAF 41.10A),
+ * pas de transaction sur immeubles.
+ *
+ * ⚠️ TODO : capital social et ville du RCS relevés sur une source secondaire,
+ * à confirmer sur l'extrait Kbis.
+ */
+export const SOCIETE_PROMOTEUR: MentionsSociete = {
+  nom: "Domaine de la Réunion",
+  formeJuridique: "SARL au capital de 8 000 €",
+  adresse: "76 avenue Pierre Mendès France, 97441 Sainte-Suzanne",
+  siret: "Siret 444 841 241 00029 - RCS Saint-Denis de La Réunion",
+  tva: "TVA FR63444841241",
+  telephone: "Tél. 0262 23 62 01",
+  email: "christianvirapatrin@orange.fr",
 };
 
 /** Couleurs de la charte (voir globals.css). */
@@ -114,9 +149,13 @@ export function drawEnTete(doc: jsPDF, logoDataUrl?: string | null): number {
 const LARGEUR_TEXTE = 210 - MARGES.gauche - MARGES.droite;
 
 /**
- * Dessine le pied de page société (mentions légales) centré en bas de page.
+ * Dessine le pied de page (mentions légales) centré en bas de page.
+ * `societe` par défaut : Équatis. Les champs absents sont simplement omis.
  */
-export function drawPiedDePage(doc: jsPDF): void {
+export function drawPiedDePage(
+  doc: jsPDF,
+  societe: MentionsSociete = SOCIETE,
+): void {
   const largeur = doc.internal.pageSize.getWidth();
   const hauteur = doc.internal.pageSize.getHeight();
   const centreX = largeur / 2;
@@ -129,12 +168,24 @@ export function drawPiedDePage(doc: jsPDF): void {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
   doc.setTextColor(...COULEURS.gris);
-  const lignes = doc.splitTextToSize(
-    `${SOCIETE.nom} - ${SOCIETE.formeJuridique} - ${SOCIETE.siret} - ${SOCIETE.cpi}`,
-    LARGEUR_TEXTE,
-  ) as string[];
+
+  const mentions = [
+    societe.nom,
+    societe.formeJuridique,
+    societe.adresse,
+    societe.siret,
+    societe.tva,
+    societe.cpi,
+  ]
+    .filter(Boolean)
+    .join(" - ");
+  const lignes = doc.splitTextToSize(mentions, LARGEUR_TEXTE) as string[];
   doc.text(lignes, centreX, hauteur - 17, { align: "center" });
-  doc.text(`${SOCIETE.telephone} - ${SOCIETE.email}`, centreX, hauteur - 11, {
-    align: "center",
-  });
+
+  const contact = [societe.telephone, societe.email]
+    .filter(Boolean)
+    .join(" - ");
+  if (contact) {
+    doc.text(contact, centreX, hauteur - 11, { align: "center" });
+  }
 }
