@@ -58,7 +58,7 @@ export const SOCIETE_PROMOTEUR: MentionsSociete = {
   siret: "444 841 241 00029",
   ape: "6810 Z",
   telephone: "0262 23 62 01",
-  email: "domainedelareunion@orange.fr",
+  email: "domainedelareunion@gmail.com",
 };
 
 /** Couleurs de la charte (voir globals.css). */

@@ -20,6 +20,7 @@ import { UnassignClientButton } from "@/components/collab/unassign-client";
 import { PromoterAssignment } from "@/components/admin/promoter-assignment";
 import { LotReferenceHeader } from "@/components/views/lots/lot-reference-header";
 import { LOT_STATUS_BADGE } from "@/lib/lot/labels";
+import { applyLotFilters, type LotFilter } from "@/lib/lot/filter";
 import { sortByLotReference, type LotSortDirection } from "@/lib/lot/sort";
 import { PROGRAMME_STATUS_BADGE } from "@/lib/programme/labels";
 import type { Prisma } from "@/generated/prisma/client";
@@ -49,6 +50,8 @@ interface Props {
   canManagePromoters: boolean;
   /** Sens du tri naturel sur la référence de lot (T13). */
   sortDirection: LotSortDirection;
+  /** Filtres actifs ; absent = pas de bouton de filtrage. */
+  filters?: LotFilter[];
 }
 
 const eur = new Intl.NumberFormat("fr-FR", {
@@ -71,11 +74,12 @@ export function ProgrammeDetailView({
   canEdit,
   canManagePromoters,
   sortDirection,
+  filters,
 }: Props) {
   const badge = PROGRAMME_STATUS_BADGE[programme.status];
   // Tri naturel : « Lot 2 » précède « Lot 10 » (T13).
   const lots = sortByLotReference(
-    programme.lots,
+    applyLotFilters(programme.lots, filters ?? []),
     (l) => l.reference,
     sortDirection,
   );
@@ -181,7 +185,11 @@ export function ProgrammeDetailView({
             <Table>
               <THead>
                 <Tr>
-                  <LotReferenceHeader direction={sortDirection} label="Réf." />
+                  <LotReferenceHeader
+                    direction={sortDirection}
+                    label="Réf."
+                    filters={filters}
+                  />
                   <Th>Surface habitable</Th>
                   <Th>Surface annexe</Th>
                   <Th>Surface utile SUV</Th>
@@ -195,6 +203,13 @@ export function ProgrammeDetailView({
                 </Tr>
               </THead>
               <TBody>
+                {lots.length === 0 && (
+                  <Tr>
+                    <Td colSpan={11} className="text-center text-slate-500">
+                      Aucun lot ne correspond aux filtres.
+                    </Td>
+                  </Tr>
+                )}
                 {lots.map((lot) => {
                   const lb = LOT_STATUS_BADGE[lot.status];
                   return (

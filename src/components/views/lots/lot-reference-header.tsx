@@ -2,6 +2,12 @@ import Link from "next/link";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
 import { Th } from "@/components/ui/table";
+import { LotFilterMenu } from "@/components/views/lots/lot-filter-menu";
+import {
+  LOT_FILTER_PARAM,
+  serializeLotFilter,
+  type LotFilter,
+} from "@/lib/lot/filter";
 import { toggleSortDirection, type LotSortDirection } from "@/lib/lot/sort";
 
 /**
@@ -15,17 +21,26 @@ interface Props {
   label?: string;
   /** Paramètres d'URL à préserver en changeant de sens. */
   preserve?: Record<string, string | undefined>;
+  /**
+   * Filtres actifs : affiche le bouton de filtrage à gauche du libellé et les
+   * conserve en changeant de sens. Absent = pas de filtrage.
+   */
+  filters?: LotFilter[];
 }
 
 export function LotReferenceHeader({
   direction,
   label = "Lot",
   preserve = {},
+  filters,
 }: Props) {
   const next = toggleSortDirection(direction);
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(preserve)) {
     if (value) params.set(key, value);
+  }
+  for (const f of filters ?? []) {
+    params.append(LOT_FILTER_PARAM, serializeLotFilter(f));
   }
   params.set("tri", next);
 
@@ -33,6 +48,11 @@ export function LotReferenceHeader({
 
   return (
     <Th className="whitespace-nowrap">
+      {filters && (
+        <span className="mr-2 inline-flex align-middle">
+          <LotFilterMenu />
+        </span>
+      )}
       <Link
         href={`?${params.toString()}`}
         aria-label={`Trier par référence de lot, ordre ${

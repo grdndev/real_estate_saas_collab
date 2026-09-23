@@ -7,13 +7,14 @@ import {
   loadProgrammeDetail,
 } from "@/lib/programme/access";
 import { parseSortDirection } from "@/lib/lot/sort";
+import { parseLotFilters } from "@/lib/lot/filter";
 import { ProgrammeDetailView } from "@/components/views/programmes/programme-detail-view";
 
 export const metadata: Metadata = { title: "Détail programme" };
 
 interface PageProps {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tri?: string }>;
+  searchParams: Promise<{ tri?: string; f?: string | string[] }>;
 }
 
 export default async function ProgrammeDetailPage({
@@ -22,7 +23,9 @@ export default async function ProgrammeDetailPage({
 }: PageProps) {
   await requireRole("SUPER_ADMIN");
   const { id } = await params;
-  const sortDirection = parseSortDirection((await searchParams).tri);
+  const { tri, f } = await searchParams;
+  const sortDirection = parseSortDirection(tri);
+  const filters = parseLotFilters(f);
 
   const programme = await loadProgrammeDetail(id);
   if (!programme) notFound();
@@ -41,6 +44,7 @@ export default async function ProgrammeDetailPage({
       canEdit
       canManagePromoters
       sortDirection={sortDirection}
+      filters={filters}
     />
   );
 }
