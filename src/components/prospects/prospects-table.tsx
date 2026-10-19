@@ -127,7 +127,7 @@ export function ProspectsTable({
         <THead>
           <Tr>
             <Th>Nom</Th>
-            <Th>Email</Th>
+            <Th>Contact</Th>
             <Th>Commune</Th>
             <Th>Programme</Th>
             <Th>Source</Th>
@@ -152,7 +152,10 @@ export function ProspectsTable({
                 <Td className="font-medium">
                   {p.firstName} {p.lastName}
                 </Td>
-                <Td className="text-xs text-slate-600">{p.email}</Td>
+                <Td className="text-xs text-slate-600">
+                  <div>{p.email}</div>
+                  {p.phone && <div className="text-slate-500">{p.phone}</div>}
+                </Td>
                 <Td className="text-xs text-slate-600">{p.city ?? "—"}</Td>
                 <Td className="text-xs text-slate-600">
                   {p.programmeName ?? "—"}

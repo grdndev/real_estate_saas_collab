@@ -8,6 +8,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, type SessionUser } from "@/lib/auth/guards";
 import { programmesForPromoter } from "@/lib/promoter/access";
 import { parseCsv } from "@/lib/prospect/csv";
+import { buildProspectCreateData } from "@/lib/prospect/create-data";
 import { audit } from "@/lib/audit";
 import { getRequestContext } from "@/lib/request-context";
 import { hashPassword } from "@/lib/auth/password";
@@ -133,17 +134,7 @@ export async function createProspectAction(
 
   try {
     const prospect = await prisma.prospect.create({
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        phone: data.phone || null,
-        city: data.city || null,
-        programmeId: data.programmeId || null,
-        source: data.source || "manual",
-        notes: data.notes || null,
-        ownerId: me.role === "COLLABORATOR" ? me.id : null,
-      },
+      data: buildProspectCreateData(data, me),
     });
     await audit({
       userId: me.id,
