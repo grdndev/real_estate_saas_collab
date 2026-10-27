@@ -13,6 +13,7 @@ export const CONTRACT_STATUS_ORDER: ContractStatus[] = [
   "LOAN_OFFER_RECEIVED",
   "LOAN_OFFER_SENT_TO_NOTARY",
   "NOTARY_APPOINTMENT_SCHEDULED",
+  "SOLD",
 ];
 
 export const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
@@ -26,6 +27,7 @@ export const CONTRACT_STATUS_LABEL: Record<ContractStatus, string> = {
   LOAN_OFFER_SENT_TO_NOTARY:
     "Offre de prêt envoyée au notaire — en attente de RDV",
   NOTARY_APPOINTMENT_SCHEDULED: "RDV notaire planifié",
+  SOLD: "Vendu",
 };
 
 export const CONTRACT_STATUS_BADGE: Record<ContractStatus, BadgeVariant> = {
@@ -38,6 +40,7 @@ export const CONTRACT_STATUS_BADGE: Record<ContractStatus, BadgeVariant> = {
   LOAN_OFFER_RECEIVED: "info",
   LOAN_OFFER_SENT_TO_NOTARY: "warning",
   NOTARY_APPOINTMENT_SCHEDULED: "success",
+  SOLD: "success",
 };
 
 /**

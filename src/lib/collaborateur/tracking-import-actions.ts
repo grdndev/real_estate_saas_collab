@@ -344,15 +344,15 @@ export async function upsertTrackingDossierAction(
     | "AWAITING_SIGNATURE"
     | "CONTRACT_SIGNED"
     | "SENT_TO_NOTARY"
-    | "LOAN_OFFER_RECEIVED";
+    | "LOAN_OFFER_RECEIVED"
+    | "SOLD";
   let contractStatus: CS | null = null;
-  if (!actSignedAt) {
-    if (notaryTransmittedAt) contractStatus = "SENT_TO_NOTARY";
-    else if (processData.loanObtained === "cash") contractStatus = null;
-    else if (processData.loanObtained) contractStatus = "LOAN_OFFER_RECEIVED";
-    else if (reservationSignedAt) contractStatus = "CONTRACT_SIGNED";
-    else contractStatus = "AWAITING_SIGNATURE";
-  }
+  if (actSignedAt) contractStatus = "SOLD";
+  else if (notaryTransmittedAt) contractStatus = "SENT_TO_NOTARY";
+  else if (processData.loanObtained === "cash") contractStatus = null;
+  else if (processData.loanObtained) contractStatus = "LOAN_OFFER_RECEIVED";
+  else if (reservationSignedAt) contractStatus = "CONTRACT_SIGNED";
+  else contractStatus = "AWAITING_SIGNATURE";
 
   const optioned = !!optionDate && !reservationSignedAt;
 

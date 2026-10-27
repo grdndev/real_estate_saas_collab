@@ -236,7 +236,11 @@ export async function importFondsSuiviAction(input: {
         if (dossier.status !== "ACT_SIGNED") {
           await prisma.dossier.update({
             where: { id: lot.dossierId },
-            data: { status: "ACT_SIGNED", closedAt: actSignedDate },
+            data: {
+              status: "ACT_SIGNED",
+              closedAt: actSignedDate,
+              contractStatus: "SOLD",
+            },
           });
         }
       }

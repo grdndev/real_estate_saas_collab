@@ -60,6 +60,7 @@ const CONTRACT_STATUS_TIMELINE_KIND: Partial<
 > = {
   RESERVATION_SIGNED: "RESERVATION_SIGNED",
   NOTARY_ACT_PENDING: "NOTARY_ACT_PENDING",
+  SOLD: "ACT_SIGNED",
 };
 
 /**
@@ -138,7 +139,9 @@ export async function updateDossierStatusAction(
         ...(data.status === "RESERVATION_SENT" || data.status === "NEW_LEAD"
           ? { optioned: false, optionExpiresAt: null }
           : {}),
-        ...(data.status === "ACT_SIGNED" ? { closedAt: new Date() } : {}),
+        ...(data.status === "ACT_SIGNED"
+          ? { closedAt: new Date(), contractStatus: "SOLD" }
+          : {}),
       },
     });
     await tx.timelineEvent.create({
@@ -1213,12 +1216,26 @@ export async function updateContractStatusAction(
   }
 
   const label = CONTRACT_STATUS_LABEL[data.contractStatus];
+  const closesDossier =
+    data.contractStatus === "SOLD" && dossier.status !== "ACT_SIGNED";
 
   await prisma.$transaction(async (tx) => {
     await tx.dossier.update({
       where: { id: dossier.id },
-      data: { contractStatus: data.contractStatus, lastActivityAt: new Date() },
+      data: {
+        contractStatus: data.contractStatus,
+        lastActivityAt: new Date(),
+        ...(closesDossier
+          ? { status: "ACT_SIGNED", closedAt: new Date() }
+          : {}),
+      },
     });
+    if (closesDossier) {
+      await tx.lot.updateMany({
+        where: { dossierId: dossier.id },
+        data: { status: "SOLD" },
+      });
+    }
     const dedicatedKind = CONTRACT_STATUS_TIMELINE_KIND[data.contractStatus];
     await tx.timelineEvent.create({
       data: {

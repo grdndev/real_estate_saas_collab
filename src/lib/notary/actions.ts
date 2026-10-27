@@ -449,7 +449,9 @@ export async function notaryUpdateStatusAction(
       data: {
         status,
         lastActivityAt: new Date(),
-        ...(status === "ACT_SIGNED" ? { closedAt: new Date() } : {}),
+        ...(status === "ACT_SIGNED"
+          ? { closedAt: new Date(), contractStatus: "SOLD" }
+          : {}),
       },
     });
     await tx.timelineEvent.create({

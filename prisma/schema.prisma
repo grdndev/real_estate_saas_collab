@@ -73,6 +73,7 @@ enum ContractStatus {
   LOAN_OFFER_RECEIVED // Offre de prêt reçue
   LOAN_OFFER_SENT_TO_NOTARY // Offre de prêt envoyée au notaire — en attente de RDV
   NOTARY_APPOINTMENT_SCHEDULED // RDV notaire planifié
+  SOLD // Vendu
 }
 
 enum FamilyStatus {

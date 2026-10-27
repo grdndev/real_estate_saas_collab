@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/dialog";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ export function ContractStatusCard({ dossierId, current }: Props) {
   );
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState(false);
 
   function submit() {
     setError(null);
@@ -40,8 +42,10 @@ export function ContractStatusCard({ dossierId, current }: Props) {
       });
       if (!result.ok) {
         setError(result.error);
+        setConfirm(false);
         return;
       }
+      setConfirm(false);
       setComment("");
       router.refresh();
     });
@@ -95,10 +99,25 @@ export function ContractStatusCard({ dossierId, current }: Props) {
       )}
 
       <div>
-        <Button type="button" size="sm" onClick={submit} disabled={pending}>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => (next === "SOLD" ? setConfirm(true) : submit())}
+          disabled={pending}
+        >
           {pending ? "Mise à jour…" : "Mettre à jour le contrat"}
         </Button>
       </div>
+      <ConfirmDialog
+        open={confirm}
+        title="Marquer ce dossier comme vendu ?"
+        description="Cette action passe le dossier en acte signé, le clôt et passe le lot en VENDU. Elle est journalisée et difficilement réversible."
+        destructive
+        confirmLabel="Confirmer la vente"
+        pending={pending}
+        onCancel={() => setConfirm(false)}
+        onConfirm={submit}
+      />
     </div>
   );
 }

@@ -29,6 +29,7 @@ export const contractStatusEnum = z.enum([
   "LOAN_OFFER_RECEIVED",
   "LOAN_OFFER_SENT_TO_NOTARY",
   "NOTARY_APPOINTMENT_SCHEDULED",
+  "SOLD",
 ]);
 
 export const updateContractStatusSchema = z.object({
