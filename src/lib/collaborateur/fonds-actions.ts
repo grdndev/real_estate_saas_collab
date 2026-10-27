@@ -218,7 +218,6 @@ export async function upsertProgrammeAppelAction(
 
 const clientContactSchema = z.object({
   lotId: z.string().min(1),
-  email: z.email("Email invalide").toLowerCase(),
   additionalEmails: z.string().nullable(),
   phone: z.string().nullable(),
   address: z
@@ -238,7 +237,7 @@ export async function updateFondsClientContactAction(
 
   const parsed = clientContactSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Saisie invalide." };
-  const { lotId, email, additionalEmails, phone, address } = parsed.data;
+  const { lotId, additionalEmails, phone, address } = parsed.data;
 
   const lot = await prisma.lot.findUnique({
     where: { id: lotId },
@@ -256,47 +255,23 @@ export async function updateFondsClientContactAction(
   }
   const clientId = lot.dossier.clientId;
 
-  const existing = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  if (existing && existing.id !== clientId) {
-    return {
-      ok: false,
-      error: "Cet email est déjà utilisé par un autre compte.",
-    };
-  }
-
   const hasAddress =
     address != null &&
     [address.line, address.postalCode, address.city, address.country].some(
       (v) => v.trim() !== "",
     );
 
-  try {
-    await prisma.user.update({
-      where: { id: clientId },
-      data: {
-        email,
-        phoneEnc: phone?.trim() ? encrypt(phone.trim()) : null,
-        addressEnc: hasAddress ? encrypt(JSON.stringify(address)) : null,
-        additionalEmailsEnc: additionalEmails?.trim()
-          ? encrypt(additionalEmails.trim())
-          : null,
-      },
-    });
-  } catch (e) {
-    if (
-      e instanceof Prisma.PrismaClientKnownRequestError &&
-      e.code === "P2002"
-    ) {
-      return {
-        ok: false,
-        error: "Cet email est déjà utilisé par un autre compte.",
-      };
-    }
-    throw e;
-  }
+  // L'email principal (identifiant de connexion) n'est pas modifiable ici.
+  await prisma.user.update({
+    where: { id: clientId },
+    data: {
+      phoneEnc: phone?.trim() ? encrypt(phone.trim()) : null,
+      addressEnc: hasAddress ? encrypt(JSON.stringify(address)) : null,
+      additionalEmailsEnc: additionalEmails?.trim()
+        ? encrypt(additionalEmails.trim())
+        : null,
+    },
+  });
 
   const ctx = await getRequestContext();
   await audit({

@@ -50,7 +50,6 @@ export function ClientContactCard({
   const [saved, setSaved] = useState(false);
 
   const [fields, setFields] = useState({
-    email: contact?.email ?? "",
     additionalEmails: contact?.additionalEmails ?? "",
     phone: contact?.phone ?? "",
     line: contact?.address?.line ?? "",
@@ -65,7 +64,6 @@ export function ClientContactCard({
 
   function handleCancel() {
     setFields({
-      email: contact?.email ?? "",
       additionalEmails: contact?.additionalEmails ?? "",
       phone: contact?.phone ?? "",
       line: contact?.address?.line ?? "",
@@ -83,7 +81,6 @@ export function ClientContactCard({
     startTransition(async () => {
       const res = await updateFondsClientContactAction({
         lotId,
-        email: fields.email.trim(),
         additionalEmails: fields.additionalEmails || null,
         phone: fields.phone || null,
         address: {
@@ -190,13 +187,6 @@ export function ClientContactCard({
         ) : (
           <div className="flex flex-col gap-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Email" htmlFor="client-email" required>
-                <Input
-                  type="email"
-                  value={fields.email}
-                  onChange={(e) => setField("email", e.target.value)}
-                />
-              </FormField>
               <FormField
                 label="Emails supplémentaires"
                 htmlFor="client-additional-emails"
@@ -250,10 +240,7 @@ export function ClientContactCard({
               >
                 Annuler
               </Button>
-              <Button
-                onClick={handleSubmit}
-                disabled={pending || !fields.email.trim()}
-              >
+              <Button onClick={handleSubmit} disabled={pending}>
                 {pending ? "Enregistrement…" : "Enregistrer"}
               </Button>
             </div>

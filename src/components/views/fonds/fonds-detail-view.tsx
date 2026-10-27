@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LotFondsForm } from "@/components/collaborateur/fonds/lot-fonds-form";
 import { ClientContactCard } from "@/components/collaborateur/fonds/client-contact-card";
 import { decodeAddress, decodePhone, decodeText } from "@/lib/profile";
+import { displayableEmail } from "@/lib/user/no-account";
 import type { LotFondsDetail } from "@/lib/fonds/access";
 
 /**
@@ -45,7 +46,7 @@ export function FondsDetailView({
 
   const clientContact = client
     ? {
-        email: client.email,
+        email: displayableEmail(client.email) ?? "",
         additionalEmails: decodeText(client.additionalEmailsEnc),
         phone: decodePhone(client.phoneEnc),
         address: decodeAddress(client.addressEnc),
