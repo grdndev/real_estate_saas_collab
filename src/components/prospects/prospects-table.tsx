@@ -25,7 +25,7 @@ export interface ProspectRow {
   id: string;
   firstName: string;
   lastName: string;
-  email: string;
+  email: string | null;
   city: string | null;
   phone: string | null;
   programmeId: string | null;
@@ -153,8 +153,9 @@ export function ProspectsTable({
                   {p.firstName} {p.lastName}
                 </Td>
                 <Td className="text-xs text-slate-600">
-                  <div>{p.email}</div>
+                  {p.email && <div>{p.email}</div>}
                   {p.phone && <div className="text-slate-500">{p.phone}</div>}
+                  {!p.email && !p.phone && "—"}
                 </Td>
                 <Td className="text-xs text-slate-600">{p.city ?? "—"}</Td>
                 <Td className="text-xs text-slate-600">

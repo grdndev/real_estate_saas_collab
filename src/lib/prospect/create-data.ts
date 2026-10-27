@@ -10,7 +10,7 @@ export function buildProspectCreateData(
   return {
     firstName: data.firstName,
     lastName: data.lastName,
-    email: data.email,
+    email: data.email || null,
     phone: data.phone || null,
     city: data.city || null,
     programmeId: data.programmeId || null,

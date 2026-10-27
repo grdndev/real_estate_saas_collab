@@ -716,7 +716,7 @@ model Prospect {
   id          String         @id @default(cuid())
   firstName   String
   lastName    String
-  email       String
+  email       String?
   phone       String?
   city        String?
   programmeId String?

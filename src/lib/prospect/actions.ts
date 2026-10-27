@@ -15,6 +15,7 @@ import { hashPassword } from "@/lib/auth/password";
 import { createClientDossierCore } from "@/lib/dossier/client-dossier-core";
 import { getMailer } from "@/lib/mail";
 import { invitationMail } from "@/lib/mail/admin-templates";
+import { buildPlaceholderEmail } from "@/lib/user/no-account";
 import {
   createProspectSchema,
   importProspectsSchema,
@@ -230,7 +231,7 @@ export async function importProspectsAction(
     return {
       ok: false,
       error:
-        "Aucune ligne valide. Colonnes attendues : Prénom, Nom, Email, Commune.",
+        "Aucune ligne valide. Colonnes attendues : Prénom, Nom, Email et Téléphone (optionnels).",
     };
   }
 
@@ -242,7 +243,7 @@ export async function importProspectsAction(
         data: {
           firstName: row.firstName,
           lastName: row.lastName,
-          email: row.email,
+          email: row.email || null,
           phone: row.phone || null,
           // La commune n'est pas importée (T2) : elle se saisit manuellement.
           programmeId: parsed.data.programmeId || null,
@@ -371,14 +372,16 @@ export async function convertProspectAction(
     }
   }
 
-  const email = prospect.email.toLowerCase().trim();
-  const existingUser = await prisma.user.findUnique({ where: { email } });
-  if (existingUser) {
-    return {
-      ok: false,
-      error:
-        "Un compte existe déjà avec l'email de ce prospect. Associez-le manuellement à un dossier.",
-    };
+  const email = prospect.email?.toLowerCase().trim() || null;
+  if (email) {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return {
+        ok: false,
+        error:
+          "Un compte existe déjà avec l'email de ce prospect. Associez-le manuellement à un dossier.",
+      };
+    }
   }
 
   // Collaborateur référent : l'acteur s'il est collaborateur, sinon l'owner du
@@ -400,12 +403,13 @@ export async function convertProspectAction(
   try {
     created = await prisma.$transaction(async (tx) => {
       const core = await createClientDossierCore(tx, {
-        email,
+        email: email ?? buildPlaceholderEmail(),
         firstName: prospect.firstName,
         lastName: prospect.lastName,
         phone: prospect.phone,
         lotId: data.lotId,
         passwordHash: placeholderHash,
+        noAccount: !email,
         collaboratorId,
         actorId: me.id,
         timelineTitle: "Dossier créé par conversion d'un prospect",

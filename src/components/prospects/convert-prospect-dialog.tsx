@@ -22,7 +22,12 @@ export function ConvertProspectDialog({
   onClose,
 }: {
   open: boolean;
-  prospect: { id: string; firstName: string; lastName: string };
+  prospect: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string | null;
+  };
   programmes: ProgrammeLotOption[];
   defaultProgrammeId?: string | null;
   onClose: () => void;
@@ -74,14 +79,24 @@ export function ConvertProspectDialog({
       onCancel={onClose}
       description={
         <div className="space-y-3">
-          <p>
-            Un compte client sera créé pour{" "}
-            <strong>
-              {prospect.firstName} {prospect.lastName}
-            </strong>{" "}
-            et le dossier du lot choisi, puis un email d&apos;invitation lui
-            sera envoyé.
-          </p>
+          {prospect.email ? (
+            <p>
+              Un compte client sera créé pour{" "}
+              <strong>
+                {prospect.firstName} {prospect.lastName}
+              </strong>{" "}
+              et le dossier du lot choisi, puis un email d&apos;invitation lui
+              sera envoyé.
+            </p>
+          ) : (
+            <p>
+              <strong>
+                {prospect.firstName} {prospect.lastName}
+              </strong>{" "}
+              n&apos;a pas d&apos;email : un client sans compte sera créé avec
+              le dossier du lot choisi, sans invitation.
+            </p>
+          )}
 
           {serverError && <p className="text-sm text-red-600">{serverError}</p>}
 

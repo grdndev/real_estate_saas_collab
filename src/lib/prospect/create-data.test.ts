@@ -47,6 +47,16 @@ describe("buildProspectCreateData", () => {
     expect(data.phone).toBe("0692 12 34 56");
   });
 
+  it("accepte un prospect sans email", () => {
+    expect(
+      buildProspectCreateData({ ...baseInput, email: "" }, collaborator).email,
+    ).toBeNull();
+    expect(
+      buildProspectCreateData({ ...baseInput, email: undefined }, collaborator)
+        .email,
+    ).toBeNull();
+  });
+
   it("n'attribue le prospect qu'à un collaborateur", () => {
     expect(buildProspectCreateData(baseInput, collaborator).ownerId).toBe(
       "collab-1",

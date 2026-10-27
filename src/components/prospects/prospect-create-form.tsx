@@ -94,7 +94,6 @@ export function ProspectCreateForm({ programmes }: Props) {
       <FormField
         label="Email"
         htmlFor="p-email"
-        required
         error={form.formState.errors.email?.message}
         className="sm:col-span-2"
       >

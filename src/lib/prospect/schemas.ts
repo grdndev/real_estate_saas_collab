@@ -12,7 +12,7 @@ export type ProspectStatusInput = z.infer<typeof prospectStatusEnum>;
 export const createProspectSchema = z.object({
   firstName: z.string().min(2, "Prénom trop court").max(60).trim(),
   lastName: z.string().min(2, "Nom trop court").max(60).trim(),
-  email: z.email("Email invalide").toLowerCase(),
+  email: z.email("Email invalide").toLowerCase().optional().or(z.literal("")),
   phone: z
     .string()
     .min(8, "Numéro trop court")

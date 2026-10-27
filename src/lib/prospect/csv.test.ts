@@ -4,7 +4,8 @@ import { parseCsv } from "./csv";
 
 /**
  * T2 : l'import CSV de prospects ne retient que nom, prénom, téléphone et
- * email. Toute autre colonne du fichier — notamment la commune — est ignorée.
+ * email (facultatif). Toute autre colonne du fichier — notamment la commune —
+ * est ignorée.
  */
 describe("parseCsv — import de prospects", () => {
   it("lit les quatre champs retenus", () => {
@@ -76,18 +77,33 @@ describe("parseCsv — import de prospects", () => {
     expect(rows[0]?.phone).toBeUndefined();
   });
 
-  it("ignore les lignes sans nom, prénom ou email", () => {
+  it("ignore les lignes sans nom ou prénom", () => {
     const rows = parseCsv(
       [
         "Prénom,Nom,Email",
         "Jean,Dupont,jean@example.test",
         ",Martin,marie@example.test",
         "Léa,,lea@example.test",
-        "Paul,Petit,",
       ].join("\n"),
     );
 
     expect(rows.map((r) => r.email)).toEqual(["jean@example.test"]);
+  });
+
+  it("garde les lignes sans email", () => {
+    const rows = parseCsv(
+      ["Prénom,Nom,Email,Téléphone", "Paul,Petit,,0692112233"].join("\n"),
+    );
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.email).toBeUndefined();
+    expect(rows[0]?.phone).toBe("0692112233");
+  });
+
+  it("accepte un fichier sans colonne email", () => {
+    const rows = parseCsv(["Prénom,Nom", "Paul,Petit"].join("\n"));
+
+    expect(rows).toEqual([{ firstName: "Paul", lastName: "Petit" }]);
   });
 
   it("retourne une liste vide si les en-têtes obligatoires manquent", () => {

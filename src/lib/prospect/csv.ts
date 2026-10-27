@@ -13,7 +13,7 @@
 export interface ImportRow {
   firstName: string;
   lastName: string;
-  email: string;
+  email?: string;
   phone?: string;
 }
 
@@ -54,7 +54,7 @@ export function parseCsv(csv: string): ImportRow[] {
     "portable",
   );
 
-  if (idxFirst === -1 || idxLast === -1 || idxEmail === -1) return [];
+  if (idxFirst === -1 || idxLast === -1) return [];
 
   const rows: ImportRow[] = [];
   for (let i = 1; i < lines.length; i++) {
@@ -62,12 +62,12 @@ export function parseCsv(csv: string): ImportRow[] {
     const cells = line.split(/[,;]/).map((c) => c.trim().replace(/^"|"$/g, ""));
     const firstName = cells[idxFirst];
     const lastName = cells[idxLast];
-    const email = cells[idxEmail];
-    if (!firstName || !lastName || !email) continue;
+    const email = idxEmail !== -1 ? cells[idxEmail] : undefined;
+    if (!firstName || !lastName) continue;
     rows.push({
       firstName,
       lastName,
-      email: email.toLowerCase(),
+      email: email?.toLowerCase() || undefined,
       phone: idxPhone !== -1 ? cells[idxPhone] : undefined,
     });
   }
