@@ -46,3 +46,14 @@ export function canBeContactedByEmail(user: {
 }): boolean {
   return user.status !== "NO_ACCOUNT" && !isPlaceholderEmail(user.email);
 }
+
+export function resolveClientEmail(
+  provided: string | undefined,
+  current: { email: string; status: string },
+): string | null {
+  if (provided) return provided;
+  if (current.status !== "NO_ACCOUNT") return null;
+  return isPlaceholderEmail(current.email)
+    ? current.email
+    : buildPlaceholderEmail();
+}

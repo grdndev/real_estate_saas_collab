@@ -14,6 +14,7 @@ import { FAMILY_STATUS_LABEL } from "@/lib/client-profile/schemas";
 export interface ClientProfileValues {
   firstName: string;
   lastName: string;
+  email: string;
   phone: string;
   birthName: string;
   birthDate: string;
@@ -32,12 +33,15 @@ export interface ClientProfileValues {
 
 interface Props {
   dossierId: string;
-  /** `null` pour un client sans compte dépourvu d'adresse réelle (T7). */
-  email: string | null;
+  emailRequired: boolean;
   initial: ClientProfileValues;
 }
 
-export function ClientProfileForm({ dossierId, email, initial }: Props) {
+export function ClientProfileForm({
+  dossierId,
+  emailRequired,
+  initial,
+}: Props) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [values, setValues] = useState<ClientProfileValues>(initial);
@@ -130,12 +134,18 @@ export function ClientProfileForm({ dossierId, email, initial }: Props) {
         <legend className="text-equatis-night-800 mb-2 text-sm font-semibold">
           Coordonnées
         </legend>
-        <FormField label="Adresse email" htmlFor="cp-email">
+        <FormField
+          label="Adresse email"
+          htmlFor="cp-email"
+          required={emailRequired}
+        >
           <Input
             id="cp-email"
-            value={email ?? ""}
+            type="email"
+            value={values.email}
+            onChange={(e) => set("email", e.target.value)}
             placeholder="Aucune adresse renseignée"
-            disabled
+            required={emailRequired}
           />
         </FormField>
         <FormField label="Téléphone" htmlFor="cp-phone">

@@ -2,6 +2,7 @@
 
 import { revalidateLotPaths } from "@/lib/lot/revalidate";
 import { z } from "zod";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/auth/guards";
 import { audit } from "@/lib/audit";
@@ -13,8 +14,11 @@ import {
   FAMILY_STATUS_LABEL,
   type UpsertClientProfileInput,
 } from "@/lib/client-profile/schemas";
+import { displayableEmail, resolveClientEmail } from "@/lib/user/no-account";
 import type { FamilyStatus } from "@/generated/prisma/enums";
 import type { ActionResult } from "@/lib/auth/actions";
+
+const EMAIL_TAKEN_ERROR = "Cet email est déjà utilisé par un autre compte.";
 
 function flatten(error: z.ZodError): Record<string, string[]> {
   return z.flattenError(error).fieldErrors as Record<string, string[]>;
@@ -54,6 +58,30 @@ export async function upsertClientProfileAction(
       error: "Associez d'abord un client à ce dossier.",
     };
   }
+  const clientId = dossier.clientId;
+
+  const client = await prisma.user.findUniqueOrThrow({
+    where: { id: clientId },
+    select: { email: true, status: true },
+  });
+  const email = resolveClientEmail(data.email, client);
+  if (!email) {
+    return {
+      ok: false,
+      error: "L'email est obligatoire pour un client disposant d'un compte.",
+      fieldErrors: { email: ["Email requis"] },
+    };
+  }
+  const emailChanged = email !== client.email;
+  if (emailChanged) {
+    const existing = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existing && existing.id !== clientId) {
+      return { ok: false, error: EMAIL_TAKEN_ERROR };
+    }
+  }
 
   const familyStatus =
     data.familyStatus && data.familyStatus in FAMILY_STATUS_LABEL
@@ -78,42 +106,56 @@ export async function upsertClientProfileAction(
     marriageContract: data.marriageContract || null,
   };
 
-  await prisma.$transaction(async (tx) => {
-    await tx.user.update({
-      where: { id: dossier.clientId! },
-      data: {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        phoneEnc: data.phone ? encrypt(data.phone) : null,
-        ...(hasAddress
-          ? {
-              addressEnc: encrypt(
-                JSON.stringify({
-                  line: data.addressLine ?? "",
-                  postalCode: data.postalCode ?? "",
-                  city: data.city ?? "",
-                  country: data.country ?? "",
-                }),
-              ),
-            }
-          : {}),
-      },
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: clientId },
+        data: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email,
+          phoneEnc: data.phone ? encrypt(data.phone) : null,
+          ...(hasAddress
+            ? {
+                addressEnc: encrypt(
+                  JSON.stringify({
+                    line: data.addressLine ?? "",
+                    postalCode: data.postalCode ?? "",
+                    city: data.city ?? "",
+                    country: data.country ?? "",
+                  }),
+                ),
+              }
+            : {}),
+        },
+      });
+      await tx.clientProfile.upsert({
+        where: { userId: clientId },
+        create: { userId: clientId, ...profileData },
+        update: profileData,
+      });
     });
-    await tx.clientProfile.upsert({
-      where: { userId: dossier.clientId! },
-      create: { userId: dossier.clientId!, ...profileData },
-      update: profileData,
-    });
-  });
+  } catch (e) {
+    if (
+      e instanceof Prisma.PrismaClientKnownRequestError &&
+      e.code === "P2002"
+    ) {
+      return { ok: false, error: EMAIL_TAKEN_ERROR };
+    }
+    throw e;
+  }
 
+  const emailChange = emailChanged
+    ? `, email ${displayableEmail(client.email) ?? "aucun"} → ${displayableEmail(email) ?? "aucun"}`
+    : "";
   await audit({
     userId: me.id,
     action: "DOSSIER_UPDATED",
     resourceType: "ClientProfile",
-    resourceId: dossier.clientId,
+    resourceId: clientId,
     ip: ctx.ip,
     userAgent: ctx.userAgent,
-    metadata: `Fiche client mise à jour (dossier ${dossier.id})`,
+    metadata: `Fiche client mise à jour (dossier ${dossier.id}${emailChange})`,
   });
 
   revalidateLotPaths(dossier.lotId);

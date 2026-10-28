@@ -47,6 +47,7 @@ export async function LotFicheClientView({ lotId, basePath }: Props) {
               firstName: true,
               lastName: true,
               email: true,
+              status: true,
               phoneEnc: true,
               addressEnc: true,
               clientProfile: true,
@@ -88,10 +89,11 @@ export async function LotFicheClientView({ lotId, basePath }: Props) {
           {dossier && client ? (
             <ClientProfileForm
               dossierId={dossier.id}
-              email={displayableEmail(client.email)}
+              emailRequired={client.status !== "NO_ACCOUNT"}
               initial={{
                 firstName: client.firstName,
                 lastName: client.lastName,
+                email: displayableEmail(client.email) ?? "",
                 phone: safeDecrypt(client.phoneEnc),
                 birthName: client.clientProfile?.birthName ?? "",
                 birthDate: toDateInput(client.clientProfile?.birthDate ?? null),

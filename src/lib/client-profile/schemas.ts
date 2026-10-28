@@ -17,6 +17,9 @@ export const upsertClientProfileSchema = z.object({
   // Identité (modèle User)
   firstName: z.string().trim().min(1, "Prénom requis").max(60),
   lastName: z.string().trim().min(1, "Nom requis").max(60),
+  email: z
+    .union([z.email("Email invalide").toLowerCase(), z.literal("")])
+    .optional(),
   phone: optionalText(30),
   // Fiche client étendue (modèle ClientProfile)
   birthName: optionalText(80),
